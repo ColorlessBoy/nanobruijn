@@ -19,3 +19,4 @@
 /hooks/
 /config
 py_nanobruijn/__pycache__/
+__pycache__
