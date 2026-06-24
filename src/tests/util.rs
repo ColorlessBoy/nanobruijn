@@ -1,4 +1,4 @@
-use crate::util::{Config, CowStr, ExportFile, CorePtr, LevelPtr, ExprPtr, TcCtx};
+use crate::util::{Config, CowStr, ExportFile, LevelPtr, ExprPtr, TcCtx};
 use rand::distributions::Alphanumeric;
 use rand::{rngs::ThreadRng, Rng};
 use std::error::Error;
@@ -53,7 +53,7 @@ pub(crate) fn test_export_file_should_panic<A>(config_path: Option<&Path>, f: im
     }
 }
 
-pub(crate) fn test_ctx<'p, A>(path: Option<&Path>, f: impl FnOnce(&mut TcCtx) -> A) -> Result<A, Box<dyn Error>> {
+pub(crate) fn test_ctx<A>(path: Option<&Path>, f: impl FnOnce(&mut TcCtx) -> A) -> Result<A, Box<dyn Error>> {
     test_export_file(path, |export_file| export_file.with_ctx(f))
 }
 
@@ -79,7 +79,7 @@ impl<'t, 'p: 't> TcCtx<'t, 'p> {
 
     #[cfg(test)]
     pub(crate) fn param_quick(&mut self, s: &'static str) -> LevelPtr<'t> {
-        let n = self.str1(&s);
+        let n = self.str1(s);
         self.param(n)
     }
 }

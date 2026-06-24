@@ -236,7 +236,6 @@ pub fn check_quot<'x, 't: 'x, 'p: 't>(ctx: &'x mut TcCtx<'t, 'p>, declar: &Decla
         let env = ctx.export_file.new_env(EnvLimit::ByName(declar.info().name));
         let mut tc = TypeChecker::new(ctx, &env, Some(*declar.info()));
         tc.assert_def_eq(ExprPtr::closed(declar.info().ty), ExprPtr::unshifted(expected_quot_lift.info().ty));
-        return
     } else if declar.info().name == ctx.str2("Quot", "ind") {
         // {B : @Quot A r → Prop}
         let quot_A_r_prop = arrow!(in ctx; quot_A_r, prop);
@@ -267,7 +266,6 @@ pub fn check_quot<'x, 't: 'x, 'p: 't>(ctx: &'x mut TcCtx<'t, 'p>, declar: &Decla
         let env = ctx.export_file.new_env(EnvLimit::ByName(declar.info().name));
         let mut tc = TypeChecker::new(ctx, &env, Some(*declar.info()));
         tc.assert_def_eq(ExprPtr::closed(declar.info().ty), ExprPtr::unshifted(expected_quot_ind.info().ty));
-        return
     } else {
         panic!("invalid quotient declaration {:?}", ctx.debug_print(declar.info().name))
     }

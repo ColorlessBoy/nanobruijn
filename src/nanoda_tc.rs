@@ -185,7 +185,7 @@ impl<'x, 't: 'x, 'p: 't> NanodaTypeChecker<'x, 't, 'p> {
         // `Point` declaration
         let InductiveData { all_ctor_names, .. } = self.env.get_inductive(&c_name)?;
         // Name = `Point.mk`
-        let ctor_name0 = all_ctor_names.get(0).copied()?;
+        let ctor_name0 = all_ctor_names.first().copied()?;
         // Ctor data for `Point.mk`
         let ConstructorData { num_params, num_fields, .. } = self.env.get_constructor(&ctor_name0).unwrap();
         // Const { name := Point.mk, levels := .. }
@@ -203,11 +203,6 @@ impl<'x, 't: 'x, 'p: 't> NanodaTypeChecker<'x, 't, 'p> {
             out = self.ctx.mk_app(out, proj);
         }
         Some(out)
-    }
-
-    pub(crate) fn ensure_infers_as_sort(&mut self, e: ExprPtr<'t>) -> LevelPtr<'t> {
-        let infd = self.infer(e, Check);
-        self.ensure_sort(infd)
     }
 
     pub(crate) fn ensure_sort(&mut self, e: ExprPtr<'t>) -> LevelPtr<'t> {
@@ -883,10 +878,8 @@ impl<'x, 't: 'x, 'p: 't> NanodaTypeChecker<'x, 't, 'p> {
                 }
             }
         };
-        if result {
-            if self.ctx.nlbv(x) == 0 && self.ctx.nlbv(y) == 0 {
-                self.tc_cache.eq_cache.union(x.core, y.core);
-            }
+        if result && self.ctx.nlbv(x) == 0 && self.ctx.nlbv(y) == 0 {
+            self.tc_cache.eq_cache.union(x.core, y.core);
         }
         result
     }
@@ -900,7 +893,7 @@ impl<'x, 't: 'x, 'p: 't> NanodaTypeChecker<'x, 't, 'p> {
         Some(self.ctx.foldl_apps(new_const, args))
     }
 
-    fn to_ctor_when_k(
+    fn try_ctor_when_k(
         &mut self,
         major: ExprPtr<'t>,
         rec: &RecursorData<'t>,
@@ -966,7 +959,7 @@ impl<'x, 't: 'x, 'p: 't> NanodaTypeChecker<'x, 't, 'p> {
         let rec @ RecursorData { info, rec_rules, num_params, num_motives, num_minors, .. } =
             self.env.get_recursor(&const_name)?;
         let major = args.get(rec.major_idx()).copied()?;
-        let major = self.to_ctor_when_k(major, rec).unwrap_or(major);
+        let major = self.try_ctor_when_k(major, rec).unwrap_or(major);
         let major = self.whnf(major);
         let major = match self.ctx.read_expr(major.core) {
             NatLit { ptr, .. } => self.ctx.nat_lit_to_constructor(ptr).unwrap_or(major),

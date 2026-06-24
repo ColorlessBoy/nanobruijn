@@ -23,12 +23,12 @@ fn check_semver<'a>(meta: &FileMeta<'a>) -> Result<(), Box<dyn Error>> {
     const MAX_SEMVER : semver::Version = semver::Version::new(3, 2, 0);
     let export_file_semver = semver::Version::parse(&meta.format.version)?;
     if export_file_semver < MIN_SEMVER {
-        return Err(Box::from(format!(
+        Err(Box::from(format!(
             "export format version is less than the minimum supported version. Found {}, but min supported is {}",
             export_file_semver, MIN_SEMVER
         )))
     } else if export_file_semver >= MAX_SEMVER {
-        return Err(Box::from(format!(
+        Err(Box::from(format!(
             "export format version is greater than the maximum supported version. Found {}, but max (exclusive) supported is {}",
             export_file_semver, MAX_SEMVER
         )))
@@ -388,7 +388,7 @@ pub(crate) fn parse_export_file<'p, R: BufRead>(
                 let n = parser.name_to_string(*declar_name);
                 pp_declar_names.remove(n.as_str());
             }
-            if pp_declar_names.len() > 0 {
+            if !pp_declar_names.is_empty() {
                 let list = pp_declar_names.into_iter().collect::<Vec<&str>>();
                 return Err(Box::from(format!("these pp_declars were not found in the exported environment: {:#?}", list)))
             }
@@ -483,7 +483,7 @@ impl<'a, R: BufRead> Parser<'a, R> {
             let hash = hash64!(crate::level::PARAM_HASH, name_ptr);
             // Has to already exist
             let idx = self.dag.levels.get_index_of(&Level::Param(name_ptr, hash)).unwrap();
-            levels.push(LevelPtr::from(DagMarker::ExportFile, idx as usize));
+            levels.push(LevelPtr::from(DagMarker::ExportFile, idx));
         }
         LevelsPtr::from(DagMarker::ExportFile, self.dag.uparams.insert_full(Arc::from(levels)).0)
     }
@@ -574,7 +574,7 @@ impl<'a, R: BufRead> Parser<'a, R> {
         let ExportJsonObject {val, i: assigned_idx} = serde_json::from_str::<ExportJsonObject>(line)?;
         match val {
             Metadata(json_val) => {
-                let _ = check_semver(&json_val)?;
+                check_semver(&json_val)?;
             }
             NameStr {pre, str} => {
                 let pfx = self.get_name_ptr(pre);

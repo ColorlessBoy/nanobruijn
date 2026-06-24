@@ -31,7 +31,7 @@ pub(crate) type FxIndexSet<A> = IndexSet<A, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxHashSet<K> = HashSet<K, BuildHasherDefault<FxHasher>>;
-pub(crate) type UniqueHashMap<K, V> = HashMap<K, V, BuildHasherDefault<UniqueHasher>>;
+
 
 /// An integer pointer to a kernel item, which can be in either the export file's
 /// persistent dag, or the type checking context's temporary dag. The integer pointer
@@ -188,25 +188,15 @@ pub(crate) fn new_fx_hash_set<K>() -> FxHashSet<K> { FxHashSet::with_hasher(Defa
 pub(crate) fn new_fx_index_set<K>() -> FxIndexSet<K> { FxIndexSet::with_hasher(Default::default()) }
 pub(crate) fn new_unique_index_set<K>() -> UniqueIndexSet<K> { UniqueIndexSet::with_hasher(Default::default()) }
 
-pub(crate) fn new_unique_hash_map<K, V>() -> UniqueHashMap<K, V> { UniqueHashMap::with_hasher(Default::default()) }
-
 /// A lazily-allocated hash map: 8 bytes (one null pointer) when empty,
 /// only heap-allocates on first insert.
 pub(crate) struct LazyMap<K, V>(Option<Box<FxHashMap<K, V>>>);
 
-impl<K, V> LazyMap<K, V> {
+impl<K: Eq + std::hash::Hash, V> LazyMap<K, V> {
     pub(crate) fn new() -> Self { LazyMap(None) }
 
-    pub(crate) fn is_allocated(&self) -> bool { self.0.is_some() }
-}
-
-impl<K: Eq + std::hash::Hash, V> LazyMap<K, V> {
     pub(crate) fn get(&self, key: &K) -> Option<&V> {
         self.0.as_ref()?.get(key)
-    }
-
-    pub(crate) fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        self.0.as_mut()?.get_mut(key)
     }
 
     pub(crate) fn insert(&mut self, key: K, value: V) -> Option<V> {
@@ -1632,14 +1622,14 @@ impl<'t, 'p: 't> TcCtx<'t, 'p> {
     #[inline]
     pub fn check_heartbeat(&mut self) {
         self.heartbeat += 1;
-        if self.heartbeat % 10_000 == 0 {
+        if self.heartbeat.is_multiple_of(10_000) {
             if let Some(deadline) = self.deadline {
                 if std::time::Instant::now() > deadline {
                     eprintln!("  [timeout] heartbeat={} dag={} | {}", self.heartbeat, self.dag.exprs.len(), self.trace);
                     panic!("declaration timeout exceeded");
                 }
             }
-            if self.heartbeat % 100_000 == 0 {
+            if self.heartbeat.is_multiple_of(100_000) {
                 if let Some(deadline) = self.deadline {
                     let remaining = deadline.saturating_duration_since(std::time::Instant::now());
                     eprintln!("  [hb] {} rem={:.1}s dag={} | {}", self.heartbeat, remaining.as_secs_f32(), self.dag.exprs.len(), self.trace);
@@ -2057,17 +2047,17 @@ impl TryFrom<&Path> for Config {
             Ok(config_file) => {
                 let config = serde_json::from_reader::<_, Config>(BufReader::new(config_file)).unwrap();
                 if config.export_file_path.is_none() && !config.use_stdin {
-                    return Err(Box::from(format!("incompatible config options: must specify a path to an export file OR set `use_stdin: true`")))
+                    return Err(Box::from("incompatible config options: must specify a path to an export file OR set `use_stdin: true`".to_string()))
                 }
                 if config.export_file_path.is_some() && config.use_stdin {
-                    return Err(Box::from(format!("incompatible config options: if an export file path is given, `use_stdin` cannot be `true`")))
+                    return Err(Box::from("incompatible config options: if an export file path is given, `use_stdin` cannot be `true`".to_string()))
                 }
                 if config.unsafe_permit_all_axioms {
                     if config.unpermitted_axiom_hard_error {
-                        return Err(Box::from(format!("incompatible config options: unsafe_permit_all_axioms && unpermitted_axioms_hard_error")))
+                        return Err(Box::from("incompatible config options: unsafe_permit_all_axioms && unpermitted_axioms_hard_error".to_string()))
                     }
                     if config.permitted_axioms.is_some() {
-                        return Err(Box::from(format!("incompatible config options: unsafe_permit_all_axioms && nonempty permitted_axioms list")))
+                        return Err(Box::from("incompatible config options: unsafe_permit_all_axioms && nonempty permitted_axioms list".to_string()))
                     }
                 }
                 Ok(config)

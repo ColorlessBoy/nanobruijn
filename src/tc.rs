@@ -183,7 +183,7 @@ impl<'p> ExportFile<'p> {
                 let name = self.with_ctx(|ctx| ctx.name_to_string(declar.info().name));
                 if !name.contains(filter.as_str()) { continue; }
             }
-            let trace_defeq_flag = self.config.declaration_filter.is_some();
+            let _trace_defeq_flag = self.config.declaration_filter.is_some();
             let decl_start = std::time::Instant::now();
             if i % 1000 == 0 || (skip_decl > 0 && i == skip_decl) {
                 let elapsed = decl_start.duration_since(start).as_millis();
@@ -454,7 +454,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         // `Point` declaration
         let InductiveData { all_ctor_names, .. } = self.env.get_structure(&c_name, false)?;
         // Name = `Point.mk`
-        let ctor_name0 = all_ctor_names.get(0).copied()?;
+        let ctor_name0 = all_ctor_names.first().copied()?;
         // Ctor data for `Point.mk`
         let ConstructorData { num_params, num_fields, .. } = self.env.get_constructor(&ctor_name0).unwrap();
         // Const { name := Point.mk, levels := .. }
@@ -1249,17 +1249,12 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         self.ctx.trace.spec_app_tried += 1;
         // Peel App layers, checking args via cheap_eq.
         let (mut fx, mut fy) = (x, y);
-        loop {
-            match self.ctx.view_expr_pair(fx, fy) {
-                (App { fun: f1, arg: a1, .. }, App { fun: f2, arg: a2, .. }) => {
-                    if !self.cheap_eq(a1, a2) {
-                        return None;
-                    }
-                    fx = f1;
-                    fy = f2;
-                }
-                _ => break,
+        while let (App { fun: f1, arg: a1, .. }, App { fun: f2, arg: a2, .. }) = self.ctx.view_expr_pair(fx, fy) {
+            if !self.cheap_eq(a1, a2) {
+                return None;
             }
+            fx = f1;
+            fy = f2;
         }
         // Check the head
         if !self.cheap_eq(fx, fy) {
@@ -1431,14 +1426,9 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
             let spec_result = {
                 let (mut fx, mut fy) = (x_n, y_n);
                 let mut ok = true;
-                loop {
-                    match self.ctx.view_expr_pair(fx, fy) {
-                        (App { fun: f1, arg: a1, .. }, App { fun: f2, arg: a2, .. }) => {
-                            if !self.cheap_eq(a1, a2) { ok = false; break; }
-                            fx = f1; fy = f2;
-                        }
-                        _ => break,
-                    }
+                while let (App { fun: f1, arg: a1, .. }, App { fun: f2, arg: a2, .. }) = self.ctx.view_expr_pair(fx, fy) {
+                    if !self.cheap_eq(a1, a2) { ok = false; break; }
+                    fx = f1; fy = f2;
                 }
                 if ok && self.cheap_eq(fx, fy) { Some(true) } else { None }
             };
@@ -1491,7 +1481,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         Some(self.ctx.foldl_apps(new_const, args))
     }
 
-    fn to_ctor_when_k(
+    fn try_ctor_when_k(
         &mut self,
         major: ExprPtr<'t>,
         rec: &RecursorData<'t>,
@@ -1557,7 +1547,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         let rec @ RecursorData { info, rec_rules, num_params, num_motives, num_minors, .. } =
             self.env.get_recursor(&const_name)?;
         let major = args.get(rec.major_idx()).copied()?;
-        let major = self.to_ctor_when_k(major, rec).unwrap_or(major);
+        let major = self.try_ctor_when_k(major, rec).unwrap_or(major);
         let major = self.whnf(major);
         // NatLit and StringLit are always closed, so read_expr suffices.
         let major = match self.ctx.read_expr(major.core) {
@@ -1733,7 +1723,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         let (key, swapped) = self.defeq_canon_key_open(nx, ny);
         let (sx, sy) = if swapped { (ny, nx) } else { (nx, ny) };
         let existing = depth_get!(ref self.tc_cache, bucket_idx, &key, defeq_neg_base, defeq_neg);
-        if existing.map_or(true, |&(_, _, sd)| depth < sd) {
+        if existing.is_none_or(|&(_, _, sd)| depth < sd) {
             depth_insert!(self.tc_cache, bucket_idx, key, (sx, sy, depth), defeq_neg_base, defeq_neg);
         }
     }

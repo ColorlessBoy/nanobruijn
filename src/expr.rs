@@ -898,16 +898,11 @@ impl<'t, 'p: 't> TcCtx<'t, 'p> {
 
     /// From `f a_0 .. a_N`, return `f` as ExprPtr.
     pub fn unfold_apps_fun(&self, mut e: ExprPtr<'t>) -> ExprPtr<'t> {
-        loop {
-            match self.read_expr(e.core) {
-                App { fun, .. } => {
-                    if e.is_closed() || e.shift == 0 {
-                        e = fun;
-                    } else {
-                        e = fun.shift_up(e.shift);
-                    }
-                }
-                _ => break,
+        while let App { fun, .. } = self.read_expr(e.core) {
+            if e.is_closed() || e.shift == 0 {
+                e = fun;
+            } else {
+                e = fun.shift_up(e.shift);
             }
         }
         e
@@ -917,18 +912,13 @@ impl<'t, 'p: 't> TcCtx<'t, 'p> {
     /// Composes shifts through the App spine via ExprPtr arithmetic.
     pub fn unfold_apps(&self, mut e: ExprPtr<'t>) -> (ExprPtr<'t>, AppArgs<'t>) {
         let mut args = AppArgs::new();
-        loop {
-            match self.read_expr(e.core) {
-                App { fun, arg, .. } => {
-                    if e.is_closed() || e.shift == 0 {
-                        args.push(arg);
-                        e = fun;
-                    } else {
-                        args.push(arg.shift_up(e.shift));
-                        e = fun.shift_up(e.shift);
-                    }
-                }
-                _ => break,
+        while let App { fun, arg, .. } = self.read_expr(e.core) {
+            if e.is_closed() || e.shift == 0 {
+                args.push(arg);
+                e = fun;
+            } else {
+                args.push(arg.shift_up(e.shift));
+                e = fun.shift_up(e.shift);
             }
         }
         args.reverse();
@@ -957,17 +947,12 @@ impl<'t, 'p: 't> TcCtx<'t, 'p> {
     /// Like unfold_apps but returns args in reverse order (stack order).
     pub(crate) fn unfold_apps_stack(&self, mut e: ExprPtr<'t>) -> (ExprPtr<'t>, AppArgs<'t>) {
         let mut args = AppArgs::new();
-        loop {
-            match self.read_expr(e.core) {
-                App { fun, arg, .. } => {
-                    if e.is_closed() || e.shift == 0 {
-                        args.push(arg); e = fun;
-                    } else {
-                        args.push(arg.shift_up(e.shift));
-                        e = fun.shift_up(e.shift);
-                    }
-                }
-                _ => break,
+        while let App { fun, arg, .. } = self.read_expr(e.core) {
+            if e.is_closed() || e.shift == 0 {
+                args.push(arg); e = fun;
+            } else {
+                args.push(arg.shift_up(e.shift));
+                e = fun.shift_up(e.shift);
             }
         }
         (e, args)

@@ -366,7 +366,7 @@ impl<'p> ExportFile<'p> {
                 }
                 for (ss, pp_declar) in pp_declars {
                     if let Some(s) = ctx.with_pp(|pp| pp.pp_declar(pp_declar)) {
-                        if let Err(e) = pp_destination.write_line(s, self.config.pp_options.declar_sep.as_ref().map(|x| x.as_str()).unwrap_or("\n\n")) {
+                        if let Err(e) = pp_destination.write_line(s, self.config.pp_options.declar_sep.as_deref().unwrap_or("\n\n")) {
                             errs.push(e)
                         }
                     } else {
@@ -632,7 +632,7 @@ impl<'x, 't, 'p> PrettyPrinter<'x, 't, 'p> {
         match self.ctx.read_expr(e) {
             App { fun, arg, .. } => {
                 let (f, mut out) = self.unfold_apps_pp(fun.core);
-                if !(self.is_implicit_fun(fun.core) && !self.options().explicit) {
+                if !self.is_implicit_fun(fun.core) || self.options().explicit {
                     out.push(arg.core);
                 }
                 (f, out)

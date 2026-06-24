@@ -85,7 +85,7 @@ fn nat_shl_eq() {
     assert_eq!(nat_shl(BigUint::one(), BigUint::from(2u8)), BigUint::from(4u8));
     assert_eq!(nat_shl(BigUint::one(), BigUint::from(3u8)), BigUint::from(8u8));
     assert_eq!(nat_shl(BigUint::zero(), BigUint::from(3u8)), BigUint::zero());
-    assert_eq!(nat_shl(BigUint::from(0xf1 as u32), BigUint::from(4u8)), BigUint::from(0xf10 as u32));
+    assert_eq!(nat_shl(BigUint::from(0xf1_u32), BigUint::from(4u8)), BigUint::from(0xf10_u32));
     // def shiftLeft : @& Nat → @& Nat → Nat
     //   | n, 0 => n
     //   | n, succ m => shiftLeft (2*n) m
@@ -300,11 +300,9 @@ fn nat_mul_eq() {
 fn nat_ble_eq() {
     fn nat_ble_eq_f(x: BigUint, y: BigUint) -> bool {
         let zero = BigUint::zero();
-        if x == zero && y == zero {
+        if x == zero {
             true
-        } else if x == zero && zero < y {
-            true
-        } else if zero < x && y == zero {
+        } else if y == zero {
             false
         } else {
             nat_ble_eq_f(pred(x), pred(y))

@@ -17,7 +17,7 @@ fn main_inner() {
     let out = match args.next().as_ref() {
         None => Err(Box::from("This program expects a path to a configuration file.".to_string())),
         Some(p) if p == "-h" || p == "--help" => { println!("{}", HELP_LONG); return; },
-        Some(p) => use_config(&Path::new(p)),
+        Some(p) => use_config(Path::new(p)),
     };
     match out {
         Ok(Some(msg)) => println!("{}", msg),
@@ -34,7 +34,7 @@ fn use_config(config_path: &Path) -> Result<Option<String>, Box<dyn Error>> {
     let cfg = Config::try_from(config_path)?;
     // Make sure the target pretty printer destination is accessible before doing any real work.
     let mut pp_destination = cfg.get_pp_destination()?;
-    let (mut export_file, skipped_axioms) = cfg.to_export_file()?;
+    let (export_file, skipped_axioms) = cfg.to_export_file()?;
     // Check the environment
     let panic_count = export_file.check_all_declars();
     // Pretty print as necessary
@@ -64,12 +64,6 @@ fn use_config(config_path: &Path) -> Result<Option<String>, Box<dyn Error>> {
     } else {
         Ok(Some(format!("Skipped exported but unpermitted axioms {:?}", skipped_axioms)))
     }
-}
-
-struct MainError(Box<dyn Error>);
-
-impl std::fmt::Debug for MainError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}\n\n{}", self.0, HELP_SHORT) }
 }
 
 const HELP_SHORT: &str = "run with `-h` or `--help` for help";

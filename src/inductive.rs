@@ -306,13 +306,13 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
     /// This function does two important things, and it sort of needs to do them together.
     ///
     /// 1. it adds any new specialized inductive types needed to handle nested inductives to the state.
-    /// For example, in the declaration for `Lean.Syntax`, adding `_nested.Array_X` to
-    /// `st.all_inductives_incl_specialized`.
+    ///    For example, in the declaration for `Lean.Syntax`, adding `_nested.Array_X` to
+    ///    `st.all_inductives_incl_specialized`.
     ///
     /// 2. it goes through the constructors of all the inductives, including the newly added specialized
-    /// ones, and finds instances of nested types, replacing them in with instances of the specialized types.
-    /// For example, replacing the occurrence of `Array Syntax` in the `Lean.Syntax.node` constructor
-    /// with `_nested.Array_N`.
+    ///    ones, and finds instances of nested types, replacing them in with instances of the specialized types.
+    ///    For example, replacing the occurrence of `Array Syntax` in the `Lean.Syntax.node` constructor
+    ///    with `_nested.Array_N`.
     fn specialize_nested_aux(&mut self, st: &mut InductiveCheckState<'t>) {
         let mut i = 0usize;
         // `all_inductives_incl_specialized` begins as just the unmodified `IndTyHeader`
@@ -380,7 +380,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
     /// and some other stuff.
     fn check_inductive_spec_0th(&mut self, uparams: LevelsPtr<'t>, st: &mut InductiveCheckState<'t>) {
         self.tc_cache.clear();
-        let (ind_name, ind_ty_cursor_ptr) = st.all_inductives_incl_specialized.get(0).map(|x| (x.name, x.ty)).unwrap();
+        let (ind_name, ind_ty_cursor_ptr) = st.all_inductives_incl_specialized.first().map(|x| (x.name, x.ty)).unwrap();
         let mut ind_ty_cursor = self.whnf(ExprPtr::closed(ind_ty_cursor_ptr));
         let mut indices_locals = Vec::new();
         let mut i = 0;
@@ -526,7 +526,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
     fn mk_unique_name(&mut self, n: NamePtr<'t>, st: &mut InductiveCheckState<'t>) -> NamePtr<'t> {
         for idx in st.next_ngen_idx..u64::MAX {
             let tester = self.ctx.append_index_after(n, idx);
-            if !self.env.get_old_declar(&tester).is_some() {
+            if self.env.get_old_declar(&tester).is_none() {
                 st.next_ngen_idx = idx + 1;
                 return tester
             }
@@ -1054,9 +1054,9 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         let mut rec_args = Vec::new();
         self.tc_cache.clear();
         let mut ctor_type_cursor = ExprPtr::closed(ctor_type);
-        for i in 0..st.local_params.len() {
-            match (self.ctx.view_expr(ctor_type_cursor), rem_params[i]) {
-                (Pi { body, .. }, local_param) => {
+        for &local_param in rem_params.iter().take(st.local_params.len()) {
+            match self.ctx.view_expr(ctor_type_cursor) {
+                Pi { body, .. } => {
                     ctor_type_cursor = self.ctx.inst(body, &[ExprPtr::closed(local_param)]);
                 }
                 _ => panic!(),
@@ -1366,7 +1366,7 @@ impl<'x, 't: 'x, 'p: 't> TypeChecker<'x, 't, 'p> {
         base_mutuals: &[IndTyHeader<'t>],
     ) -> FxIndexMap<NamePtr<'t>, NamePtr<'t>> {
         // The unmodified name of the "main" type being checked, e.g. `Lean.Syntax`
-        let main_ind_ty_name = base_mutuals.get(0).map(|zth| zth.name).unwrap();
+        let main_ind_ty_name = base_mutuals.first().map(|zth| zth.name).unwrap();
         let mut specialized_rec_names_to_unspecialized_rec_names = crate::util::new_fx_index_map();
         let rec_str = self.ctx.alloc_string(std::borrow::Cow::Borrowed("rec"));
 
