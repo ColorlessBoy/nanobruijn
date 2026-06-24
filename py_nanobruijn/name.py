@@ -36,9 +36,9 @@ class Name:
         if tag == 'Anon':
             self._hash = ANON_HASH
         elif tag == 'Str':
-            self._hash = _hash64(STR_HASH, pfx, sfx)
+            self._hash = _hash64(STR_HASH, pfx or 0, sfx or 0)
         elif tag == 'Num':
-            self._hash = _hash64(NUM_HASH, pfx, sfx)
+            self._hash = _hash64(NUM_HASH, pfx or 0, sfx or 0)
         else:
             raise ValueError(f"unknown Name tag: {tag}")
 
@@ -89,14 +89,18 @@ def name_to_string(name: Name, names: list[Name], strings: list[str]) -> str:
     if name.tag == 'Anon':
         return ''
     if name.tag == 'Str':
-        pfx_str = name_to_string(names[name.pfx], names, strings) if name.pfx is not None else ''
+        assert name.sfx is not None
+        pfx = name.pfx
+        pfx_str = name_to_string(names[pfx], names, strings) if pfx is not None else ''
         out = pfx_str
         if out:
             out += '.'
         out += strings[name.sfx]
         return out
     if name.tag == 'Num':
-        pfx_str = name_to_string(names[name.pfx], names, strings) if name.pfx is not None else ''
+        assert name.sfx is not None
+        pfx = name.pfx
+        pfx_str = name_to_string(names[pfx], names, strings) if pfx is not None else ''
         out = pfx_str
         if out:
             out += '.'

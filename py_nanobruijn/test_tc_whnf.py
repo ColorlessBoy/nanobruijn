@@ -6,7 +6,7 @@ from .expr import Expr
 from .binder_style import BinderStyle
 from .env import (
     Env, EnvLimit,
-    Definition, Theorem, DeclarInfo,
+    Declar, Definition, Theorem, DeclarInfo,
     Abbrev, Regular,
 )
 from .tc_whnf import TypeChecker
@@ -176,7 +176,7 @@ def test_proj_reduction():
     ctx = make_ctx()
     prod_name = insert_name(ctx, "Prod")
     mk_name = insert_name(ctx, "Prod.mk")
-    declars = {
+    declars: dict[int, Declar] = {
         prod_name: Definition(
             info=DeclarInfo(name=prod_name, uparams=ctx.dag.insert_uparams(()), ty=ctx.mk_sort(0).core),
             value=ctx.mk_sort(0).core,

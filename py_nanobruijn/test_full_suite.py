@@ -233,12 +233,14 @@ def test_debug_test1():
 
 def test_check_empty():
     cf = Config.from_json(os.path.join(TEST_ROOT, 'Empty', 'config.json'))
+    assert cf.export_file_path is not None
     export = parse_export_file(cf.export_file_path, cf)
     for declar in export.declars.values():
         export.check_declar(declar)
 
 def test_check_level_index_out_of_order():
     cf = Config.from_json(os.path.join(TEST_ROOT, 'LevelIndexOutOfOrder', 'config.json'))
+    assert cf.export_file_path is not None
     export = parse_export_file(cf.export_file_path, cf)
     assert len(export.declars) == 1
     for declar in export.declars.values():
@@ -246,6 +248,7 @@ def test_check_level_index_out_of_order():
 
 def test_check_sparse_name_index():
     cf = Config.from_json(os.path.join(TEST_ROOT, 'SparseNameIndex', 'config.json'))
+    assert cf.export_file_path is not None
     export = parse_export_file(cf.export_file_path, cf)
     assert len(export.declars) == 1
     for declar in export.declars.values():
@@ -255,6 +258,7 @@ def test_check_proj_from_prop():
     with pytest.raises(Exception, match="infer_proj"):
         cf = Config.from_json(os.path.join(TEST_ROOT, 'ProjFromProp', 'config.json'))
         cf.unsafe_permit_all_axioms = True
+        assert cf.export_file_path is not None
         export = parse_export_file(cf.export_file_path, cf)
         for declar in export.declars.values():
             export.check_declar(declar)

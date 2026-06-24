@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+from typing import Optional
 
 from .env import (
     Declar, Axiom, Theorem, Definition, OpaqueDecl, QuotDecl,
@@ -129,7 +130,7 @@ def _check_all_declars_serial(self: ExportFile) -> int:
 # ExportFile helpers
 # ============================================================
 
-def _make_env(self: ExportFile, limit: EnvLimit = None) -> Env:
+def _make_env(self: ExportFile, limit: Optional[EnvLimit] = None) -> Env:
     if limit is None:
         limit = EnvLimit('pp_unlimited')
     return Env(declars=self.declars, limit=limit)
@@ -150,13 +151,13 @@ def name_to_string(self: ExportFile, ptr) -> str:
 # Patch methods onto ExportFile and TypeChecker
 # ============================================================
 
-TypeChecker.check_declar_info = check_declar_info
+TypeChecker.check_declar_info = check_declar_info  # type: ignore[assignment]
 
-ExportFile.check_declar = check_declar
-ExportFile._check_declar_shift = _check_declar_shift
-ExportFile._check_declar_nanoda = _check_declar_nanoda
-ExportFile.check_all_declars = check_all_declars
-ExportFile._check_all_declars_serial = _check_all_declars_serial
-ExportFile._make_env = _make_env
-ExportFile._with_tc = _with_tc
-ExportFile.name_to_string = name_to_string
+ExportFile.check_declar = check_declar  # type: ignore[assignment]
+ExportFile._check_declar_shift = _check_declar_shift  # type: ignore[assignment]
+ExportFile._check_declar_nanoda = _check_declar_nanoda  # type: ignore[assignment]
+ExportFile.check_all_declars = check_all_declars  # type: ignore[assignment]
+ExportFile._check_all_declars_serial = _check_all_declars_serial  # type: ignore[assignment]
+ExportFile._make_env = _make_env  # type: ignore[assignment]
+ExportFile._with_tc = _with_tc  # type: ignore[assignment]
+ExportFile.name_to_string = name_to_string  # type: ignore[assignment]

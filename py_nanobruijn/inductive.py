@@ -168,4 +168,4 @@ def _wrap_info_as_declar(info):
 
 # Patch onto ExportFile
 from .parser import ExportFile  # noqa: E402
-ExportFile.check_inductive_declar = check_inductive_declar
+ExportFile.check_inductive_declar = check_inductive_declar  # type: ignore[assignment]

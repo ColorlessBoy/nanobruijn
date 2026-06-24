@@ -277,28 +277,28 @@ def prop(self) -> ExprPtr:
 
 
 # Patch all functions as methods on TcCtx
-TcCtx.level_succs = level_succs
-TcCtx.simplify = simplify
-TcCtx.subst_level = subst_level
-TcCtx.subst_levels = subst_levels
-TcCtx.leq = leq
-TcCtx.eq_antisymm = eq_antisymm
-TcCtx.eq_antisymm_many = eq_antisymm_many
-TcCtx.is_zero = is_zero
-TcCtx.is_nonzero = is_nonzero
-TcCtx.contains_param = contains_param
-TcCtx.all_uparams_defined = all_uparams_defined
-TcCtx.no_dupes_all_params = no_dupes_all_params
-TcCtx.succ = succ
-TcCtx.imax = imax
-TcCtx.read_level = read_level
-TcCtx.read_levels = read_levels
+TcCtx.level_succs = level_succs  # type: ignore[assignment]
+TcCtx.simplify = simplify  # type: ignore[assignment]
+TcCtx.subst_level = subst_level  # type: ignore[assignment]
+TcCtx.subst_levels = subst_levels  # type: ignore[assignment]
+TcCtx.leq = leq  # type: ignore[assignment]
+TcCtx.eq_antisymm = eq_antisymm  # type: ignore[assignment]
+TcCtx.eq_antisymm_many = eq_antisymm_many  # type: ignore[assignment]
+TcCtx.is_zero = is_zero  # type: ignore[assignment]
+TcCtx.is_nonzero = is_nonzero  # type: ignore[assignment]
+TcCtx.contains_param = contains_param  # type: ignore[assignment]
+TcCtx.all_uparams_defined = all_uparams_defined  # type: ignore[assignment]
+TcCtx.no_dupes_all_params = no_dupes_all_params  # type: ignore[assignment]
+TcCtx.succ = succ  # type: ignore[assignment]
+TcCtx.imax = imax  # type: ignore[assignment]
+TcCtx.read_level = read_level  # type: ignore[assignment]
+TcCtx.read_levels = read_levels  # type: ignore[assignment]
 
 # Private helpers
-TcCtx._is_one = _is_one
-TcCtx._is_param = _is_param
-TcCtx._is_any_max = _is_any_max
-TcCtx._combining = _combining
-TcCtx._subst_simp = _subst_simp
-TcCtx._leq_imax_by_cases = _leq_imax_by_cases
-TcCtx._leq_core = _leq_core
+TcCtx._is_one = _is_one  # type: ignore[assignment]
+TcCtx._is_param = _is_param  # type: ignore[assignment]
+TcCtx._is_any_max = _is_any_max  # type: ignore[assignment]
+TcCtx._combining = _combining  # type: ignore[assignment]
+TcCtx._subst_simp = _subst_simp  # type: ignore[assignment]
+TcCtx._leq_imax_by_cases = _leq_imax_by_cases  # type: ignore[assignment]
+TcCtx._leq_core = _leq_core  # type: ignore[assignment]

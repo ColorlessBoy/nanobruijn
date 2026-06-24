@@ -626,7 +626,7 @@ def unfold_lambda(self, e: ExprPtr) -> Optional[Tuple]:
     return (expr.children[0], expr.children[1], bt, b)
 
 
-def view_expr_pair(self, x: ExprPtr, y: ExprPtr):
+def view_expr_pair(self, x: ExprPtr, y: ExprPtr) -> tuple:
     return (self.view_expr(x), self.view_expr(y))
 
 
@@ -674,61 +674,61 @@ def is_proj(self, e: ExprPtr) -> bool:
 # Patch all functions onto TcCtx
 # ============================================================
 
-TcCtx.name_to_string = name_to_string
-TcCtx.debug_print = debug_print
+TcCtx.name_to_string = name_to_string  # type: ignore[assignment]
+TcCtx.debug_print = debug_print  # type: ignore[assignment]
 
-TcCtx._ensure_var0 = _ensure_var0
-TcCtx.mk_shift = mk_shift
-TcCtx.mk_var = mk_var
-TcCtx.mk_sort = mk_sort
-TcCtx.mk_const = mk_const
-TcCtx.body_outer_shift = body_outer_shift
-TcCtx.mk_app = mk_app
-TcCtx.mk_pi = mk_pi
-TcCtx.mk_lambda = mk_lambda
-TcCtx.mk_let = mk_let
-TcCtx.mk_proj = mk_proj
-TcCtx.mk_string_lit = mk_string_lit
-TcCtx.mk_nat_lit = mk_nat_lit
-TcCtx.mk_sort_zero = mk_sort_zero
-TcCtx.mk_sort_one = mk_sort_one
-TcCtx.foldl_apps = foldl_apps
+TcCtx._ensure_var0 = _ensure_var0  # type: ignore[assignment]
+TcCtx.mk_shift = mk_shift  # type: ignore[assignment]
+TcCtx.mk_var = mk_var  # type: ignore[assignment]
+TcCtx.mk_sort = mk_sort  # type: ignore[assignment]
+TcCtx.mk_const = mk_const  # type: ignore[assignment]
+TcCtx.body_outer_shift = body_outer_shift  # type: ignore[assignment]
+TcCtx.mk_app = mk_app  # type: ignore[assignment]
+TcCtx.mk_pi = mk_pi  # type: ignore[assignment]
+TcCtx.mk_lambda = mk_lambda  # type: ignore[assignment]
+TcCtx.mk_let = mk_let  # type: ignore[assignment]
+TcCtx.mk_proj = mk_proj  # type: ignore[assignment]
+TcCtx.mk_string_lit = mk_string_lit  # type: ignore[assignment]
+TcCtx.mk_nat_lit = mk_nat_lit  # type: ignore[assignment]
+TcCtx.mk_sort_zero = mk_sort_zero  # type: ignore[assignment]
+TcCtx.mk_sort_one = mk_sort_one  # type: ignore[assignment]
+TcCtx.foldl_apps = foldl_apps  # type: ignore[assignment]
 
-TcCtx.view_expr = view_expr
+TcCtx.view_expr = view_expr  # type: ignore[assignment]
 
-TcCtx.unfold_apps = unfold_apps
-TcCtx.unfold_const_apps = unfold_const_apps
-TcCtx.unfold_pi = unfold_pi
-TcCtx.unfold_pi_telescope = unfold_pi_telescope
-TcCtx.view_pi_head = view_pi_head
+TcCtx.unfold_apps = unfold_apps  # type: ignore[assignment]
+TcCtx.unfold_const_apps = unfold_const_apps  # type: ignore[assignment]
+TcCtx.unfold_pi = unfold_pi  # type: ignore[assignment]
+TcCtx.unfold_pi_telescope = unfold_pi_telescope  # type: ignore[assignment]
+TcCtx.view_pi_head = view_pi_head  # type: ignore[assignment]
 
-TcCtx.shift_expr = shift_expr
-TcCtx.shift_expr_aux = shift_expr_aux
-TcCtx.shift_core_aux = shift_core_aux
+TcCtx.shift_expr = shift_expr  # type: ignore[assignment]
+TcCtx.shift_expr_aux = shift_expr_aux  # type: ignore[assignment]
+TcCtx.shift_core_aux = shift_core_aux  # type: ignore[assignment]
 
-TcCtx._inst_aux_core = _inst_aux_core
-TcCtx._inst_aux_expr = _inst_aux_expr
-TcCtx._inst_aux_viewed = _inst_aux_viewed
-TcCtx.inst = inst
-TcCtx.inst_beta = inst_beta
-TcCtx.inst_forall_params = inst_forall_params
+TcCtx._inst_aux_core = _inst_aux_core  # type: ignore[assignment]
+TcCtx._inst_aux_expr = _inst_aux_expr  # type: ignore[assignment]
+TcCtx._inst_aux_viewed = _inst_aux_viewed  # type: ignore[assignment]
+TcCtx.inst = inst  # type: ignore[assignment]
+TcCtx.inst_beta = inst_beta  # type: ignore[assignment]
+TcCtx.inst_forall_params = inst_forall_params  # type: ignore[assignment]
 
-TcCtx.abstr = abstr
-TcCtx.abstr_pi = abstr_pi
-TcCtx.abstr_lambda = abstr_lambda
-TcCtx.abstr_levels = abstr_levels
+TcCtx.abstr = abstr  # type: ignore[assignment]
+TcCtx.abstr_pi = abstr_pi  # type: ignore[assignment]
+TcCtx.abstr_lambda = abstr_lambda  # type: ignore[assignment]
+TcCtx.abstr_levels = abstr_levels  # type: ignore[assignment]
 
-TcCtx._subst_aux = _subst_aux
-TcCtx._subst_aux_core = _subst_aux_core
-TcCtx.subst_expr_levels = subst_expr_levels
-TcCtx.subst_declar_info_levels = subst_declar_info_levels
+TcCtx._subst_aux = _subst_aux  # type: ignore[assignment]
+TcCtx._subst_aux_core = _subst_aux_core  # type: ignore[assignment]
+TcCtx.subst_expr_levels = subst_expr_levels  # type: ignore[assignment]
+TcCtx.subst_declar_info_levels = subst_declar_info_levels  # type: ignore[assignment]
 
-TcCtx.unfold_lambda = unfold_lambda
-TcCtx.view_expr_pair = view_expr_pair
-TcCtx.unfold_apps_fun = unfold_apps_fun
-TcCtx.try_const_info = try_const_info
+TcCtx.unfold_lambda = unfold_lambda  # type: ignore[assignment]
+TcCtx.view_expr_pair = view_expr_pair  # type: ignore[assignment]
+TcCtx.unfold_apps_fun = unfold_apps_fun  # type: ignore[assignment]
+TcCtx.try_const_info = try_const_info  # type: ignore[assignment]
 
-TcCtx.is_app = is_app
-TcCtx.is_pi = is_pi
-TcCtx.is_lambda = is_lambda
-TcCtx.is_proj = is_proj
+TcCtx.is_app = is_app  # type: ignore[assignment]
+TcCtx.is_pi = is_pi  # type: ignore[assignment]
+TcCtx.is_lambda = is_lambda  # type: ignore[assignment]
+TcCtx.is_proj = is_proj  # type: ignore[assignment]

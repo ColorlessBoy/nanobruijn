@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
 
 from .name import Name
 from .level import Level
@@ -11,8 +11,11 @@ from .env import (
     Declar, Axiom, Theorem, Definition, OpaqueDecl, QuotDecl,
     InductiveDecl, ConstructorDecl, RecursorDecl,
     DeclarInfo, InductiveData, ConstructorData, RecursorData,
-    RecRule, ReducibilityHint, Opaque, Regular, Abbrev,
+    RecRule, ReducibilityHint, Opaque, Regular, Abbrev, Env, EnvLimit,
 )
+
+if TYPE_CHECKING:
+    from .tc_whnf import TypeChecker
 
 
 class ExportFile:
@@ -25,10 +28,11 @@ class ExportFile:
     # --- Patched by check_decl.py ---
     def check_declar(self, d) -> None: ...
     def _check_declar_shift(self, d) -> None: ...
+    def _check_declar_nanoda(self, d) -> None: ...
     def check_all_declars(self) -> int: ...
     def _check_all_declars_serial(self) -> int: ...
-    def _make_env(self, limit="all"): ...
-    def _with_tc(self, d): ...
+    def _make_env(self, limit: Optional[EnvLimit] = None) -> Env: ...
+    def _with_tc(self, d: Declar) -> TypeChecker: ...
     def name_to_string(self, ptr) -> str: ...
 
     # --- Patched by inductive.py ---
@@ -127,6 +131,7 @@ class Parser:
             out = pfx_str
             if out:
                 out += '.'
+            assert name.sfx is not None
             out += self.dag.strings[name.sfx]
             return out
         if name.tag == 'Num':
@@ -134,6 +139,7 @@ class Parser:
             out = pfx_str
             if out:
                 out += '.'
+            assert name.sfx is not None
             out += str(name.sfx)
             return out
         return ''
@@ -273,6 +279,7 @@ class Parser:
             elif ty_eff == 0 and body_outer is not None:
                 min_shift = body_outer
             else:
+                assert body_outer is not None
                 min_shift = min(ty_e.shift, body_outer)
             if 0 < min_shift < CLOSED_SHIFT:
                 self.osnf_count += 1
@@ -300,6 +307,7 @@ class Parser:
             elif ty_eff == 0 and body_outer is not None:
                 min_shift = body_outer
             else:
+                assert body_outer is not None
                 min_shift = min(ty_e.shift, body_outer)
             if 0 < min_shift < CLOSED_SHIFT:
                 self.osnf_count += 1

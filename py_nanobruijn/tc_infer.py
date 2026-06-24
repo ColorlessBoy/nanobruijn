@@ -301,14 +301,14 @@ def push_local_let(self: TypeChecker, ty: ExprPtr, val: ExprPtr):
 
 
 # Patch methods onto TypeChecker
-TypeChecker.infer = infer
-TypeChecker._infer = _infer
-TypeChecker.ensure_sort = ensure_sort
-TypeChecker.is_sort_zero = is_sort_zero
-TypeChecker.is_proposition = is_proposition
-TypeChecker.infer_then_whnf = infer_then_whnf
-TypeChecker.infer_sort_of = infer_sort_of
-TypeChecker.ensure_pi = ensure_pi
-TypeChecker.push_local = push_local
-TypeChecker.pop_local = pop_local
-TypeChecker.push_local_let = push_local_let
+TypeChecker.infer = infer  # type: ignore[assignment]
+TypeChecker._infer = _infer  # type: ignore[assignment]
+TypeChecker.ensure_sort = ensure_sort  # type: ignore[assignment]
+TypeChecker.is_sort_zero = is_sort_zero  # type: ignore[assignment]
+TypeChecker.is_proposition = is_proposition  # type: ignore[assignment]
+TypeChecker.infer_then_whnf = infer_then_whnf  # type: ignore[assignment]
+TypeChecker.infer_sort_of = infer_sort_of  # type: ignore[assignment]
+TypeChecker.ensure_pi = ensure_pi  # type: ignore[assignment]
+TypeChecker.push_local = push_local  # type: ignore[assignment]
+TypeChecker.pop_local = pop_local  # type: ignore[assignment]
+TypeChecker.push_local_let = push_local_let  # type: ignore[assignment]

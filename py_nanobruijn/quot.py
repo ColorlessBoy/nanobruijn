@@ -16,4 +16,4 @@ def check_quot(self: ExportFile, d: QuotDecl):
     tc.check_declar_info(d)
 
 
-ExportFile.check_quot = check_quot
+ExportFile.check_quot = check_quot  # type: ignore[assignment]

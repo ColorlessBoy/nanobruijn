@@ -28,6 +28,7 @@ def test_proj_from_prop_panics():
     """ProjFromProp should panic with infer_proj prop."""
     cf = Config.from_json("test_resources/ProjFromProp/config.json")
     cf.unsafe_permit_all_axioms = True
+    assert cf.export_file_path is not None
     export = parse_export_file(cf.export_file_path, cf)
     with pytest.raises(Exception, match="infer_proj"):
         export.check_all_declars()

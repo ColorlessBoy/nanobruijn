@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, Mapping
 from enum import Enum
 
 from .ptr import NamePtr, LevelsPtr, CorePtr
@@ -88,7 +88,7 @@ class RecursorData:
 
 
 class Declar:
-    pass
+    info: DeclarInfo
 
 
 @dataclass(frozen=True)
@@ -159,13 +159,13 @@ class EnvLimit:
 class Env:
     def __init__(
         self,
-        declars: Optional[Dict[NamePtr, Declar]] = None,
-        temp_declars: Optional[Dict[NamePtr, Declar]] = None,
+        declars: Optional[Mapping[NamePtr, Declar]] = None,
+        temp_declars: Optional[Mapping[NamePtr, Declar]] = None,
         notation: Optional[Dict[NamePtr, Notation]] = None,
         limit: Optional[EnvLimit] = None,
     ):
-        self.declars: Dict[NamePtr, Declar] = declars or {}
-        self.temp_declars: Optional[Dict[NamePtr, Declar]] = temp_declars
+        self.declars: Dict[NamePtr, Declar] = dict(declars) if declars is not None else {}
+        self.temp_declars: Optional[Dict[NamePtr, Declar]] = dict(temp_declars) if temp_declars is not None else None
         self.notation: Dict[NamePtr, Notation] = notation or {}
 
         if limit is None or limit.tag == "pp_unlimited":
