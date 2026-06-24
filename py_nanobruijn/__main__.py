@@ -1,7 +1,7 @@
 """CLI entry point for Python nanobruijn: reads NDJSON from stdin, runs checker."""
 import sys
 from .dag import LeanDag
-from .parser import Parser
+from .parser import Parser, ExportFile
 from .config import Config
 
 
@@ -25,7 +25,7 @@ def main():
                 print(f"PARSE ERROR: {e}", file=sys.stderr)
                 sys.exit(1)
 
-    export = parser.finalize()
+    export: ExportFile = parser.finalize()
     panics = export.check_all_declars()
     if panics > 0:
         print(f"{panics} declaration(s) failed type checking", file=sys.stderr)
