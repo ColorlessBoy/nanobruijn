@@ -21,6 +21,7 @@
 py_nanobruijn/__pycache__/
 __pycache__
 # VitePress
+.vitepress/
 tutorials/node_modules/
 tutorials/.vitepress/dist/
 tutorials/.vitepress/cache/
