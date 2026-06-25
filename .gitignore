@@ -20,3 +20,8 @@
 /config
 py_nanobruijn/__pycache__/
 __pycache__
+# VitePress
+tutorials/node_modules/
+tutorials/.vitepress/dist/
+tutorials/.vitepress/cache/
+tutorials/package-lock.json
