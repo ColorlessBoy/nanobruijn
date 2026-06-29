@@ -1,4 +1,4 @@
-# Level — 宇宙层级
+# 第二讲 Level — 宇宙层级
 
 Level 是描述宇宙层级的表达式。`Sort 0` = Prop，`Sort 1` = Type，`Sort 2` = Type 1……`Sort u : Sort (u+1)`。
 

@@ -1,4 +1,4 @@
-# Expr — 表达式 DAG
+# 第三讲 Expr — 表达式 DAG
 
 Expr 是类型检查器中最核心的数据结构——一个 DAG 节点，涵盖变量、常量、函数应用、λ 抽象、Pi 类型等全部内核表达式。
 对应代码：`py_nanobruijn/expr.py`、`ptr.py`、`tc_context.py`

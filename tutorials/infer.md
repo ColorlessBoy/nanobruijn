@@ -1,4 +1,4 @@
-# 第四章 Infer — 类型推断
+# 第五讲 Infer — 类型推断
 
 Infer（类型推断）是类型检查器的核心推理引擎。给定一个表达式，它计算这个表达式的**类型**。例如 `infer(Nat.add 1 2) = Nat`，`infer(Sort 0) = Sort 1`。
 
