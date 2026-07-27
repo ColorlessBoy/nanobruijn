@@ -548,6 +548,13 @@ Applied:
 - **`9557f24` / `2097cc6` — Remove truncating casts** (by Luca Bruno / ammkrn):
   `pos as u16` → `u16::try_from(pos).unwrap()` in abstr_aux,
   `ind_type_idx as usize` → `usize::try_from(ind_type_idx).unwrap()` in inductive.rs.
+- **PR #22 (`ddfac2b`) — more struct and inductive checks** (by ammkrn):
+  (1) `Env::get_structure(n, rec_ok)` gates projection/eta/unit-like paths on actual
+  structure shape (single ctor, no indices, recursion only allowed where safe);
+  `can_be_struct` is now a thin wrapper over it. (2) `aux_data_ck` methods on
+  `InductiveData`/`ConstructorData`/`RecursorData` assert that auxiliary data computed
+  while checking inductives matches the export file's assertions, and
+  `check_inductive_declar` recomputes `is_recursive` and asserts it matches `isRec`.
 
 Not applicable:
 - `3e705b3` — nix flake (dev tooling)

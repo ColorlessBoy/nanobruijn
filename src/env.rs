@@ -1,6 +1,7 @@
 use crate::util::{CorePtr, FxHashMap, FxIndexMap, LevelsPtr, NamePtr};
 use std::sync::Arc;
 use serde::Deserialize;
+use std::collections::HashSet;
 
 /// Reducibility hints accompany definitions; used to determine how
 /// to unfold expressions in order to most efficiently proceed.
@@ -69,7 +70,6 @@ pub struct InductiveData<'a> {
     /// `true` when recursive (that is, the inductive type appears as an argument in a constructor).
     pub(crate) is_recursive: bool,
     /// `true` when this typs is a nested inductive
-    #[allow(dead_code)]
     pub(crate) is_nested: bool,
     /// All inductive types in a mutual block must have the same parameters, though this
     /// does not exactly hold for nested inductives.
@@ -82,6 +82,23 @@ pub struct InductiveData<'a> {
     /// from other elements in a mutual block, nothing from any nested
     /// construction.
     pub(crate) all_ctor_names: Arc<[NamePtr<'a>]>,
+}
+
+impl<'a> InductiveData<'a> {
+    /// Check the auxiliary data generated while checking an inductive declaration
+    /// against the assertions made by the export file.
+    pub fn aux_data_ck(&self, temp: &Self) -> bool {
+        self.info.name == temp.info.name &&
+        self.num_params == temp.num_params &&
+        self.num_indices == temp.num_indices &&
+        self.is_nested == temp.is_nested &&
+        (self.all_ctor_names.iter().collect::<HashSet<_>>() == temp.all_ctor_names.iter().collect::<HashSet<_>>()) &&
+        if temp.is_nested {
+            self.all_ind_names.iter().collect::<HashSet<_>>().is_subset(&temp.all_ind_names.iter().collect::<HashSet<_>>())
+        } else {
+            self.all_ind_names.iter().collect::<HashSet<_>>() == temp.all_ind_names.iter().collect::<HashSet<_>>()
+        }
+    }
 }
 
 /// `inductive_name` is the name of the type this constructs. e.g. `Prod` for `Prod.mk`
@@ -109,6 +126,18 @@ pub struct ConstructorData<'a> {
     pub num_fields: u16,
 }
 
+impl<'a> ConstructorData<'a> {
+    /// Check the auxiliary data generated while checking a constructor
+    /// against the assertions made by the export file.
+    pub fn aux_data_ck(&self, other: &Self) -> bool {
+        self.info.name == other.info.name &&
+        self.inductive_name == other.inductive_name &&
+        self.ctor_idx == other.ctor_idx &&
+        self.num_params == other.num_params &&
+        self.num_fields == other.num_fields
+    }
+}
+
 /// Information received from the export file regarding a recursor.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecursorData<'a> {
@@ -126,6 +155,18 @@ impl<'a> RecursorData<'a> {
     /// Compute the index in the recursor's type (in the telescope) where the major premise is located. 
     pub fn major_idx(&self) -> usize {
         (self.num_params + self.num_motives + self.num_minors + self.num_indices) as usize
+    }
+
+    /// Check the auxiliary data generated while checking a recursor
+    /// against the assertions made by the export file.
+    pub fn aux_data_ck(&self, other: &Self) -> bool {
+        self.num_params == other.num_params &&
+        self.num_indices == other.num_indices &&
+        self.num_motives == other.num_motives &&
+        self.num_minors == other.num_minors &&
+        self.is_k == other.is_k &&
+        self.info.name == other.info.name &&
+        (self.all_inductives.iter().collect::<HashSet<_>>() == other.all_inductives.iter().collect::<HashSet<_>>())
     }
 }
 
@@ -261,16 +302,23 @@ impl<'x, 'a: 'x> Env<'x, 'a> {
         }
     }
 
-    /// Returns `true` iff the inductive type declaration associated with `n` has the
+    /// Retrieve the inductive declaration associated with `n` if it has the
     /// characteristics required of a structure. The requirements to be a structure are
-    /// (1) the inductive declaration is not recursive, (2) the declaration has only one
-    /// constructor, and (3) the type is declared with no indices.
-    pub(crate) fn can_be_struct(&self, n: &NamePtr<'a>) -> bool {
+    /// (1) the declaration has only one constructor, (2) the type is declared with no
+    /// indices, and (3) unless `rec_ok`, the inductive declaration is not recursive.
+    pub fn get_structure(&self, n: &NamePtr<'a>, rec_ok: bool) -> Option<&InductiveData<'a>> {
         match self.get_inductive(n) {
-            Some(InductiveData { is_recursive, num_indices, all_ctor_names, .. }) =>
-                (!is_recursive) && (all_ctor_names.len() == 1) && (*num_indices == 0),
-            _ => false,
+            Some(i @ InductiveData { is_recursive, num_indices, all_ctor_names, .. })
+                if (all_ctor_names.len() == 1) && (*num_indices == 0) && (rec_ok || !is_recursive) => Some(i),
+            _ => None,
         }
+    }
+
+    /// Returns `true` iff the inductive type declaration associated with `n` has the
+    /// characteristics required of a structure (see [`Self::get_structure`]), not
+    /// permitting recursive structures.
+    pub(crate) fn can_be_struct(&self, n: &NamePtr<'a>) -> bool {
+        self.get_structure(n, false).is_some()
     }
 
     /// Get the value of a declaration, if that declaration has an associated value (only
