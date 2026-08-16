@@ -25,21 +25,28 @@ class ExportFile:
         self.config = config
         self.skipped = skipped or []
 
-    # --- Patched by check_decl.py ---
-    def check_declar(self, d) -> None: ...
-    def _check_declar_shift(self, d) -> None: ...
-    def _check_declar_nanoda(self, d) -> None: ...
-    def check_all_declars(self) -> int: ...
-    def _check_all_declars_serial(self) -> int: ...
-    def _make_env(self, limit: Optional[EnvLimit] = None) -> Env: ...
-    def _with_tc(self, d: Declar) -> TypeChecker: ...
-    def name_to_string(self, ptr) -> str: ...
+    def check_declar(self, d: Declar) -> None:
+        from .services import CheckerService
+        CheckerService(self).check_declaration(d)
 
-    # --- Patched by inductive.py ---
-    def check_inductive_declar(self, d, declars) -> None: ...
+    def check_all(self, *, keep_going: bool = False):
+        from .services import CheckerService
+        return CheckerService(self).check_all(keep_going=keep_going)
 
-    # --- Patched by quot.py ---
-    def check_quot(self, d) -> None: ...
+    def check_all_declars(self) -> int:
+        """Compatibility API returning only the number of failed declarations."""
+        return self.check_all().failed
+
+    def _make_env(self, limit: Optional[EnvLimit] = None) -> Env:
+        return Env(declars=self.declars, limit=limit or EnvLimit('pp_unlimited'))
+
+    def _with_tc(self, d: Declar) -> TypeChecker:
+        from .services import CheckerService
+        return CheckerService(self).make_type_checker(d)
+
+    def name_to_string(self, ptr) -> str:
+        from .name import name_to_string
+        return name_to_string(self.dag.get_name(ptr), self.dag.names, self.dag.strings)
 
 
 class Parser:

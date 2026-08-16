@@ -25,7 +25,10 @@ py_nanobruijn/
 ├── check_decl.py        # 声明检查入口
 ├── inductive.py         # 归纳类型检查器
 ├── quot.py              # Quot 声明检查
-├── __main__.py          # CLI 入口 (python3 -m py_nanobruijn < file.ndjson)
+├── services/checker.py  # 声明检查编排 + 结构化结果
+├── api.py               # 稳定高层 API (load_export / check_export)
+├── results.py           # CheckResult / Diagnostic
+├── __main__.py          # CLI 入口
 ├── test_*.py            # 测试文件 (共 12 个, 183 个测试)
 └── README.md            # 本文件
 ```
@@ -41,14 +44,28 @@ unique_hasher → name → level → expr → env → parser → tc → inductiv
 ## 使用
 
 ```bash
-# 从文件读取
-python3 -m py_nanobruijn < path/to/export.ndjson
+# 检查导出文件（旧的 `python3 -m py_nanobruijn FILE` 写法仍兼容）
+python3 -m py_nanobruijn check path/to/export.ndjson
 
-# 从 Lean 管道输入
-lean --export - MyFile.lean | python3 -m py_nanobruijn
+# 获取结构化 JSON 结果，适合集成 CI 或编辑器
+python3 -m py_nanobruijn check path/to/export.ndjson --keep-going --json
+
+# 查看导出文件中的声明
+python3 -m py_nanobruijn inspect path/to/export.ndjson --declaration Nat
 
 # 运行测试
-python3 -m pytest py_nanobruijn/ -v
+python3 -m pip install -e '.[dev]'
+python3 -m pytest -v
+```
+
+Python 调用入口：
+
+```python
+from py_nanobruijn import check_export
+
+result = check_export("path/to/export.ndjson", keep_going=True)
+for diagnostic in result.diagnostics:
+    print(diagnostic.declaration, diagnostic.message)
 ```
 
 ## 从 Rust 移植的关键差异

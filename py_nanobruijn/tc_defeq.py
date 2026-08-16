@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from .env import Definition, Theorem, Regular, Opaque
 from .ptr import ExprPtr, NamePtr
-from .tc_whnf import TypeChecker
+if TYPE_CHECKING:
+    from .tc_whnf import TypeChecker
 
 
 def is_def_eq(self: TypeChecker, e1: ExprPtr, e2: ExprPtr) -> bool:
@@ -490,36 +491,37 @@ def whnf_no_unfolding_cheap_proj(self: TypeChecker, e: ExprPtr) -> ExprPtr:
     return self.whnf_no_unfolding_aux(e, True)
 
 
-# Patch methods onto TypeChecker
-TypeChecker.is_def_eq = is_def_eq  # type: ignore[assignment]
-TypeChecker.assert_def_eq = assert_def_eq  # type: ignore[assignment]
-TypeChecker.def_eq = def_eq  # type: ignore[assignment]
-TypeChecker.def_eq_tagged = def_eq_tagged  # type: ignore[assignment]
-TypeChecker.def_eq_inner = def_eq_inner  # type: ignore[assignment]
-TypeChecker.def_eq_quick_check = def_eq_quick_check  # type: ignore[assignment]
-TypeChecker.def_eq_sort = def_eq_sort  # type: ignore[assignment]
-TypeChecker.def_eq_const = def_eq_const  # type: ignore[assignment]
-TypeChecker.def_eq_local = def_eq_local  # type: ignore[assignment]
-TypeChecker.def_eq_proj = def_eq_proj  # type: ignore[assignment]
-TypeChecker.def_eq_binder_multi = def_eq_binder_multi  # type: ignore[assignment]
-TypeChecker.def_eq_binder_aux = def_eq_binder_aux  # type: ignore[assignment]
-TypeChecker.def_eq_app = def_eq_app  # type: ignore[assignment]
-TypeChecker.def_eq_nat = def_eq_nat  # type: ignore[assignment]
-TypeChecker.spec_app_congruence = spec_app_congruence  # type: ignore[assignment]
-TypeChecker.cheap_eq = cheap_eq  # type: ignore[assignment]
-TypeChecker.uf_find = uf_find  # type: ignore[assignment]
-TypeChecker.uf_check_eq = uf_check_eq  # type: ignore[assignment]
-TypeChecker.uf_union = uf_union  # type: ignore[assignment]
-TypeChecker.defeq_normalize_pair = defeq_normalize_pair  # type: ignore[assignment]
-TypeChecker.defeq_canon_key_open = defeq_canon_key_open  # type: ignore[assignment]
-TypeChecker.defeq_neg_lookup = defeq_neg_lookup  # type: ignore[assignment]
-TypeChecker.defeq_neg_store = defeq_neg_store  # type: ignore[assignment]
-TypeChecker.get_applied_def = get_applied_def  # type: ignore[assignment]
-TypeChecker.delta = delta  # type: ignore[assignment]
-TypeChecker.try_eq_const_app = try_eq_const_app  # type: ignore[assignment]
-TypeChecker.lazy_delta_step = lazy_delta_step  # type: ignore[assignment]
-TypeChecker.try_eta_expansion = try_eta_expansion  # type: ignore[assignment]
-TypeChecker.try_eta_expansion_aux = try_eta_expansion_aux  # type: ignore[assignment]
-TypeChecker.is_proof = is_proof  # type: ignore[assignment]
-TypeChecker.proof_irrel_eq = proof_irrel_eq  # type: ignore[assignment]
-TypeChecker.whnf_no_unfolding_cheap_proj = whnf_no_unfolding_cheap_proj  # type: ignore[assignment]
+class DefEqMixin:
+    """Definitional-equality operations supplied to ``TypeChecker`` by composition."""
+
+    is_def_eq = is_def_eq
+    assert_def_eq = assert_def_eq
+    def_eq = def_eq
+    def_eq_tagged = def_eq_tagged
+    def_eq_inner = def_eq_inner
+    def_eq_quick_check = def_eq_quick_check
+    def_eq_sort = def_eq_sort
+    def_eq_const = def_eq_const
+    def_eq_local = def_eq_local
+    def_eq_proj = def_eq_proj
+    def_eq_binder_multi = def_eq_binder_multi
+    def_eq_binder_aux = def_eq_binder_aux
+    def_eq_app = def_eq_app
+    def_eq_nat = def_eq_nat
+    spec_app_congruence = spec_app_congruence
+    cheap_eq = cheap_eq
+    uf_find = uf_find
+    uf_check_eq = uf_check_eq
+    uf_union = uf_union
+    defeq_normalize_pair = defeq_normalize_pair
+    defeq_canon_key_open = defeq_canon_key_open
+    defeq_neg_lookup = defeq_neg_lookup
+    defeq_neg_store = defeq_neg_store
+    get_applied_def = get_applied_def
+    delta = delta
+    try_eq_const_app = try_eq_const_app
+    lazy_delta_step = lazy_delta_step
+    try_eta_expansion = try_eta_expansion
+    try_eta_expansion_aux = try_eta_expansion_aux
+    is_proof = is_proof
+    proof_irrel_eq = proof_irrel_eq

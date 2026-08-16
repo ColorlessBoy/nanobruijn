@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-nanobruijn"
+version = "0.1.0"
+description = "Experimental Python port of the nanobruijn Lean 4 kernel type checker"
+readme = "py_nanobruijn/README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+keywords = ["lean", "type-checker", "de-bruijn", "kernel"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+py-nanobruijn = "py_nanobruijn.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["py_nanobruijn*"]
+
+[tool.pytest.ini_options]
+testpaths = ["py_nanobruijn"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

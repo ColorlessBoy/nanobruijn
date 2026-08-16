@@ -20,6 +20,7 @@
 /config
 py_nanobruijn/__pycache__/
 __pycache__
+*.egg-info/
 # VitePress
 .vitepress/
 tutorials/node_modules/

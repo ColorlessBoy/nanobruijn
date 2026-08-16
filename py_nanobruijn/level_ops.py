@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .level import Level
 from .ptr import LevelPtr, LevelsPtr, NamePtr, ExprPtr
-from .dag import TcCtx
 
 
 def level_succs(self, lv: LevelPtr) -> tuple[LevelPtr, int]:
@@ -276,29 +275,30 @@ def prop(self) -> ExprPtr:
     return self.mk_sort(0)
 
 
-# Patch all functions as methods on TcCtx
-TcCtx.level_succs = level_succs  # type: ignore[assignment]
-TcCtx.simplify = simplify  # type: ignore[assignment]
-TcCtx.subst_level = subst_level  # type: ignore[assignment]
-TcCtx.subst_levels = subst_levels  # type: ignore[assignment]
-TcCtx.leq = leq  # type: ignore[assignment]
-TcCtx.eq_antisymm = eq_antisymm  # type: ignore[assignment]
-TcCtx.eq_antisymm_many = eq_antisymm_many  # type: ignore[assignment]
-TcCtx.is_zero = is_zero  # type: ignore[assignment]
-TcCtx.is_nonzero = is_nonzero  # type: ignore[assignment]
-TcCtx.contains_param = contains_param  # type: ignore[assignment]
-TcCtx.all_uparams_defined = all_uparams_defined  # type: ignore[assignment]
-TcCtx.no_dupes_all_params = no_dupes_all_params  # type: ignore[assignment]
-TcCtx.succ = succ  # type: ignore[assignment]
-TcCtx.imax = imax  # type: ignore[assignment]
-TcCtx.read_level = read_level  # type: ignore[assignment]
-TcCtx.read_levels = read_levels  # type: ignore[assignment]
+class LevelOpsMixin:
+    """Universe-level operations supplied to :class:`TcCtx` by composition."""
 
-# Private helpers
-TcCtx._is_one = _is_one  # type: ignore[assignment]
-TcCtx._is_param = _is_param  # type: ignore[assignment]
-TcCtx._is_any_max = _is_any_max  # type: ignore[assignment]
-TcCtx._combining = _combining  # type: ignore[assignment]
-TcCtx._subst_simp = _subst_simp  # type: ignore[assignment]
-TcCtx._leq_imax_by_cases = _leq_imax_by_cases  # type: ignore[assignment]
-TcCtx._leq_core = _leq_core  # type: ignore[assignment]
+    level_succs = level_succs
+    simplify = simplify
+    subst_level = subst_level
+    subst_levels = subst_levels
+    leq = leq
+    eq_antisymm = eq_antisymm
+    eq_antisymm_many = eq_antisymm_many
+    is_zero = is_zero
+    is_nonzero = is_nonzero
+    contains_param = contains_param
+    all_uparams_defined = all_uparams_defined
+    no_dupes_all_params = no_dupes_all_params
+    succ = succ
+    imax = imax
+    read_level = read_level
+    read_levels = read_levels
+    prop = prop
+    _is_one = _is_one
+    _is_param = _is_param
+    _is_any_max = _is_any_max
+    _combining = _combining
+    _subst_simp = _subst_simp
+    _leq_imax_by_cases = _leq_imax_by_cases
+    _leq_core = _leq_core

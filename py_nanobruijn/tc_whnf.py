@@ -2,12 +2,14 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 from .dag import TcCtx
-from .env import Env
+from .env import Declar, Env, Theorem
 from .ptr import ExprPtr, CorePtr, LevelsPtr, NamePtr
 from .tc_cache import TcCache
+from .tc_defeq import DefEqMixin
+from .tc_infer import InferenceMixin
 
 
-class TypeChecker:
+class TypeChecker(InferenceMixin, DefEqMixin):
     """Type checker with WHNF reduction.
 
     Wraps TcCtx and Env, providing WHNF reduction and definition unfolding.
@@ -20,29 +22,20 @@ class TypeChecker:
         self.declar_info = declar_info
         self.local_types = []
 
-    # --- Patched by check_decl.py ---
-    def check_declar_info(self, d) -> None: ...
-
-    # --- Patched by tc_infer.py ---
-    def infer(self, e: ExprPtr, flag='infer_only') -> ExprPtr: ...
-    def _infer(self, e: ExprPtr, is_check: bool) -> ExprPtr: ...
-    def _infer_var(self, dbj_idx, is_check) -> ExprPtr: ...
-    def _infer_sort(self, level, is_check) -> ExprPtr: ...
-    def _infer_const(self, c_name, c_uparams, is_check) -> ExprPtr: ...
-    def _infer_pi(self, e, is_check) -> ExprPtr: ...
-    def _infer_lambda(self, e, is_check) -> ExprPtr: ...
-    def _infer_app(self, e, is_check) -> ExprPtr: ...
-    def _infer_let(self, e, is_check) -> ExprPtr: ...
-    def _infer_proj(self, ty_name, idx, structure, is_check) -> ExprPtr: ...
-    def ensure_sort(self, e: ExprPtr) -> int: ...
-    def is_sort_zero(self, e: ExprPtr) -> bool: ...
-    def is_proposition(self, e: ExprPtr) -> tuple: ...
-    def infer_then_whnf(self, e, flag) -> ExprPtr: ...
-    def infer_sort_of(self, e, is_check) -> int: ...
-    def ensure_pi(self, e: ExprPtr) -> ExprPtr: ...
-    def push_local(self, ty): ...
-    def pop_local(self): ...
-    def push_local_let(self, ty, val): ...
+    def check_declar_info(self, d: Declar) -> None:
+        """Check declaration metadata before checking its optional value."""
+        info = d.info
+        if not self.ctx.no_dupes_all_params(info.uparams):
+            raise ValueError("duplicate universe parameters in declaration")
+        if self.ctx.dag.expr_nlbv[info.ty] != 0:
+            raise ValueError("declaration type has free variables")
+        inferred_type = self.infer(ExprPtr.closed(info.ty), "check")
+        sort = self.ensure_sort(inferred_type)
+        if isinstance(d, Theorem) and not self.ctx.is_zero(sort):
+            name = self.ctx.name_to_string(info.name)
+            raise ValueError(
+                f"Theorem type for {name!r} must be `Prop` (sort 0); found sort level {sort}"
+            )
 
     # --- Patched by tc_defeq.py ---
     def is_def_eq(self, e1, e2) -> bool: ...
@@ -77,6 +70,40 @@ class TypeChecker:
     def try_eta_expansion_aux(self, x, y) -> bool: ...
     def is_proof(self, e) -> tuple: ...
     def proof_irrel_eq(self, x, y) -> bool: ...
+
+    # Explicitly expose mixin implementations while retaining the legacy class's
+    # type-oriented method declarations above.
+    is_def_eq = DefEqMixin.is_def_eq
+    assert_def_eq = DefEqMixin.assert_def_eq
+    def_eq = DefEqMixin.def_eq
+    def_eq_tagged = DefEqMixin.def_eq_tagged
+    def_eq_inner = DefEqMixin.def_eq_inner
+    def_eq_quick_check = DefEqMixin.def_eq_quick_check
+    def_eq_sort = DefEqMixin.def_eq_sort
+    def_eq_const = DefEqMixin.def_eq_const
+    def_eq_local = DefEqMixin.def_eq_local
+    def_eq_proj = DefEqMixin.def_eq_proj
+    def_eq_binder_multi = DefEqMixin.def_eq_binder_multi
+    def_eq_binder_aux = DefEqMixin.def_eq_binder_aux
+    def_eq_app = DefEqMixin.def_eq_app
+    def_eq_nat = DefEqMixin.def_eq_nat
+    spec_app_congruence = DefEqMixin.spec_app_congruence
+    cheap_eq = DefEqMixin.cheap_eq
+    uf_find = DefEqMixin.uf_find
+    uf_check_eq = DefEqMixin.uf_check_eq
+    uf_union = DefEqMixin.uf_union
+    defeq_normalize_pair = DefEqMixin.defeq_normalize_pair
+    defeq_canon_key_open = DefEqMixin.defeq_canon_key_open
+    defeq_neg_lookup = DefEqMixin.defeq_neg_lookup
+    defeq_neg_store = DefEqMixin.defeq_neg_store
+    get_applied_def = DefEqMixin.get_applied_def
+    delta = DefEqMixin.delta
+    try_eq_const_app = DefEqMixin.try_eq_const_app
+    lazy_delta_step = DefEqMixin.lazy_delta_step
+    try_eta_expansion = DefEqMixin.try_eta_expansion
+    try_eta_expansion_aux = DefEqMixin.try_eta_expansion_aux
+    is_proof = DefEqMixin.is_proof
+    proof_irrel_eq = DefEqMixin.proof_irrel_eq
 
     def depth(self) -> int:
         return self.cache.depth()

@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from .ptr import ExprPtr, LevelPtr, LevelsPtr, NamePtr
-from .tc_whnf import TypeChecker
+if TYPE_CHECKING:
+    from .tc_whnf import TypeChecker
 
 
 def infer(self: TypeChecker, e: ExprPtr, flag='check') -> ExprPtr:
@@ -300,15 +301,25 @@ def push_local_let(self: TypeChecker, ty: ExprPtr, val: ExprPtr):
     self.cache.push_local_let(ty, val)
 
 
-# Patch methods onto TypeChecker
-TypeChecker.infer = infer  # type: ignore[assignment]
-TypeChecker._infer = _infer  # type: ignore[assignment]
-TypeChecker.ensure_sort = ensure_sort  # type: ignore[assignment]
-TypeChecker.is_sort_zero = is_sort_zero  # type: ignore[assignment]
-TypeChecker.is_proposition = is_proposition  # type: ignore[assignment]
-TypeChecker.infer_then_whnf = infer_then_whnf  # type: ignore[assignment]
-TypeChecker.infer_sort_of = infer_sort_of  # type: ignore[assignment]
-TypeChecker.ensure_pi = ensure_pi  # type: ignore[assignment]
-TypeChecker.push_local = push_local  # type: ignore[assignment]
-TypeChecker.pop_local = pop_local  # type: ignore[assignment]
-TypeChecker.push_local_let = push_local_let  # type: ignore[assignment]
+class InferenceMixin:
+    """Inference operations supplied to ``TypeChecker`` by composition."""
+
+    infer = infer
+    _infer = _infer
+    _infer_var = _infer_var
+    _infer_sort = _infer_sort
+    _infer_const = _infer_const
+    _infer_app = _infer_app
+    _infer_lambda = _infer_lambda
+    _infer_pi = _infer_pi
+    _infer_let = _infer_let
+    _infer_proj = _infer_proj
+    ensure_sort = ensure_sort
+    is_sort_zero = is_sort_zero
+    is_proposition = is_proposition
+    infer_then_whnf = infer_then_whnf
+    infer_sort_of = infer_sort_of
+    ensure_pi = ensure_pi
+    push_local = push_local
+    pop_local = pop_local
+    push_local_let = push_local_let

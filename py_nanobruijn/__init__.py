@@ -8,13 +8,10 @@ from .expr import (
     PI_HASH, APP_HASH, LOCAL_HASH, STRING_LIT_HASH, NAT_LIT_HASH,
 )
 from .dag import LeanDag, TcCtx
-from . import level_ops  # noqa: F401 — patches level ops onto TcCtx
-from . import tc_context  # noqa: F401 — patches expr ops onto TcCtx
-from . import tc_infer  # noqa: F401 — patches inference onto TypeChecker
-from . import tc_defeq  # noqa: F401 — patches def_eq onto TypeChecker
-from . import check_decl  # noqa: F401 — patches check_decl onto ExportFile and TypeChecker
-from . import inductive  # noqa: F401 — patches check_inductive_declar onto ExportFile
 from .config import Config
+from .api import check_export, load_export
+from .errors import KernelError, ParseError, PyNanobruijnError, UnsupportedFeatureError
+from .results import CheckResult, Diagnostic
 from .env import (
     ReducibilityHint, Opaque, Regular, Abbrev,
     DeclarInfo, RecRule,
@@ -34,6 +31,8 @@ __all__ = [
     "PI_HASH", "APP_HASH", "LOCAL_HASH", "STRING_LIT_HASH", "NAT_LIT_HASH",
     "LeanDag", "TcCtx",
     "Config",
+    "check_export", "load_export", "CheckResult", "Diagnostic",
+    "PyNanobruijnError", "ParseError", "KernelError", "UnsupportedFeatureError",
     "ReducibilityHint", "Opaque", "Regular", "Abbrev",
     "DeclarInfo", "RecRule",
     "ConstructorData", "InductiveData", "RecursorData",
