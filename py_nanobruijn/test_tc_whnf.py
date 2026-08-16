@@ -429,3 +429,21 @@ def test_get_declar_val_theorem():
     tc = TypeChecker(ctx, env)
     result = tc.get_declar_val(n)
     assert result is not None, "Theorems should return a value"
+
+
+# ============================================================
+# Mixin API surface (regression for F811 cleanup)
+# ============================================================
+
+
+def test_type_checker_mixin_api_surface():
+    ctx = make_ctx()
+    env = make_env()
+    tc = TypeChecker(ctx, env)
+    for name in ("is_def_eq", "assert_def_eq", "def_eq", "def_eq_inner",
+                 "def_eq_quick_check", "def_eq_sort", "def_eq_const",
+                 "def_eq_local", "def_eq_proj", "def_eq_binder_aux",
+                 "def_eq_app", "def_eq_nat", "cheap_eq", "uf_find",
+                 "uf_union", "defeq_normalize_pair", "delta",
+                 "try_eta_expansion", "is_proof", "proof_irrel_eq"):
+        assert callable(getattr(tc, name)), f"{name} missing or not callable"
