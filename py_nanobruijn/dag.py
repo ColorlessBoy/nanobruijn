@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
-from .name import Name
-from .level import Level
 from .expr import Expr
-from .ptr import ExprPtr, CorePtr, LevelPtr, LevelsPtr, NamePtr
+from .level import Level
 from .level_ops import LevelOpsMixin
+from .name import Name
+from .ptr import CorePtr, ExprPtr, LevelPtr, NamePtr
 from .tc_context import ContextOpsMixin
 
 if TYPE_CHECKING:
@@ -21,14 +21,22 @@ class LeanDag:
     """
 
     __slots__ = (
-        'names', 'name_map',
-        'levels', 'level_map',
-        'exprs', 'expr_map',
+        '_seed_expr_count',
+        '_seed_level_count',
+        '_seed_name_count',
+        'bignum_map',
+        'bignums',
+        'expr_map',
         'expr_nlbv',
-        'uparams', 'uparam_map',
-        'strings', 'string_map',
-        'bignums', 'bignum_map',
-        '_seed_name_count', '_seed_level_count', '_seed_expr_count',
+        'exprs',
+        'level_map',
+        'levels',
+        'name_map',
+        'names',
+        'string_map',
+        'strings',
+        'uparam_map',
+        'uparams',
     )
 
     def __init__(self, config=None):
@@ -217,11 +225,11 @@ class TcCtx(LevelOpsMixin, ContextOpsMixin):
     Analogous to ``TcCtx<'t, 'p>`` in Rust (basic version).
     """
 
-    __slots__ = ('dag', 'export_file', 'local_depth', '_name_cache')
+    __slots__ = ('_name_cache', 'dag', 'export_file', 'local_depth')
 
     def __init__(self, dag: LeanDag):
         self.dag = dag
-        self.export_file: Optional[ExportFile] = None
+        self.export_file: ExportFile | None = None
         self.local_depth = 0
         self._name_cache = {}
 

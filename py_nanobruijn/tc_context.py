@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
-from .name import name_to_string as _name_to_string
-from .level import Level
-from .expr import Expr
-from .ptr import ExprPtr, CorePtr, LevelPtr, LevelsPtr, NamePtr, CLOSED_SHIFT
 from .binder_style import BinderStyle
-
+from .expr import Expr
+from .level import Level
+from .name import name_to_string as _name_to_string
+from .ptr import CLOSED_SHIFT, CorePtr, ExprPtr, LevelPtr, LevelsPtr, NamePtr
 
 # ============================================================
 # name_to_string and debug_print
@@ -64,7 +61,7 @@ def mk_const(self, name: NamePtr, levels: LevelsPtr) -> ExprPtr:
     return ExprPtr.closed(core)
 
 
-def body_outer_shift(self, body: ExprPtr) -> Optional[int]:
+def body_outer_shift(self, body: ExprPtr) -> int | None:
     if body.is_closed():
         return None
     if self.nlbv(body) <= 1:
@@ -245,7 +242,7 @@ def view_expr(self, s: ExprPtr):
 # Unfold / inspection
 # ============================================================
 
-def unfold_apps(self, e: ExprPtr) -> Tuple[ExprPtr, List[ExprPtr]]:
+def unfold_apps(self, e: ExprPtr) -> tuple[ExprPtr, list[ExprPtr]]:
     args = []
     while True:
         expr = self.dag.exprs[e.core]
@@ -261,7 +258,7 @@ def unfold_apps(self, e: ExprPtr) -> Tuple[ExprPtr, List[ExprPtr]]:
     return (e, args)
 
 
-def unfold_const_apps(self, e: ExprPtr) -> Optional[Tuple[ExprPtr, NamePtr, LevelsPtr, List[ExprPtr]]]:
+def unfold_const_apps(self, e: ExprPtr) -> tuple[ExprPtr, NamePtr, LevelsPtr, list[ExprPtr]] | None:
     head, args = self.unfold_apps(e)
     expr = self.dag.exprs[head.core]
     if expr.tag == 'Const':
@@ -269,7 +266,7 @@ def unfold_const_apps(self, e: ExprPtr) -> Optional[Tuple[ExprPtr, NamePtr, Leve
     return None
 
 
-def unfold_pi(self, e: ExprPtr) -> Optional[Tuple]:
+def unfold_pi(self, e: ExprPtr) -> tuple | None:
     expr = self.dag.exprs[e.core]
     if expr.tag != 'Pi':
         return None
@@ -280,7 +277,7 @@ def unfold_pi(self, e: ExprPtr) -> Optional[Tuple]:
     return (expr.children[0], expr.children[1], bt, b)
 
 
-def unfold_pi_telescope(self, e: ExprPtr) -> List[Tuple]:
+def unfold_pi_telescope(self, e: ExprPtr) -> list[tuple]:
     binders = []
     cur = e
     while True:
@@ -293,7 +290,7 @@ def unfold_pi_telescope(self, e: ExprPtr) -> List[Tuple]:
     return binders
 
 
-def view_pi_head(self, e: ExprPtr) -> Optional[Tuple]:
+def view_pi_head(self, e: ExprPtr) -> tuple | None:
     expr = self.dag.exprs[e.core]
     if expr.tag != 'Pi':
         return None
@@ -365,7 +362,7 @@ def shift_core_aux(self, e: CorePtr, amount: int, cutoff: int) -> ExprPtr:
 # Instantiation (substitution)
 # ============================================================
 
-def _inst_aux_core(self, e: CorePtr, substs: List[ExprPtr],
+def _inst_aux_core(self, e: CorePtr, substs: list[ExprPtr],
                    offset: int, shift_down: bool, sh_amt: int, sh_cut: int) -> ExprPtr:
     nlbv = self.dag.expr_nlbv[e]
     n_substs = len(substs)
@@ -424,7 +421,7 @@ def _inst_aux_core(self, e: CorePtr, substs: List[ExprPtr],
     return ExprPtr.from_nlbv(e, nlbv)
 
 
-def _inst_aux_expr(self, child: ExprPtr, substs: List[ExprPtr],
+def _inst_aux_expr(self, child: ExprPtr, substs: list[ExprPtr],
                    offset: int, shift_down: bool, sh_amt: int, sh_cut: int) -> ExprPtr:
     if child.is_closed():
         return child
@@ -437,7 +434,7 @@ def _inst_aux_expr(self, child: ExprPtr, substs: List[ExprPtr],
     return self._inst_aux_viewed(viewed, substs, offset, shift_down, sh_amt, sh_cut)
 
 
-def _inst_aux_viewed(self, viewed, substs: List[ExprPtr],
+def _inst_aux_viewed(self, viewed, substs: list[ExprPtr],
                      offset: int, shift_down: bool, sh_amt: int, sh_cut: int) -> ExprPtr:
     n_substs = len(substs)
     tag = viewed.tag
@@ -614,7 +611,7 @@ def subst_declar_info_levels(self, info, in_vals: LevelsPtr) -> ExprPtr:
 # unfold_apps_fun
 # ============================================================
 
-def unfold_lambda(self, e: ExprPtr) -> Optional[Tuple]:
+def unfold_lambda(self, e: ExprPtr) -> tuple | None:
     expr = self.dag.get_expr(e.core)
     if expr.tag != 'Lambda':
         return None

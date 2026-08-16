@@ -1,13 +1,17 @@
 from __future__ import annotations
-from typing import Dict
 
 from .dag import TcCtx
 from .env import (
-    Declar, InductiveDecl, Env, EnvLimit,
+    Declar,
+    Env,
+    EnvLimit,
+    InductiveDecl,
 )
 from .ptr import ExprPtr, NamePtr
 from .tc_whnf import TypeChecker
-def check_inductive_declaration(export, d: InductiveDecl, declars: Dict[NamePtr, Declar]):
+
+
+def check_inductive_declaration(export, d: InductiveDecl, declars: dict[NamePtr, Declar]):
     """Check an inductive declaration.
 
     Validates the inductive types in the mutual block.

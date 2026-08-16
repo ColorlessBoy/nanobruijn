@@ -1,28 +1,28 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional, List
+
 import json
+from dataclasses import dataclass
 
 
 @dataclass
 class Config:
-    export_file_path: Optional[str] = None
+    export_file_path: str | None = None
     use_stdin: bool = False
-    permitted_axioms: Optional[List[str]] = None
+    permitted_axioms: list[str] | None = None
     unpermitted_axiom_hard_error: bool = True
     num_threads: int = 1
     nat_extension: bool = False
     string_extension: bool = False
-    pp_declars: Optional[List[str]] = None
+    pp_declars: list[str] | None = None
     unknown_pp_declar_hard_error: bool = True
-    pp_output_path: Optional[str] = None
+    pp_output_path: str | None = None
     pp_to_stdout: bool = False
     print_success_message: bool = False
     print_axioms: bool = True
     unsafe_permit_all_axioms: bool = False
     max_declarations: int = 0
     skip_declarations: int = 0
-    declaration_filter: Optional[str] = None
+    declaration_filter: str | None = None
     declaration_timeout_secs: int = 0
     use_nanoda_tc: bool = False
 

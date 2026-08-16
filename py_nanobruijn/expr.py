@@ -1,9 +1,8 @@
 from __future__ import annotations
-from typing import Union
 
-from .name import _hash64
-from .ptr import ExprPtr, CorePtr, NamePtr, StringPtr, BigUintPtr, LevelPtr, LevelsPtr
 from .binder_style import BinderStyle
+from .name import _hash64
+from .ptr import BigUintPtr, CorePtr, ExprPtr, LevelPtr, LevelsPtr, NamePtr, StringPtr
 
 VAR_HASH = 281
 SORT_HASH = 563
@@ -69,7 +68,7 @@ class Expr:
       NatLit    — natural number literal
     """
 
-    __slots__ = ('tag', 'children', '_hash')
+    __slots__ = ('_hash', 'children', 'tag')
 
     def __init__(self, tag: str, children: tuple = ()):
         self.tag = tag
@@ -202,7 +201,7 @@ class Expr:
         return self.children[1]
 
     @property
-    def binder_type(self) -> Union[ExprPtr, CorePtr]:
+    def binder_type(self) -> ExprPtr | CorePtr:
         assert self.tag in ('Pi', 'Lambda', 'Let', 'Local')
         return self.children[2] if self.tag in ('Pi', 'Lambda') else \
                self.children[1] if self.tag == 'Let' else \

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from .env import QuotDecl
+
+
 def check_quot_declaration(export, d: QuotDecl):
     """Verify a Quot declaration.
 

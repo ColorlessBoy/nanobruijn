@@ -20,7 +20,7 @@ class Level:
       Param(name)    — universe parameter (named)
     """
 
-    __slots__ = ('tag', 'children', '_hash')
+    __slots__ = ('_hash', 'children', 'tag')
 
     def __init__(self, tag: str, children: tuple = ()):
         self.tag = tag

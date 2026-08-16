@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from .dag import LeanDag, TcCtx
-from .name import Name
-from .expr import Expr
-from .binder_style import BinderStyle
-from .env import (
-    Env, EnvLimit,
-    Declar, Definition, Theorem, DeclarInfo,
-    Abbrev, Regular,
-)
-from .tc_whnf import TypeChecker
+import py_nanobruijn.level_ops
 import py_nanobruijn.tc_context  # noqa: F401 — triggers method patching
-import py_nanobruijn.level_ops  # noqa: F401 — triggers level method patching
+
+from .binder_style import BinderStyle
+from .dag import LeanDag, TcCtx
+from .env import (
+    Abbrev,
+    Declar,
+    DeclarInfo,
+    Definition,
+    Env,
+    EnvLimit,
+    Regular,
+    Theorem,
+)
+from .expr import Expr
+from .name import Name
+from .tc_whnf import TypeChecker
 
 
 def make_ctx() -> TcCtx:
@@ -190,7 +196,7 @@ def test_proj_reduction():
             safety="safe",
         ),
     }
-    from .env import ConstructorDecl, ConstructorData
+    from .env import ConstructorData, ConstructorDecl
     ctor_data = ConstructorData(
         info=DeclarInfo(name=mk_name, uparams=ctx.dag.insert_uparams(()), ty=ctx.mk_sort(0).core),
         cidx=0,

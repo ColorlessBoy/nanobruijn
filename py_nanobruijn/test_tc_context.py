@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from .dag import LeanDag, TcCtx
-from .name import Name
-from .expr import Expr
-from .binder_style import BinderStyle
 import py_nanobruijn.tc_context  # noqa: F401 — triggers method patching
+
+from .binder_style import BinderStyle
+from .dag import LeanDag, TcCtx
+from .expr import Expr
+from .name import Name
 
 
 def make_ctx() -> TcCtx:

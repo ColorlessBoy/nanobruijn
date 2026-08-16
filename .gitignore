@@ -21,6 +21,7 @@
 py_nanobruijn/__pycache__/
 __pycache__
 *.egg-info/
+.venv/
 # VitePress
 .vitepress/
 tutorials/node_modules/

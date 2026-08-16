@@ -1,19 +1,22 @@
 from __future__ import annotations
+
 import os
 import random
 import sys
+
 import pytest
 
+import py_nanobruijn.check_decl
+import py_nanobruijn.level_ops
+import py_nanobruijn.tc_context
+import py_nanobruijn.tc_defeq
+import py_nanobruijn.tc_infer  # noqa: F401
+
+from .config import Config
 from .dag import LeanDag, TcCtx
 from .level import Level
 from .name import Name
-from .config import Config
 from .parser import parse_export_file
-import py_nanobruijn.tc_context  # noqa: F401
-import py_nanobruijn.level_ops  # noqa: F401
-import py_nanobruijn.check_decl  # noqa: F401
-import py_nanobruijn.tc_infer  # noqa: F401
-import py_nanobruijn.tc_defeq  # noqa: F401
 
 sys.setrecursionlimit(10000)
 
@@ -297,7 +300,7 @@ def test_nat_div_le_self():
 
 def test_nat_div_eq():
     def nat_div_eq_f(x: int, y: int) -> int:
-        if 0 < y and y <= x:
+        if 0 < y <= x:
             return nat_div_eq_f(x - y, y) + 1
         else:
             return 0
@@ -459,7 +462,7 @@ def test_nat_ble_eq():
 
 def test_nat_mod_eq():
     def nat_mod_eq_f(x: int, y: int) -> int:
-        if 0 < y and y <= x:
+        if 0 < y <= x:
             return nat_mod_eq_f(x - y, y)
         else:
             return x

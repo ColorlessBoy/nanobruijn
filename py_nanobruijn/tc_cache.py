@@ -1,25 +1,33 @@
 from __future__ import annotations
-from typing import Optional, Dict, List, Tuple
 
-from .ptr import ExprPtr, CorePtr
+from .ptr import CorePtr, ExprPtr
 
 
 class DepthFrame:
     """Per-binder depth frame with caches."""
 
-    __slots__ = ('depth', 'ty', 'val', 'whnf_cache', 'wnu_cache', 'infer_check_cache',
-                 'infer_no_check_cache', 'defeq_neg_cache', 'uf_cache')
+    __slots__ = (
+        'defeq_neg_cache',
+        'depth',
+        'infer_check_cache',
+        'infer_no_check_cache',
+        'ty',
+        'uf_cache',
+        'val',
+        'whnf_cache',
+        'wnu_cache',
+    )
 
-    def __init__(self, depth: int, ty: ExprPtr, val: Optional[ExprPtr] = None):
+    def __init__(self, depth: int, ty: ExprPtr, val: ExprPtr | None = None):
         self.depth = depth
         self.ty = ty
         self.val = val
-        self.whnf_cache: Dict[CorePtr, ExprPtr] = {}
-        self.wnu_cache: Dict[CorePtr, ExprPtr] = {}
-        self.infer_check_cache: Dict[CorePtr, ExprPtr] = {}
-        self.infer_no_check_cache: Dict[CorePtr, ExprPtr] = {}
-        self.defeq_neg_cache: Dict[Tuple[ExprPtr, ExprPtr], Tuple[ExprPtr, ExprPtr, int]] = {}
-        self.uf_cache: Dict[CorePtr, ExprPtr] = {}
+        self.whnf_cache: dict[CorePtr, ExprPtr] = {}
+        self.wnu_cache: dict[CorePtr, ExprPtr] = {}
+        self.infer_check_cache: dict[CorePtr, ExprPtr] = {}
+        self.infer_no_check_cache: dict[CorePtr, ExprPtr] = {}
+        self.defeq_neg_cache: dict[tuple[ExprPtr, ExprPtr], tuple[ExprPtr, ExprPtr, int]] = {}
+        self.uf_cache: dict[CorePtr, ExprPtr] = {}
 
 
 class TcCache:
@@ -29,17 +37,25 @@ class TcCache:
     Bucket k>0 = frames[k-1] (open expressions at a given binder depth).
     """
 
-    __slots__ = ('whnf_base', 'wnu_base', 'infer_check_base', 'infer_no_check_base',
-                 'defeq_neg_base', 'uf_base', 'frames', '_depth')
+    __slots__ = (
+        '_depth',
+        'defeq_neg_base',
+        'frames',
+        'infer_check_base',
+        'infer_no_check_base',
+        'uf_base',
+        'whnf_base',
+        'wnu_base',
+    )
 
     def __init__(self):
-        self.whnf_base: Dict[CorePtr, ExprPtr] = {}
-        self.wnu_base: Dict[CorePtr, ExprPtr] = {}
-        self.infer_check_base: Dict[CorePtr, ExprPtr] = {}
-        self.infer_no_check_base: Dict[CorePtr, ExprPtr] = {}
-        self.defeq_neg_base: Dict[Tuple[ExprPtr, ExprPtr], Tuple[ExprPtr, ExprPtr, int]] = {}
-        self.uf_base: Dict[CorePtr, ExprPtr] = {}
-        self.frames: List[DepthFrame] = []
+        self.whnf_base: dict[CorePtr, ExprPtr] = {}
+        self.wnu_base: dict[CorePtr, ExprPtr] = {}
+        self.infer_check_base: dict[CorePtr, ExprPtr] = {}
+        self.infer_no_check_base: dict[CorePtr, ExprPtr] = {}
+        self.defeq_neg_base: dict[tuple[ExprPtr, ExprPtr], tuple[ExprPtr, ExprPtr, int]] = {}
+        self.uf_base: dict[CorePtr, ExprPtr] = {}
+        self.frames: list[DepthFrame] = []
         self._depth: int = 0
 
     def clear(self):
@@ -104,14 +120,14 @@ class TcCache:
     def restore_depth(self, depth: int):
         self._depth = depth
 
-    def split_off(self, new_depth: int) -> List[DepthFrame]:
+    def split_off(self, new_depth: int) -> list[DepthFrame]:
         self.frames = self.frames[:self._depth]
         self._depth = new_depth
         saved = self.frames[new_depth:]
         self.frames = self.frames[:new_depth]
         return saved
 
-    def extend(self, saved: List[DepthFrame]):
+    def extend(self, saved: list[DepthFrame]):
         self.frames = self.frames[:self._depth]
         self.frames.extend(saved)
         self._depth = len(self.frames)
@@ -120,7 +136,7 @@ class TcCache:
         assert dbj_idx < self._depth, f"local_type: dbj_idx={dbj_idx} >= depth={self._depth}"
         return self.frames[self._depth - 1 - dbj_idx].ty
 
-    def local_value(self, dbj_idx: int) -> Optional[ExprPtr]:
+    def local_value(self, dbj_idx: int) -> ExprPtr | None:
         if dbj_idx >= self._depth:
             return None
         return self.frames[self._depth - 1 - dbj_idx].val
@@ -146,7 +162,7 @@ class TcCache:
             return self
         return self.frames[bucket - 1]
 
-    def whnf_get(self, b: int, k: CorePtr) -> Optional[ExprPtr]:
+    def whnf_get(self, b: int, k: CorePtr) -> ExprPtr | None:
         if b == 0:
             return self.whnf_base.get(k)
         if b - 1 < len(self.frames):
@@ -159,7 +175,7 @@ class TcCache:
         elif b - 1 < len(self.frames):
             self.frames[b - 1].whnf_cache[k] = v
 
-    def wnu_get(self, b: int, k: CorePtr) -> Optional[ExprPtr]:
+    def wnu_get(self, b: int, k: CorePtr) -> ExprPtr | None:
         if b == 0:
             return self.wnu_base.get(k)
         if b - 1 < len(self.frames):
@@ -172,7 +188,7 @@ class TcCache:
         elif b - 1 < len(self.frames):
             self.frames[b - 1].wnu_cache[k] = v
 
-    def infer_check_get(self, b: int, k: CorePtr) -> Optional[ExprPtr]:
+    def infer_check_get(self, b: int, k: CorePtr) -> ExprPtr | None:
         if b == 0:
             return self.infer_check_base.get(k)
         if b - 1 < len(self.frames):
@@ -185,7 +201,7 @@ class TcCache:
         elif b - 1 < len(self.frames):
             self.frames[b - 1].infer_check_cache[k] = v
 
-    def infer_no_check_get(self, b: int, k: CorePtr) -> Optional[ExprPtr]:
+    def infer_no_check_get(self, b: int, k: CorePtr) -> ExprPtr | None:
         if b == 0:
             return self.infer_no_check_base.get(k)
         if b - 1 < len(self.frames):
@@ -198,7 +214,7 @@ class TcCache:
         elif b - 1 < len(self.frames):
             self.frames[b - 1].infer_no_check_cache[k] = v
 
-    def uf_get(self, bucket: int, core: CorePtr) -> Optional[ExprPtr]:
+    def uf_get(self, bucket: int, core: CorePtr) -> ExprPtr | None:
         if bucket == 0:
             return self.uf_base.get(core)
         if bucket - 1 < len(self.frames):
@@ -211,14 +227,14 @@ class TcCache:
         elif bucket - 1 < len(self.frames):
             self.frames[bucket - 1].uf_cache[core] = rep
 
-    def defeq_neg_get(self, bucket: int, key: tuple) -> Optional[Tuple[ExprPtr, ExprPtr, int]]:
+    def defeq_neg_get(self, bucket: int, key: tuple) -> tuple[ExprPtr, ExprPtr, int] | None:
         if bucket == 0:
             return self.defeq_neg_base.get(key)
         if bucket - 1 < len(self.frames):
             return self.frames[bucket - 1].defeq_neg_cache.get(key)
         return None
 
-    def defeq_neg_insert(self, bucket: int, key: tuple, val: Tuple[ExprPtr, ExprPtr, int]):
+    def defeq_neg_insert(self, bucket: int, key: tuple, val: tuple[ExprPtr, ExprPtr, int]):
         if bucket == 0:
             self.defeq_neg_base[key] = val
         elif bucket - 1 < len(self.frames):

@@ -1,7 +1,9 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, List
+
+from typing import TYPE_CHECKING
 
 from .ptr import ExprPtr, LevelPtr, LevelsPtr, NamePtr
+
 if TYPE_CHECKING:
     from .tc_whnf import TypeChecker
 
@@ -108,7 +110,7 @@ def _infer_const(self: TypeChecker, c_name: NamePtr, c_uparams: LevelsPtr, is_ch
 def _infer_app(self: TypeChecker, e: ExprPtr, is_check: bool) -> ExprPtr:
     import py_nanobruijn.tc_defeq  # noqa: F401 — ensure assert_def_eq is patched
     fun, args = self.ctx.unfold_apps(e)
-    ctx_args: List[ExprPtr] = []
+    ctx_args: list[ExprPtr] = []
     fun_ty = self._infer(fun, is_check)
     arg_idx = 0
     while arg_idx < len(args):
@@ -133,7 +135,7 @@ def _infer_app(self: TypeChecker, e: ExprPtr, is_check: bool) -> ExprPtr:
 
 
 def _infer_lambda(self: TypeChecker, e: ExprPtr, is_check: bool) -> ExprPtr:
-    binders: List[tuple] = []
+    binders: list[tuple] = []
     cur = e
     while True:
         unfolded = self.ctx.unfold_lambda(cur)
@@ -155,7 +157,7 @@ def _infer_lambda(self: TypeChecker, e: ExprPtr, is_check: bool) -> ExprPtr:
 
 
 def _infer_pi(self: TypeChecker, e: ExprPtr, is_check: bool) -> ExprPtr:
-    universes: List[LevelPtr] = []
+    universes: list[LevelPtr] = []
     depth0 = self.depth()
     cur = e
     while True:

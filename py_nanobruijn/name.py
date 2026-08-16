@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional
 
 ANON_HASH = 43
 STR_HASH = 911
@@ -25,10 +24,10 @@ class Name:
       Num   — numeric suffix (e.g. ``_123``)
     """
 
-    __slots__ = ('tag', 'pfx', 'sfx', '_hash')
+    __slots__ = ('_hash', 'pfx', 'sfx', 'tag')
 
-    def __init__(self, tag: str, pfx: Optional[int] = None,
-                 sfx: Optional[int] = None):
+    def __init__(self, tag: str, pfx: int | None = None,
+                 sfx: int | None = None):
         self.tag = tag
         self.pfx = pfx
         self.sfx = sfx

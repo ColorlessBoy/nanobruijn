@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import pytest
 
-from .parser import parse_export_file
 from .config import Config
+from .parser import parse_export_file
 
 
 def test_check_empty():

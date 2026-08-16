@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .level import Level
-from .ptr import LevelPtr, LevelsPtr, NamePtr, ExprPtr
+from .ptr import ExprPtr, LevelPtr, LevelsPtr, NamePtr
 
 
 def level_succs(self, lv: LevelPtr) -> tuple[LevelPtr, int]:

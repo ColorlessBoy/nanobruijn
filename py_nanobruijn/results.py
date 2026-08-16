@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
 class Diagnostic:
     severity: str
     message: str
-    declaration: Optional[str] = None
-    declaration_index: Optional[int] = None
-    exception_type: Optional[str] = None
+    declaration: str | None = None
+    declaration_index: int | None = None
+    exception_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

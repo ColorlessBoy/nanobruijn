@@ -1,9 +1,8 @@
 from __future__ import annotations
-from typing import Optional, Tuple
 
 from .dag import TcCtx
 from .env import Declar, Env, Theorem
-from .ptr import ExprPtr, CorePtr, LevelsPtr, NamePtr
+from .ptr import CorePtr, ExprPtr, LevelsPtr, NamePtr
 from .tc_cache import TcCache
 from .tc_defeq import DefEqMixin
 from .tc_infer import InferenceMixin
@@ -58,11 +57,11 @@ class TypeChecker(InferenceMixin, DefEqMixin):
     def uf_find(self, x) -> ExprPtr: ...
     def uf_check_eq(self, x, y) -> bool: ...
     def uf_union(self, x, y): ...
-    def defeq_normalize_pair(self, x, y) -> Tuple[ExprPtr, ExprPtr, int]: ...
-    def defeq_canon_key_open(self, x, y) -> Tuple[tuple, bool]: ...
+    def defeq_normalize_pair(self, x, y) -> tuple[ExprPtr, ExprPtr, int]: ...
+    def defeq_canon_key_open(self, x, y) -> tuple[tuple, bool]: ...
     def defeq_neg_lookup(self, x, y) -> bool: ...
     def defeq_neg_store(self, x, y): ...
-    def get_applied_def(self, e) -> Optional[tuple]: ...
+    def get_applied_def(self, e) -> tuple | None: ...
     def delta(self, e) -> ExprPtr: ...
     def try_eq_const_app(self, x, x_defname, x_hint, y, y_defname, y_hint): ...
     def lazy_delta_step(self, x, y): ...
@@ -113,10 +112,10 @@ class TypeChecker(InferenceMixin, DefEqMixin):
             return 0
         return self.depth() - e.shift
 
-    def get_declar_val(self, name: NamePtr) -> Optional[Tuple[LevelsPtr, CorePtr]]:
+    def get_declar_val(self, name: NamePtr) -> tuple[LevelsPtr, CorePtr] | None:
         return self.env.get_declar_val(name)
 
-    def unfold_def(self, e: ExprPtr) -> Optional[ExprPtr]:
+    def unfold_def(self, e: ExprPtr) -> ExprPtr | None:
         fun, args = self.ctx.unfold_apps(e)
         info = self.ctx.try_const_info(fun.core)
         if info is None:
@@ -343,7 +342,7 @@ class TypeChecker(InferenceMixin, DefEqMixin):
 
         return result
 
-    def reduce_proj(self, idx: int, structure: ExprPtr, cheap: bool) -> Optional[ExprPtr]:
+    def reduce_proj(self, idx: int, structure: ExprPtr, cheap: bool) -> ExprPtr | None:
         struct = self.whnf_no_unfolding_cheap_proj(structure) if cheap else self.whnf(structure)
         unfolded = self.ctx.unfold_const_apps(struct)
         if unfolded is None:

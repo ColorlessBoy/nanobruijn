@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import py_nanobruijn.level_ops
+import py_nanobruijn.tc_context
+import py_nanobruijn.tc_defeq
+import py_nanobruijn.tc_infer  # noqa: F401
+
+from .binder_style import BinderStyle
 from .dag import LeanDag, TcCtx
+from .env import (
+    Axiom,
+    DeclarInfo,
+    Env,
+    EnvLimit,
+)
 from .level import Level
 from .name import Name
-from .binder_style import BinderStyle
-from .env import (
-    Env, EnvLimit,
-    Axiom, DeclarInfo,
-)
 from .tc_whnf import TypeChecker
-import py_nanobruijn.tc_context  # noqa: F401
-import py_nanobruijn.level_ops  # noqa: F401
-import py_nanobruijn.tc_infer  # noqa: F401
-import py_nanobruijn.tc_defeq  # noqa: F401
 
 
 def make_ctx() -> TcCtx:
@@ -185,7 +188,7 @@ def test_infer_proj_reduce():
 
     ind_info = DeclarInfo(name=prod_name, uparams=uparams,
                           ty=ctx.mk_sort_one().core)
-    from .env import InductiveData, ConstructorData, InductiveDecl, ConstructorDecl
+    from .env import ConstructorData, ConstructorDecl, InductiveData, InductiveDecl
     ind_data = InductiveData(
         info=ind_info,
         all_ctor_names=(mk_name,),

@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 import os
 
 from .config import Config
-from .parser import parse_export_file
 from .env import Axiom, Definition, InductiveDecl
 from .name import name_to_string
-
+from .parser import parse_export_file
 
 TEST_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', 'test_resources')

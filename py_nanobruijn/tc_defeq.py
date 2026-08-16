@@ -1,8 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Tuple
 
-from .env import Definition, Theorem, Regular, Opaque
+from typing import TYPE_CHECKING
+
+from .env import Definition, Opaque, Regular, Theorem
 from .ptr import ExprPtr, NamePtr
+
 if TYPE_CHECKING:
     from .tc_whnf import TypeChecker
 
@@ -108,7 +110,7 @@ def def_eq_inner(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
 # Quick checks
 # ============================================================
 
-def def_eq_quick_check(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bool]:
+def def_eq_quick_check(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
     if x == y:
         return True
     if self.uf_check_eq(x, y):
@@ -135,7 +137,7 @@ def def_eq_quick_check(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bo
 # Sort comparison
 # ============================================================
 
-def def_eq_sort(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bool]:
+def def_eq_sort(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
     xexpr = self.ctx.dag.get_expr(x.core)
     yexpr = self.ctx.dag.get_expr(y.core)
     if xexpr.tag == 'Sort' and yexpr.tag == 'Sort':
@@ -183,7 +185,7 @@ def def_eq_proj(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
 # Binder (Pi/Lambda) comparison
 # ============================================================
 
-def def_eq_binder_multi(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bool]:
+def def_eq_binder_multi(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
     x_pi = self.ctx.is_pi(x) and self.ctx.is_pi(y)
     x_lam = self.ctx.is_lambda(x) and self.ctx.is_lambda(y)
     if x_pi or x_lam:
@@ -217,7 +219,7 @@ def def_eq_binder_aux(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
 # App comparison
 # ============================================================
 
-def spec_app_congruence(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bool]:
+def spec_app_congruence(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
     fx, fy = x, y
     while True:
         xv, yv = self.ctx.view_expr_pair(fx, fy)
@@ -256,7 +258,7 @@ def def_eq_app(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
 # Nat comparison
 # ============================================================
 
-def def_eq_nat(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bool]:
+def def_eq_nat(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
     xexpr = self.ctx.dag.get_expr(x.core)
     yexpr = self.ctx.dag.get_expr(y.core)
     if xexpr.tag == 'NatLit' and yexpr.tag == 'NatLit':
@@ -309,7 +311,7 @@ def uf_union(self: TypeChecker, x: ExprPtr, y: ExprPtr):
 # Negative caching
 # ============================================================
 
-def defeq_normalize_pair(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Tuple[ExprPtr, ExprPtr, int]:
+def defeq_normalize_pair(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> tuple[ExprPtr, ExprPtr, int]:
     x_nlbv = self.ctx.nlbv(x)
     y_nlbv = self.ctx.nlbv(y)
     if x_nlbv == 0 and y_nlbv == 0:
@@ -327,7 +329,7 @@ def defeq_normalize_pair(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Tuple[Exp
     return (nx, ny, bucket)
 
 
-def defeq_canon_key_open(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Tuple[tuple, bool]:
+def defeq_canon_key_open(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> tuple[tuple, bool]:
     if x.get_hash() <= y.get_hash():
         return ((x, y), False)
     else:
@@ -355,7 +357,7 @@ def defeq_neg_store(self: TypeChecker, x: ExprPtr, y: ExprPtr):
 # Delta reduction
 # ============================================================
 
-def get_applied_def(self: TypeChecker, e: ExprPtr) -> Optional[tuple]:
+def get_applied_def(self: TypeChecker, e: ExprPtr) -> tuple | None:
     f = self.ctx.unfold_apps_fun(e)
     fexpr = self.ctx.dag.get_expr(f.core)
     if fexpr.tag == 'Const':
@@ -374,7 +376,7 @@ def delta(self: TypeChecker, e: ExprPtr) -> ExprPtr:
     return self.whnf_no_unfolding_cheap_proj(unfolded)
 
 
-def try_eq_const_app(self: TypeChecker, x: ExprPtr, x_defname: NamePtr, x_hint, y: ExprPtr, y_defname: NamePtr, y_hint) -> Optional[bool]:
+def try_eq_const_app(self: TypeChecker, x: ExprPtr, x_defname: NamePtr, x_hint, y: ExprPtr, y_defname: NamePtr, y_hint) -> bool | None:
     if x_defname != y_defname:
         return None
     if not isinstance(x_hint, Regular) or not isinstance(y_hint, Regular):
@@ -403,7 +405,7 @@ def try_eq_const_app(self: TypeChecker, x: ExprPtr, x_defname: NamePtr, x_hint, 
     return None
 
 
-def lazy_delta_step(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> Optional[bool]:
+def lazy_delta_step(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
     for _ in range(16):
         r1 = self.get_applied_def(x)
         r2 = self.get_applied_def(y)

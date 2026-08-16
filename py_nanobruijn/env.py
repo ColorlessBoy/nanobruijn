@@ -1,9 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional, Tuple, Dict, Any, Mapping
-from enum import Enum
 
-from .ptr import NamePtr, LevelsPtr, CorePtr
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+
+from .ptr import CorePtr, LevelsPtr, NamePtr
 
 
 class ReducibilityHint:
@@ -159,14 +161,14 @@ class EnvLimit:
 class Env:
     def __init__(
         self,
-        declars: Optional[Mapping[NamePtr, Declar]] = None,
-        temp_declars: Optional[Mapping[NamePtr, Declar]] = None,
-        notation: Optional[Dict[NamePtr, Notation]] = None,
-        limit: Optional[EnvLimit] = None,
+        declars: Mapping[NamePtr, Declar] | None = None,
+        temp_declars: Mapping[NamePtr, Declar] | None = None,
+        notation: dict[NamePtr, Notation] | None = None,
+        limit: EnvLimit | None = None,
     ):
-        self.declars: Dict[NamePtr, Declar] = dict(declars) if declars is not None else {}
-        self.temp_declars: Optional[Dict[NamePtr, Declar]] = dict(temp_declars) if temp_declars is not None else None
-        self.notation: Dict[NamePtr, Notation] = notation or {}
+        self.declars: dict[NamePtr, Declar] = dict(declars) if declars is not None else {}
+        self.temp_declars: dict[NamePtr, Declar] | None = dict(temp_declars) if temp_declars is not None else None
+        self.notation: dict[NamePtr, Notation] = notation or {}
 
         if limit is None or limit.tag == "pp_unlimited":
             self.cutoff = len(self.declars)
@@ -186,17 +188,17 @@ class Env:
         else:
             self.cutoff = len(self.declars)
 
-    def get_declar(self, name: NamePtr) -> Optional[Declar]:
+    def get_declar(self, name: NamePtr) -> Declar | None:
         if self.temp_declars is not None and name in self.temp_declars:
             return self.temp_declars[name]
         return self.get_old_declar(name)
 
-    def get_temp_declar(self, name: NamePtr) -> Optional[Declar]:
+    def get_temp_declar(self, name: NamePtr) -> Declar | None:
         if self.temp_declars is not None:
             return self.temp_declars.get(name)
         return None
 
-    def get_old_declar(self, name: NamePtr) -> Optional[Declar]:
+    def get_old_declar(self, name: NamePtr) -> Declar | None:
         d = self.declars.get(name)
         if d is None:
             return None
@@ -209,7 +211,7 @@ class Env:
             return d
         return None
 
-    def get_inductive(self, name: NamePtr) -> Optional[InductiveData]:
+    def get_inductive(self, name: NamePtr) -> InductiveData | None:
         d = self.get_declar(name)
         if isinstance(d, InductiveDecl):
             for ind in d.inductives:
@@ -217,13 +219,13 @@ class Env:
                     return ind
         return None
 
-    def get_recursor(self, name: NamePtr) -> Optional[RecursorData]:
+    def get_recursor(self, name: NamePtr) -> RecursorData | None:
         d = self.get_declar(name)
         if isinstance(d, RecursorDecl):
             return d.data
         return None
 
-    def get_constructor(self, name: NamePtr) -> Optional[ConstructorData]:
+    def get_constructor(self, name: NamePtr) -> ConstructorData | None:
         d = self.get_declar(name)
         if isinstance(d, ConstructorDecl):
             return d.data
@@ -235,7 +237,7 @@ class Env:
             return (not ind.is_rec) and len(ind.all_ctor_names) == 1 and ind.num_indices == 0
         return False
 
-    def get_declar_val(self, name: NamePtr) -> Optional[Tuple[LevelsPtr, CorePtr]]:
+    def get_declar_val(self, name: NamePtr) -> tuple[LevelsPtr, CorePtr] | None:
         d = self.get_declar(name)
         if isinstance(d, (Definition, Theorem)):
             return (d.info.uparams, d.value)

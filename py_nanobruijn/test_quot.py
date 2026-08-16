@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .env import QuotDecl, DeclarInfo
 from . import check_decl  # noqa: F401 — patches ExportFile
+from .env import DeclarInfo, QuotDecl
 
 
 def test_quot_stub():

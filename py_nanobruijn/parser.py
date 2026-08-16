@@ -1,18 +1,35 @@
 from __future__ import annotations
-import json
-from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
 
-from .name import Name
-from .level import Level
-from .expr import Expr, BinderStyle
-from .ptr import ExprPtr, CLOSED_SHIFT
+import json
+from typing import TYPE_CHECKING
+
 from .dag import LeanDag
 from .env import (
-    Declar, Axiom, Theorem, Definition, OpaqueDecl, QuotDecl,
-    InductiveDecl, ConstructorDecl, RecursorDecl,
-    DeclarInfo, InductiveData, ConstructorData, RecursorData,
-    RecRule, ReducibilityHint, Opaque, Regular, Abbrev, Env, EnvLimit,
+    Abbrev,
+    Axiom,
+    ConstructorData,
+    ConstructorDecl,
+    Declar,
+    DeclarInfo,
+    Definition,
+    Env,
+    EnvLimit,
+    InductiveData,
+    InductiveDecl,
+    Opaque,
+    OpaqueDecl,
+    QuotDecl,
+    RecRule,
+    RecursorData,
+    RecursorDecl,
+    ReducibilityHint,
+    Regular,
+    Theorem,
 )
+from .expr import BinderStyle, Expr
+from .level import Level
+from .name import Name
+from .ptr import CLOSED_SHIFT, ExprPtr
 
 if TYPE_CHECKING:
     from .tc_whnf import TypeChecker
@@ -37,7 +54,7 @@ class ExportFile:
         """Compatibility API returning only the number of failed declarations."""
         return self.check_all().failed
 
-    def _make_env(self, limit: Optional[EnvLimit] = None) -> Env:
+    def _make_env(self, limit: EnvLimit | None = None) -> Env:
         return Env(declars=self.declars, limit=limit or EnvLimit('pp_unlimited'))
 
     def _with_tc(self, d: Declar) -> TypeChecker:
@@ -53,11 +70,11 @@ class Parser:
     def __init__(self, dag: LeanDag, config):
         self.dag = dag
         self.config = config
-        self.declars: Dict[int, Declar] = {}
-        self.skipped: List[str] = []
-        self.name_remap: List[int] = [0]
-        self.level_remap: List[int] = [0]
-        self.expr_remap: List[Tuple[int, int]] = []
+        self.declars: dict[int, Declar] = {}
+        self.skipped: list[str] = []
+        self.name_remap: list[int] = [0]
+        self.level_remap: list[int] = [0]
+        self.expr_remap: list[tuple[int, int]] = []
         self.osnf_count = 0
 
     # ---- helpers ----
@@ -103,11 +120,11 @@ class Parser:
             raise ValueError(f"expected closed expression for declaration, got shift={ep.shift}")
         return ep.core
 
-    def get_levels_ptr(self, idxs: List[int]) -> int:
+    def get_levels_ptr(self, idxs: list[int]) -> int:
         levels = tuple(self.get_level_ptr(i) for i in idxs)
         return self.dag.insert_uparams(levels)
 
-    def get_uparams_ptr(self, name_idxs: List[int]) -> int:
+    def get_uparams_ptr(self, name_idxs: list[int]) -> int:
         levels = []
         for name_idx in name_idxs:
             name_ptr = self.get_name_ptr(name_idx)

@@ -12,7 +12,7 @@ license = {text = "Apache-2.0"}
 keywords = ["lean", "type-checker", "de-bruijn", "kernel"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff==0.16.3"]
 
 [project.scripts]
 py-nanobruijn = "py_nanobruijn.__main__:main"

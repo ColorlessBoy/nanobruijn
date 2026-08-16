@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import py_nanobruijn.level_ops  # noqa: F401 — triggers method patching
+
 from .dag import LeanDag, TcCtx
 from .level import Level
 from .name import Name
-import py_nanobruijn.level_ops  # noqa: F401 — triggers method patching
 
 
 def make_ctx() -> TcCtx:
