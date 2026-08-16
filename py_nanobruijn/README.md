@@ -29,7 +29,7 @@ py_nanobruijn/
 ├── api.py               # 稳定高层 API (load_export / check_export)
 ├── results.py           # CheckResult / Diagnostic
 ├── __main__.py          # CLI 入口
-├── test_*.py            # 测试文件 (共 12 个, 183 个测试)
+├── test_*.py            # 测试文件 (共 12 个, 189 个测试)
 └── README.md            # 本文件
 ```
 
@@ -49,6 +49,9 @@ python3 -m py_nanobruijn check path/to/export.ndjson
 
 # 获取结构化 JSON 结果，适合集成 CI 或编辑器
 python3 -m py_nanobruijn check path/to/export.ndjson --keep-going --json
+
+# 单声明超时控制（秒，默认 0 = 不禁用）
+python3 -m py_nanobruijn check path/to/export.ndjson --timeout 30
 
 # 查看导出文件中的声明
 python3 -m py_nanobruijn inspect path/to/export.ndjson --declaration Nat
@@ -79,10 +82,10 @@ for diagnostic in result.diagnostics:
 | 生命周期 / `unsafe` | 无此问题 |
 | 性能敏感 | 目标是通过测试 |
 
-## Rlint 状态
+## 状态
 
-- `ruff check`: 0 warnings
-- `pytest`: 183/183 passed
+- `ruff check py_nanobruijn`: 0 warnings
+- `pytest`: 189/189 passed
 
 ## lean-kernel-arena 测试结果
 
