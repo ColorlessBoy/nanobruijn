@@ -225,7 +225,7 @@ def test_unfold_const_apps():
     app = ctx.mk_app(f, a)
     result = ctx.unfold_const_apps(app)
     assert result is not None
-    head, name, lvls, args = result
+    _, name, _, args = result
     assert name == n
     assert len(args) == 1
 
@@ -251,7 +251,7 @@ def test_unfold_pi():
     pi = ctx.mk_pi(anon, BinderStyle.DEFAULT, bt, body)
     result = ctx.unfold_pi(pi)
     assert result is not None
-    name, style, binder_ty, body_expr = result
+    _, style, _, _ = result
     assert style == BinderStyle.DEFAULT
 
 
@@ -274,7 +274,7 @@ def test_view_pi_head():
     pi = ctx.mk_pi(anon, BinderStyle.DEFAULT, bt, body)
     result = ctx.view_pi_head(pi)
     assert result is not None
-    name, style, binder_ty = result
+    name, style, _ = result
     assert name == anon
     assert style == BinderStyle.DEFAULT
 

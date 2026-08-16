@@ -391,12 +391,12 @@ def try_eq_const_app(self: TypeChecker, x: ExprPtr, x_defname: NamePtr, x_hint, 
         r_fun, r_args = self.ctx.unfold_apps(y)
         l_expr = self.ctx.dag.get_expr(l_fun.core)
         r_expr = self.ctx.dag.get_expr(r_fun.core)
-        if l_expr.tag == 'Const' and r_expr.tag == 'Const':
-            if len(l_args) == len(r_args) and not self.defeq_neg_lookup(x, y):
-                for la, ra in zip(l_args, r_args):
-                    if not self.def_eq(la, ra):
-                        self.defeq_neg_store(x, y)
-                        return None
+        if (l_expr.tag == 'Const' and r_expr.tag == 'Const'
+                and len(l_args) == len(r_args) and not self.defeq_neg_lookup(x, y)):
+            for la, ra in zip(l_args, r_args):
+                if not self.def_eq(la, ra):
+                    self.defeq_neg_store(x, y)
+                    return None
                 if self.ctx.eq_antisymm_many(l_expr.const_levels, r_expr.const_levels):
                     return True
                 else:

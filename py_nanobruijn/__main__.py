@@ -34,7 +34,7 @@ def _run_check(args: argparse.Namespace) -> int:
     export = load_export(args.input, config)
     try:
         result = export.check_all(keep_going=args.keep_going)
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - CLI top-level catch: surface any failure as exit 1
         print(f"CHECK ERROR: {error}", file=sys.stderr)
         return 1
     if args.json:

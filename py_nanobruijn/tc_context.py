@@ -367,9 +367,8 @@ def _inst_aux_core(self, e: CorePtr, substs: list[ExprPtr],
     nlbv = self.dag.expr_nlbv[e]
     n_substs = len(substs)
 
-    if sh_amt == 0 and sh_cut == 0:
-        if nlbv <= offset:
-            return ExprPtr.from_nlbv(e, nlbv)
+    if sh_amt == 0 and sh_cut == 0 and nlbv <= offset:
+        return ExprPtr.from_nlbv(e, nlbv)
 
     expr = self.dag.exprs[e]
     tag = expr.tag

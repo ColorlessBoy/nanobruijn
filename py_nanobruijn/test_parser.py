@@ -31,7 +31,7 @@ def test_sparse_name_index():
     path = os.path.join(TEST_ROOT, 'SparseNameIndex', 'export')
     ef = parse_export_file(path, _config())
     assert len(ef.declars) == 1
-    name = list(ef.declars.keys())[0]
+    name = next(iter(ef.declars.keys()))
     decl = ef.declars[name]
     assert isinstance(decl, Axiom), f"expected Axiom, got {type(decl)}"
     name_str = name_to_string(ef.dag.get_name(name), ef.dag.names, ef.dag.strings)
@@ -43,7 +43,7 @@ def test_level_index_out_of_order():
     path = os.path.join(TEST_ROOT, 'LevelIndexOutOfOrder', 'export')
     ef = parse_export_file(path, _config())
     assert len(ef.declars) == 1
-    name = list(ef.declars.keys())[0]
+    name = next(iter(ef.declars.keys()))
     decl = ef.declars[name]
     assert isinstance(decl, Axiom), f"expected Axiom, got {type(decl)}"
     name_str = name_to_string(ef.dag.get_name(name), ef.dag.names, ef.dag.strings)

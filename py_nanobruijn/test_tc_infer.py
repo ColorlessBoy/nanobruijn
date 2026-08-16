@@ -116,7 +116,7 @@ def test_infer_lambda():
     assert ty_viewed.tag == 'Pi', f"Lambda type should be Pi, got {ty_viewed.tag}"
     unfolded = ctx.unfold_pi(ty)
     assert unfolded is not None
-    _, _, pi_bt, pi_body = unfolded
+    _, _, pi_bt, _ = unfolded
     assert pi_bt == bt, f"Pi binder type should be {bt}, got {pi_bt}"
 
 
