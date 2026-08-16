@@ -29,6 +29,10 @@ def def_eq_tagged(self: TypeChecker, x: ExprPtr, y: ExprPtr, tag: str) -> bool:
 
 
 def def_eq_inner(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
+    self._timeout_iter += 1
+    if self._timeout_iter & 0xFF == 0:
+        self.ctx.check_timeout()
+
     result = self.def_eq_quick_check(x, y)
     if result is not None:
         return result

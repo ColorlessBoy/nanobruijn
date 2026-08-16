@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
+from .errors import CheckTimeoutError
 from .expr import Expr
 from .level import Level
 from .level_ops import LevelOpsMixin
@@ -225,13 +227,20 @@ class TcCtx(LevelOpsMixin, ContextOpsMixin):
     Analogous to ``TcCtx<'t, 'p>`` in Rust (basic version).
     """
 
-    __slots__ = ('_name_cache', 'dag', 'export_file', 'local_depth')
+    __slots__ = ('_name_cache', 'dag', 'export_file', 'local_depth', 'timeout_deadline')
 
     def __init__(self, dag: LeanDag):
         self.dag = dag
         self.export_file: ExportFile | None = None
         self.local_depth = 0
         self._name_cache = {}
+        self.timeout_deadline: float = 0.0  # 0.0 = disabled
+
+    def check_timeout(self) -> None:
+        if self.timeout_deadline > 0 and time.monotonic() > self.timeout_deadline:
+            raise CheckTimeoutError(
+                "declaration check exceeded its timeout budget"
+            )
 
     def get_name(self, ptr: NamePtr) -> Name:
         return self.dag.get_name(ptr)

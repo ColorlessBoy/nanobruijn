@@ -15,3 +15,7 @@ class KernelError(PyNanobruijnError):
 
 class UnsupportedFeatureError(PyNanobruijnError):
     """The export uses a feature not yet implemented by this port."""
+
+
+class CheckTimeoutError(PyNanobruijnError):
+    """A declaration check exceeded its configured time budget."""

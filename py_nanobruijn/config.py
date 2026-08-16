@@ -23,7 +23,7 @@ class Config:
     max_declarations: int = 0
     skip_declarations: int = 0
     declaration_filter: str | None = None
-    declaration_timeout_secs: int = 0
+    declaration_timeout_secs: float = 0.0
     use_nanoda_tc: bool = False
 
     def validate(self) -> None:

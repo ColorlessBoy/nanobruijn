@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from .dag import TcCtx
 from .env import Declar, Env, Theorem
 from .ptr import CorePtr, ExprPtr, LevelsPtr, NamePtr
@@ -14,12 +16,16 @@ class TypeChecker(InferenceMixin, DefEqMixin):
     Wraps TcCtx and Env, providing WHNF reduction and definition unfolding.
     """
 
-    def __init__(self, ctx: TcCtx, env: Env, declar_info=None):
+    def __init__(self, ctx: TcCtx, env: Env, declar_info=None, timeout_secs: float = 0.0):
         self.ctx = ctx
         self.env = env
         self.cache = TcCache()
         self.declar_info = declar_info
         self.local_types = []
+        self.timeout_secs = float(timeout_secs or 0.0)
+        if self.timeout_secs > 0:
+            self.ctx.timeout_deadline = time.monotonic() + self.timeout_secs
+        self._timeout_iter = 0
 
     def check_declar_info(self, d: Declar) -> None:
         """Check declaration metadata before checking its optional value."""
@@ -129,6 +135,9 @@ class TypeChecker(InferenceMixin, DefEqMixin):
 
         cursor = e
         while True:
+            self._timeout_iter += 1
+            if self._timeout_iter & 0xFF == 0:
+                self.ctx.check_timeout()
             if cursor.shift > 0 and not cursor.is_closed():
                 r = self.whnf(cursor)
                 self.cache.whnf_insert(whnf_bucket_idx, e.core, r)
@@ -170,6 +179,9 @@ class TypeChecker(InferenceMixin, DefEqMixin):
         cur = e
         result = None
         while True:
+            self._timeout_iter += 1
+            if self._timeout_iter & 0xFF == 0:
+                self.ctx.check_timeout()
             wnu_bucket_idx = self.cache_bucket(cur)
             if cur.shift == 0 or cur.is_closed():
                 cached = self.cache.wnu_get(wnu_bucket_idx, cur.core)

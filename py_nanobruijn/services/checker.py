@@ -39,7 +39,11 @@ class CheckerService:
         ctx = TcCtx(self.export.dag)
         ctx.export_file = self.export
         env = Env(self.export.declars, limit=EnvLimit("by_name", declaration.info.name))
-        return TypeChecker(ctx, env, declar_info=declaration.info)
+        return TypeChecker(
+            ctx, env,
+            declar_info=declaration.info,
+            timeout_secs=float(self.export.config.declaration_timeout_secs),
+        )
 
     def check_declaration(self, declaration: Declar) -> None:
         if isinstance(declaration, Axiom):

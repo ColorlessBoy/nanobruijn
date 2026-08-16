@@ -24,6 +24,8 @@ def _add_check_options(command: argparse.ArgumentParser) -> None:
     command.add_argument("--declaration", help="only check declarations whose name contains this text")
     command.add_argument("--max-declarations", type=int, default=0)
     command.add_argument("--keep-going", action="store_true", help="report all failures instead of stopping at the first")
+    command.add_argument("--timeout", type=float, default=0.0,
+                         help="abort a declaration check after this many seconds (0 = no timeout)")
     command.add_argument("--json", action="store_true", help="write a machine-readable result to stdout")
 
 
@@ -31,6 +33,7 @@ def _run_check(args: argparse.Namespace) -> int:
     config = _default_config(args.input)
     config.declaration_filter = args.declaration
     config.max_declarations = args.max_declarations
+    config.declaration_timeout_secs = args.timeout
     export = load_export(args.input, config)
     try:
         result = export.check_all(keep_going=args.keep_going)

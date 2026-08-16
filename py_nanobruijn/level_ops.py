@@ -7,6 +7,7 @@ from .ptr import ExprPtr, LevelPtr, LevelsPtr, NamePtr
 def level_succs(self, lv: LevelPtr) -> tuple[LevelPtr, int]:
     num_succs = 0
     while True:
+        self.check_timeout()
         level = self.dag.get_level(lv)
         if level.tag != 'Succ':
             break
