@@ -8,6 +8,7 @@ from .ptr import ExprPtr
 from .teaching.core import make_bootstrap
 from .teaching.parser import parse_expr
 from .teaching.pretty import pretty
+from .teaching.reduce import reduce_steps, show_reduction
 
 
 class TestCore:
@@ -177,3 +178,37 @@ class TestPretty:
             "id",
         ]:
             assert pretty(core, parse_expr(core, text)) == text
+
+
+class TestReduce:
+    def test_beta_reduction_steps(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "(fun (x : Prop) => x) True.intro")
+        steps = reduce_steps(tc, e)
+        assert [s.kind for s in steps] == ["beta"]
+        assert pretty(core, steps[-1].after) == "True.intro"
+
+    def test_delta_reduction_steps(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        # id True True.intro：先 δ 展开 id（α := True），再 β 归约
+        e = parse_expr(core, "id True True.intro")
+        steps = reduce_steps(tc, e)
+        assert [s.kind for s in steps] == ["delta", "beta"]
+        assert pretty(core, steps[-1].after) == "True.intro"
+
+    def test_whnf_term_no_steps(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "True.intro")
+        assert reduce_steps(tc, e) == []
+
+    def test_show_reduction_format(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "(fun (x : Prop) => x) True.intro")
+        out = show_reduction(core, reduce_steps(tc, e))
+        assert "(fun (x : Prop) => x) True.intro" in out
+        assert "True.intro" in out
+        assert "[beta]" in out

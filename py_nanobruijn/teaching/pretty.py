@@ -30,7 +30,10 @@ class _Pretty:
             fun_v = self.ctx.view_expr(v.fun)
             if fun_v.tag == 'Const' and self._const_is_implicit_first(fun_v):
                 return f"@{self.ctx.name_to_string(fun_v.name)} {self._pp(v.arg, names)}"
-            return f"{self._pp(v.fun, names)} {self._pp(v.arg, names)}"
+            fun_str = self._pp(v.fun, names)
+            if fun_v.tag == 'Lambda':
+                fun_str = f"({fun_str})"
+            return f"{fun_str} {self._pp(v.arg, names)}"
         if tag == 'Pi':
             return self._pp_binder(v.binder_name, v.binder_style, v.binder_type, v.body,
                                    names, is_lambda=False)
