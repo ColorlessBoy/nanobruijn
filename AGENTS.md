@@ -83,8 +83,10 @@ py_nanobruijn/
   binder 内变量引用错位）——修复后 `@Iff.intro (a -> b) (b -> a)` 可检查
 - **已修复**（b784124）：`pretty._pp_sort` 对 IMax/Max level 打印 `Type -1`
   （unwrap 归零未回检）——改为内核 `simplify` 归一化
-- **遗留**（`test_imp_swap_known_kernel_issue`）：`imp.swap` 触发内核 inst 路径缺陷
-  ——Iff.intro 的复合类型参数（嵌套 Pi）在 open 上下文实例化时产生深度错位表达式
-  （`tc_context.py` inst/inst_beta offset/shift 语义）；与 Rust 版是否同样存在待专项
-  确认（Mathlib 可能恰好不触发或 def_eq 容错掩盖）。**修复后删除该测试并把 imp.swap
-  移回 `test_core_theorems_valid` 主循环**
+- **已修复**（73bb895）：`True.intro` 的类型被错误声明为 `Prop`（应为 `True` 常量）
+  ——"良类型但语义错位"的一类（check 模式只验证良类型）
+- **已修复**（53bddaa）：`imp.swap` 的 `b -> a -> c` 内层 binder 类型深度错误
+  （var2 应为 var3）——同类语义错位；修复后 14/14 定理通过严格验证
+- **防护**（53bddaa）：`test_core_semantic_parity`——核心常量类型 vs 教学 parse
+  等价表达式的内核 def_eq 比较，防止"良类型但语义错位"回归（该测试正是发现
+  imp.swap 深度错误的手段；修改常量类型构造后必须保持此测试全绿）
