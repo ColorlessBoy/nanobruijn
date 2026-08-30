@@ -67,8 +67,24 @@ py_nanobruijn/
 ## 约定
 
 - **内核零改动原则**：教学层及 CLI 增强不得修改 `tc_*.py`/`dag.py`/`env.py`/`parser.py`/
-  `expr.py`（只能加 `teaching/` 与 `__main__.py`）
+  `expr.py`（只能加 `teaching/` 与 `__main__.py`）——**但真实内核 bug 的修复不在此列**，
+  已授权修复（见下）
 - 测试单文件 `py_nanobruijn/test_teaching.py`（TestCore/TestParser/TestPretty/TestReduce/
   TestRepl/TestCli 类分组）；fixture 模式见 `test_tc_infer.py`（`make_ctx`/`insert_name`）
 - 教学 REPL 的价值是复用真实内核：改动优先复用 `TcCtx`/`TypeChecker` 原语，
   逐步归约用 `whnf_no_unfolding` + `unfold_def` 镜像 `whnf_inner` 主循环
+
+## 已知内核问题与修复记录（Python 移植 vs Rust 参考实现）
+
+- **已修复**（b784124）：`tc_cache.push_local`/`push_local_let` 帧复用缺失 Rust 的
+  类型匹配条件（`src/util.rs`：类型不匹配即 truncate；Python 移植只查深度导致陈旧
+  缓存污染 sibling lambda）——修复后 `and_comm` 等定理通过
+- **已修复**（b784124）：教学层 `parse_arrow` 的 `A -> B` body 未提升 1 层（匿名
+  binder 内变量引用错位）——修复后 `@Iff.intro (a -> b) (b -> a)` 可检查
+- **已修复**（b784124）：`pretty._pp_sort` 对 IMax/Max level 打印 `Type -1`
+  （unwrap 归零未回检）——改为内核 `simplify` 归一化
+- **遗留**（`test_imp_swap_known_kernel_issue`）：`imp.swap` 触发内核 inst 路径缺陷
+  ——Iff.intro 的复合类型参数（嵌套 Pi）在 open 上下文实例化时产生深度错位表达式
+  （`tc_context.py` inst/inst_beta offset/shift 语义）；与 Rust 版是否同样存在待专项
+  确认（Mathlib 可能恰好不触发或 def_eq 容错掩盖）。**修复后删除该测试并把 imp.swap
+  移回 `test_core_theorems_valid` 主循环**
