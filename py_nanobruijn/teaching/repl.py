@@ -148,6 +148,7 @@ class Repl:
         stdout = stdout or sys.stdout
         print(BANNER, file=stdout)
         print(f"已加载 {len(self.core.constants())} 个常量，输入 #help 查看帮助", file=stdout)
+        session_path = self._open_session(stdout)
         while True:
             try:
                 prompt = self._c("> ", "green")
@@ -158,17 +159,37 @@ class Repl:
                 if stdin is not sys.stdin:
                     return 0
                 continue
+            self._record_session(session_path, line)
             try:
                 out = self.process_line(line)
             except _ProveSession as session:
-                self._run_proof(session.state, stdin, stdout)
+                self._run_proof(session.state, stdin, stdout, session_path)
                 continue
             except EOFError:
                 return 0
             if out:
                 print(out, file=stdout)
 
-    def _run_proof(self, state: ProofState, stdin, stdout) -> None:
+    def _open_session(self, stdout):
+        """每个会话自动记录成一个代码文件（sessions/ 目录，可回放）。"""
+        import os
+        import time
+        session_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sessions")
+        os.makedirs(session_dir, exist_ok=True)
+        path = os.path.join(session_dir, time.strftime("%Y%m%d-%H%M%S") + ".repl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"# py-nanobruijn 会话记录 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"# 回放：python -m py_nanobruijn repl < {os.path.basename(path)}\n")
+        print(f"会话已记录: {os.path.relpath(path, os.getcwd())}", file=stdout)
+        return path
+
+    @staticmethod
+    def _record_session(path: str | None, line: str) -> None:
+        if path:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(line.rstrip("\n") + "\n")
+
+    def _run_proof(self, state: ProofState, stdin, stdout, session_path: str | None = None) -> None:
         """#prove 子循环：proof> 提示符；done/#quit/abort/EOF 退出回到主循环。"""
         print(f"证明: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
         print(state.context(), file=stdout)
@@ -184,6 +205,7 @@ class Repl:
                 continue
             if line.strip() == "#quit":
                 return
+            self._record_session(session_path, line)
             try:
                 out = run_tactic(state, line)
             except ProofDone as done:

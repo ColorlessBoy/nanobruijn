@@ -175,6 +175,11 @@ class TestCore:
             ('or_comm', '∀ (a : Prop), ∀ (b : Prop), Iff (Or a b) (Or b a)'),
             ('imp.swap', '∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Iff (a -> b -> c) (b -> a -> c)'),
             ('absurd', '∀ (a : Prop), ∀ (b : Sort v), a -> Not a -> b'),
+            ('Exists', '∀ {α : Sort u}, ∀ (p : ∀ (p0 : α), Prop), Prop'),
+            ('Exists.intro', '∀ {α : Sort u}, ∀ {p : ∀ (p0 : α), Prop}, ∀ (w : α), ∀ (h : p w), @Exists.{u} α p'),
+            ('not_exists', '∀ {α : Sort u}, ∀ {p : ∀ (p0 : α), Prop}, ∀ (ne : Not (@Exists.{u} α p)), ∀ (x : α), Not (p x)'),
+            ('not_exists\'', '∀ {α : Sort u}, ∀ {p : ∀ (p0 : α), Prop}, ∀ (h : ∀ (x : α), Not (p x)), Not (@Exists.{u} α p)'),
+            ('Exists.imp', '∀ {α : Sort u}, ∀ {p : ∀ (p0 : α), Prop}, ∀ {q : ∀ (q0 : α), Prop}, ∀ (hpq : ∀ (a : α), p a -> q a), ∀ (he : @Exists.{u} α p), @Exists.{u} α q'),
             ('And.imp', '∀ (a : Prop), ∀ (c : Prop), ∀ (b : Prop), ∀ (d : Prop), (a -> c) -> (b -> d) -> And a b -> And c d'),
             ('Or.elim', '∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Or a b -> (a -> c) -> (b -> c) -> c'),
             ('not_or_intro', '∀ (a : Prop), ∀ (b : Prop), Not a -> Not b -> Not (Or a b)'),
@@ -184,7 +189,7 @@ class TestCore:
             ('or_iff_left_of_imp', '∀ (b : Prop), ∀ (a : Prop), (b -> a) -> Iff (Or a b) a'),
             ('or_iff_left', '∀ (b : Prop), ∀ (a : Prop), Not b -> Iff (Or a b) a'),
             ('not_imp_of_and_not', '∀ (a : Prop), ∀ (b : Prop), And a (Not b) -> Not (a -> b)'),
-            ('congrArg', '∀ (α : Sort u), ∀ (β : Sort v), ∀ (a1 : α), ∀ (a2 : α), ∀ (f : α -> β), Eq.{u} α a1 a2 -> Eq.{v} β (f a1) (f a2)'),
+            ('congrArg', '∀ {α : Sort u}, ∀ {β : Sort v}, ∀ (f : α -> β), ∀ {a1 : α}, ∀ {a2 : α}, ∀ (h : @Eq.{u} α a1 a2), @Eq.{v} β (f a1) (f a2)'),
         ]
         for name, text in pairs:
             const_ty = ExprPtr.closed(core.env.get_declar(core.name_to_ptr(name)).info.ty)
@@ -709,6 +714,21 @@ class TestRepl:
         code = r.run(stdin=io.StringIO("#env\n#quit\n"), stdout=buf)
         assert code == 0
         assert "And" in buf.getvalue()
+
+    def test_session_recorded(self):
+        import glob
+        import io
+        import os
+        r = self.make_repl()
+        buf = io.StringIO()
+        r.run(stdin=io.StringIO("#env\n#prove forall (a : Prop), forall (ha : a), a\nintro a\nintro ha\nexact ha\ndone\n#quit\n"), stdout=buf)
+        assert "会话已记录" in buf.getvalue()
+        session_dir = os.path.join(os.path.dirname(__file__), "sessions")
+        files = sorted(glob.glob(os.path.join(session_dir, "*.repl")))
+        assert files
+        content = open(files[-1], encoding="utf-8").read()
+        assert "#env" in content
+        assert "intro ha" in content  # tactic 行也被记录
 
     def test_prove_full_session(self):
         """旗舰闭回路：stdin 驱动完整 #prove 会话，done 后回到主循环。"""

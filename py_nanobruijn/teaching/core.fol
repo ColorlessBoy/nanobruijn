@@ -1,0 +1,101 @@
+# core.fol —— 教学逻辑核心声明库（fol 语言）
+#
+# fol = First-Order Logic 教学声明语言
+# 语法：
+#   axiom <name> {u, v} : <type>
+#   def <name> {u} : <type> := <value>
+#   theorem <name> : <type> := <value>
+# {u, v} 声明 universe 参数；类型和值使用教学表达式语法
+# （forall/fun/@/应用/Type/Sort，见 teaching/README.md）
+
+# ---- 逻辑原语（Axiom）----
+axiom True : Prop
+axiom True.intro : True
+axiom False : Prop
+axiom False.rec {u} : forall {motive : forall (anon : False), Sort u}, forall (t : False), motive t
+axiom And : forall (a : Prop), forall (b : Prop), Prop
+axiom And.intro : forall {a : Prop}, forall {b : Prop}, forall (ha : a), forall (hb : b), And a b
+axiom And.left : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), a
+axiom And.right : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), b
+axiom And.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : And a b), Sort u}, forall (t : And a b), forall (case : forall (left : a), forall (right : b), motive (@And.intro a b left right)), motive t
+axiom Or : forall (a : Prop), forall (b : Prop), Prop
+axiom Or.inl : forall {a : Prop}, forall {b : Prop}, forall (h : a), Or a b
+axiom Or.inr : forall {a : Prop}, forall {b : Prop}, forall (h : b), Or a b
+axiom Or.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : Or a b), Sort u}, forall (left : forall (l : a), motive (@Or.inl a b l)), forall (right : forall (r : b), motive (@Or.inr a b r)), forall (t : Or a b), motive t
+axiom Iff : forall (a : Prop), forall (b : Prop), Prop
+axiom Iff.intro : forall {a : Prop}, forall {b : Prop}, forall (mp : forall (mp0 : a), b), forall (mpr : forall (mpr0 : b), a), Iff a b
+axiom Iff.mp : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), forall (ha : a), b
+axiom Iff.mpr : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), forall (hb : b), a
+axiom Eq {u} : forall {α : Sort u}, forall (a1 : α), forall (a2 : α), Prop
+axiom Eq.refl {u} : forall {α : Sort u}, forall (a : α), @Eq.{u} α a a
+axiom Eq.rec {u, v} : forall {α : Sort u}, forall (a : α), forall {motive : forall (anon : α), Sort v}, forall (ha : motive a), forall (b : α), forall (h : @Eq.{u} α a b), motive b
+axiom propext : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), @Eq.{1} Prop a b
+axiom Exists {u} : forall {α : Sort u}, forall (p : forall (p0 : α), Prop), Prop
+axiom Exists.intro {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall (w : α), forall (h : p w), @Exists.{u} α p
+axiom Exists.rec {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall {motive : forall (m0 : @Exists.{u} α p), Prop}, forall (case : forall (w : α), forall (h : p w), motive (@Exists.intro.{u} α p w h)), forall (t : @Exists.{u} α p), motive t
+
+# ---- 定义（Definition，可 δ 展开）----
+def Not : forall (a : Prop), Prop
+  := fun (a : Prop) => forall (n : a), False
+def id {u} : forall {α : Sort u}, forall (a : α), α
+  := fun {α : Sort u} => fun (a : α) => a
+def Function.comp {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {δ : Sort w}, forall (f : forall (f0 : β), δ), forall (g : forall (g0 : α), β), forall (x : α), δ
+  := fun {α : Sort u} => fun {β : Sort v} => fun {δ : Sort w} => fun (f : forall (f0 : β), δ) => fun (g : forall (g0 : α), β) => fun (x : α) => f (g x)
+def flip {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {φ : Sort w}, forall (f : forall (f0 : α), forall (f1 : β), φ), forall (b : β), forall (a : α), φ
+  := fun {α : Sort u} => fun {β : Sort v} => fun {φ : Sort w} => fun (f : forall (f0 : α), forall (f1 : β), φ) => fun (b : β) => fun (a : α) => f a b
+def absurd {v} : forall {a : Prop}, forall {b : Sort v}, forall (ha : a), forall (hn : Not a), b
+  := fun {a : Prop} => fun {b : Sort v} => fun (ha : a) => fun (hn : Not a) => @False.rec.{v} (fun (anon : False) => b) (hn ha)
+
+# ---- 定理（Theorem）----
+theorem iff_of_true : forall {a : Prop}, forall {b : Prop}, forall (ha : a), forall (hb : b), Iff a b
+  := fun {a : Prop} => fun {b : Prop} => fun (ha : a) => fun (hb : b) => @Iff.intro a b (fun (anon : a) => hb) (fun (anon : b) => ha)
+theorem Iff.refl : forall (a : Prop), Iff a a
+  := fun (a : Prop) => @Iff.intro a a (fun (h : a) => h) (fun (h : a) => h)
+theorem mt : forall {a : Prop}, forall {b : Prop}, forall (f : forall (anon : a), b), forall (hb : Not b), Not a
+  := fun {a : Prop} => fun {b : Prop} => fun (f : forall (anon : a), b) => fun (hb : Not b) => fun (ha : a) => hb (f ha)
+theorem not_and_of_not_left : forall {a : Prop}, forall (b : Prop), forall (ha : Not a), Not (And a b)
+  := fun {a : Prop} => fun (b : Prop) => fun (ha : Not a) => @mt (And a b) a (@And.left a b) ha
+theorem not_not_em : forall (a : Prop), Not (Not (Or a (Not a)))
+  := fun (a : Prop) => fun (h : Not (Or a (Not a))) => h (@Or.inr a (Not a) (@Function.comp.{0, 0, 0} a (Or a (Not a)) False h (@Or.inl a (Not a))))
+theorem and_self : forall (p : Prop), @Eq.{1} Prop (And p p) p
+  := fun (p : Prop) => @propext (And p p) p (@Iff.intro (And p p) p (@And.left p p) (fun (h : p) => @And.intro p p h h))
+theorem or_self : forall (p : Prop), @Eq.{1} Prop (Or p p) p
+  := fun (p : Prop) => @propext (Or p p) p (@Iff.intro (Or p p) p (fun (x : Or p p) => @Or.rec p p (fun (anon : Or p p) => p) (fun (h : p) => h) (fun (h : p) => h) x) (@Or.inl p p))
+theorem and_not_self : forall {a : Prop}, Not (And a (Not a))
+  := fun {a : Prop} => fun (x : And a (Not a)) => @And.rec a (Not a) (fun (anon : And a (Not a)) => False) x (fun (ha : a) => fun (hn : Not a) => @absurd a False ha hn)
+theorem and_comm : forall {a : Prop}, forall {b : Prop}, Iff (And a b) (And b a)
+  := fun {a : Prop} => fun {b : Prop} => @Iff.intro (And a b) (And b a) (fun (x : And a b) => @And.rec a b (fun (anon : And a b) => And b a) x (fun (ha : a) => fun (hb : b) => @And.intro b a hb ha)) (fun (x : And b a) => @And.rec b a (fun (anon : And b a) => And a b) x (fun (hb : b) => fun (ha : a) => @And.intro a b ha hb))
+theorem or_comm : forall {a : Prop}, forall {b : Prop}, Iff (Or a b) (Or b a)
+  := fun {a : Prop} => fun {b : Prop} => @Iff.intro (Or a b) (Or b a) (fun (t : Or a b) => @Or.rec a b (fun (anon : Or a b) => Or b a) (@Or.inr b a) (@Or.inl b a) t) (fun (t : Or b a) => @Or.rec b a (fun (anon : Or b a) => Or a b) (@Or.inr a b) (@Or.inl a b) t)
+theorem Eq.symm {u} : forall {α : Sort u}, forall (a : α), forall (b : α), forall (h : @Eq.{u} α a b), @Eq.{u} α b a
+  := fun {α : Sort u} => fun (a : α) => fun (b : α) => fun (h : @Eq.{u} α a b) => @Eq.rec.{u, 0} α a (fun (x : α) => @Eq.{u} α x a) (@Eq.refl.{u} α a) b h
+theorem Eq.trans {u} : forall {α : Sort u}, forall (a : α), forall (b : α), forall (c : α), forall (h1 : @Eq.{u} α a b), forall (h2 : @Eq.{u} α b c), @Eq.{u} α a c
+  := fun {α : Sort u} => fun (a : α) => fun (b : α) => fun (c : α) => fun (h1 : @Eq.{u} α a b) => fun (h2 : @Eq.{u} α b c) => @Eq.rec.{u, 0} α b (fun (x : α) => @Eq.{u} α a x) h1 c h2
+theorem imp.swap : forall {a : Prop}, forall {b : Prop}, forall {c : Prop}, Iff (a -> b -> c) (b -> a -> c)
+  := fun {a : Prop} => fun {b : Prop} => fun {c : Prop} => @Iff.intro (a -> b -> c) (b -> a -> c) (@flip.{0, 0, 0} a b c) (@flip.{0, 0, 0} b a c)
+theorem And.imp : forall {a : Prop}, forall {c : Prop}, forall {b : Prop}, forall {d : Prop}, forall (f : a -> c), forall (g : b -> d), forall (h : And a b), And c d
+  := fun {a : Prop} => fun {c : Prop} => fun {b : Prop} => fun {d : Prop} => fun (f : a -> c) => fun (g : b -> d) => fun (h : And a b) => @And.intro c d (f (@And.left a b h)) (g (@And.right a b h))
+theorem Or.elim : forall {a : Prop}, forall {b : Prop}, forall {c : Prop}, forall (h : Or a b), forall (left : a -> c), forall (right : b -> c), c
+  := fun {a : Prop} => fun {b : Prop} => fun {c : Prop} => fun (h : Or a b) => fun (left : a -> c) => fun (right : b -> c) => @Or.rec a b (fun (anon : Or a b) => c) left right h
+theorem not_or_intro : forall {a : Prop}, forall {b : Prop}, forall (ha : Not a), forall (hb : Not b), Not (Or a b)
+  := fun {a : Prop} => fun {b : Prop} => fun (ha : Not a) => fun (hb : Not b) => fun (x : Or a b) => @Or.elim a b False x ha hb
+theorem and_imp : forall {a : Prop}, forall {b : Prop}, forall {c : Prop}, Iff (And a b -> c) (a -> b -> c)
+  := fun {a : Prop} => fun {b : Prop} => fun {c : Prop} => @Iff.intro (And a b -> c) (a -> b -> c) (fun (h : And a b -> c) => fun (ha : a) => fun (hb : b) => h (@And.intro a b ha hb)) (fun (h : a -> b -> c) => fun (x : And a b) => @And.rec a b (fun (anon : And a b) => c) x (fun (ha : a) => fun (hb : b) => h ha hb))
+theorem not_and : forall {a : Prop}, forall {b : Prop}, Iff (Not (And a b)) (a -> Not b)
+  := fun {a : Prop} => fun {b : Prop} => @and_imp a b False
+theorem eq_true : forall {p : Prop}, forall (h : p), @Eq.{1} Prop p True
+  := fun {p : Prop} => fun (h : p) => @propext p True (@Iff.intro p True (fun (anon : p) => True.intro) (fun (anon : True) => h))
+theorem or_iff_left_of_imp : forall {b : Prop}, forall {a : Prop}, forall (hb : b -> a), Iff (Or a b) a
+  := fun {b : Prop} => fun {a : Prop} => fun (hb : b -> a) => @Iff.intro (Or a b) a (fun (t : Or a b) => @Or.rec a b (fun (anon : Or a b) => a) (@id.{0} a) hb t) (@Or.inl a b)
+theorem or_iff_left : forall {b : Prop}, forall {a : Prop}, forall (hb : Not b), Iff (Or a b) a
+  := fun {b : Prop} => fun {a : Prop} => fun (hb : Not b) => @Iff.intro (Or a b) a (fun (t : Or a b) => @Or.rec a b (fun (anon : Or a b) => a) (@id.{0} a) (fun (x : b) => @False.rec.{0} (fun (anon : False) => a) (hb x)) t) (@Or.inl a b)
+theorem not_imp_of_and_not : forall {a : Prop}, forall {b : Prop}, forall (x : And a (Not b)), Not (a -> b)
+  := fun {a : Prop} => fun {b : Prop} => fun (x : And a (Not b)) => fun (x1 : a -> b) => @And.rec a (Not b) (fun (anon : And a (Not b)) => False) x (fun (ha : a) => fun (hb : Not b) => hb (x1 ha))
+theorem congrArg {u, v} : forall {α : Sort u}, forall {β : Sort v}, forall (f : α -> β), forall (a1 : α), forall (a2 : α), forall (h : @Eq.{u} α a1 a2), @Eq.{v} β (f a1) (f a2)
+  := fun {α : Sort u} => fun {β : Sort v} => fun (f : α -> β) => fun (a1 : α) => fun (a2 : α) => fun (h : @Eq.{u} α a1 a2) => @Eq.rec.{u, 0} α a1 (fun (x : α) => @Eq.{v} β (f a1) (f x)) (@Eq.refl.{v} β (f a1)) a2 h
+theorem not_exists {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall (ne : Not (@Exists.{u} α p)), forall (x : α), Not (p x)
+  := fun {α : Sort u} => fun {p : forall (p0 : α), Prop} => fun (ne : Not (@Exists.{u} α p)) => fun (x : α) => fun (hx : p x) => ne (@Exists.intro.{u} α p x hx)
+theorem not_exists' {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall (h : forall (x : α), Not (p x)), Not (@Exists.{u} α p)
+  := fun {α : Sort u} => fun {p : forall (p0 : α), Prop} => fun (h : forall (x : α), Not (p x)) => fun (ne : @Exists.{u} α p) => @Exists.rec.{u} α p (fun (anon : @Exists.{u} α p) => False) (fun (x : α) => fun (hx : p x) => h x hx) ne
+theorem Exists.imp {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall {q : forall (q0 : α), Prop}, forall (hpq : forall (a : α), p a -> q a), forall (he : @Exists.{u} α p), @Exists.{u} α q
+  := fun {α : Sort u} => fun {p : forall (p0 : α), Prop} => fun {q : forall (q0 : α), Prop} => fun (hpq : forall (a : α), p a -> q a) => fun (he : @Exists.{u} α p) => @Exists.rec.{u} α p (fun (anon : @Exists.{u} α p) => @Exists.{u} α q) (fun (w : α) => fun (hpw : p w) => @Exists.intro.{u} α q w (hpq w hpw)) he

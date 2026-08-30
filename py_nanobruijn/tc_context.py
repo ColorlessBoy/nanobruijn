@@ -66,7 +66,8 @@ def body_outer_shift(self, body: ExprPtr) -> int | None:
         return None
     if self.nlbv(body) <= 1:
         return None
-    return body.shift - 1
+    # saturating_sub(1)：与 Rust 参考实现一致（body.shift=0 时外移为 0 而非 -1）
+    return max(body.shift - 1, 0)
 
 
 def mk_app(self, fun: ExprPtr, arg: ExprPtr) -> ExprPtr:
