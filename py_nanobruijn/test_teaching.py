@@ -560,7 +560,8 @@ class TestProof:
         st = self.make_state("∀ (a : Prop), ∀ (ha : a), a")
         st.intro("a")
         st.intro("ha")
-        assert st.exact("ha") == ""
+        out = st.exact("ha")
+        assert "当前项: fun (a : Prop) => fun (ha : a) => ha" in out  # exact 反馈状态更新
 
     def test_exact_wrong_type(self):
         st = self.make_state("∀ (a : Prop), a -> a")

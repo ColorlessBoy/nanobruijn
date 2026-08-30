@@ -361,7 +361,7 @@ class ProofState:
                 f"目标为 {self._pp(hole.goal, names)}")
         self.subholes[hole.id] = self._replace_hole(self.subholes[hole.id], hole.id,
                                                     ExactNode(e))
-        return ""
+        return self.context()
 
     # ---------- done ----------
 
