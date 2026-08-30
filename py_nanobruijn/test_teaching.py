@@ -134,22 +134,49 @@ class TestCore:
     def test_core_theorems_valid(self):
         core = make_bootstrap()
         for name in self.THEOREM_NAMES:
-            if name == 'imp.swap':
-                continue  # 已知内核 inst 深度缺陷，见 test_imp_swap_known_kernel_issue
             self._strict_validate(core, name)
-        # 13/14 个定理必须通过严格两阶段校验（imp.swap 除外，见下）
+        # 全部 14 个定理必须通过严格两阶段校验
 
-    def test_imp_swap_known_kernel_issue(self):
-        # imp.swap 触发内核 inst 路径缺陷：Iff.intro 的复合类型参数（嵌套 Pi）
-        # 在 open 上下文实例化时产生深度错位表达式（#3/#4 越界引用）。
-        # 这是教学 REPL 场景暴露的真实内核问题（tc_context.py inst/inst_beta），
-        # 与 Rust 版是否同样存在待专项确认。修复后删除本测试并把 imp.swap
-        # 移回 test_core_theorems_valid 的主循环。
+    # 语义等价验证：核心常量类型 vs 教学 parse 等价表达式（内核 def_eq 比较）。
+    # 防止"良类型但语义错位"的构造回归（如 imp.swap 的 b -> a -> c 深度错误）。
+    def test_core_semantic_parity(self):
         core = make_bootstrap()
-        decl = core.env.get_declar(core.name_to_ptr('imp.swap'))
-        with pytest.raises(ValueError):
-            b = core.make_type_checker()
-            b.infer(ExprPtr.closed(decl.value), 'check')
+        tc = core.make_type_checker()
+        pairs = [
+            ('True', 'Prop'),
+            ('True.intro', 'True'),
+            ('False', 'Prop'),
+            ('And', 'Prop -> Prop -> Prop'),
+            ('And.intro', '∀ (a : Prop), ∀ (b : Prop), a -> b -> And a b'),
+            ('And.left', '∀ (a : Prop), ∀ (b : Prop), And a b -> a'),
+            ('And.right', '∀ (a : Prop), ∀ (b : Prop), And a b -> b'),
+            ('Or.inl', '∀ (a : Prop), ∀ (b : Prop), a -> Or a b'),
+            ('Or.inr', '∀ (a : Prop), ∀ (b : Prop), b -> Or a b'),
+            ('Iff.intro', '∀ (a : Prop), ∀ (b : Prop), (a -> b) -> (b -> a) -> Iff a b'),
+            ('Iff.mp', '∀ (a : Prop), ∀ (b : Prop), Iff a b -> a -> b'),
+            ('Iff.mpr', '∀ (a : Prop), ∀ (b : Prop), Iff a b -> b -> a'),
+            ('Not', 'Prop -> Prop'),
+            ('id', '∀ (α : Sort u), α -> α'),
+            ('Function.comp', '∀ (α : Sort u), ∀ (β : Sort v), ∀ (δ : Sort w), (β -> δ) -> (α -> β) -> α -> δ'),
+            ('flip', '∀ (α : Sort u), ∀ (β : Sort v), ∀ (φ : Sort w), (α -> β -> φ) -> β -> α -> φ'),
+            ('False.rec', '∀ {motive : False -> Sort u}, ∀ (t : False), motive t'),
+            ('Iff.refl', '∀ (a : Prop), Iff a a'),
+            ('iff_of_true', '∀ (a : Prop), ∀ (b : Prop), a -> b -> Iff a b'),
+            ('mt', '∀ (a : Prop), ∀ (b : Prop), (a -> b) -> Not b -> Not a'),
+            ('not_and_of_not_left', '∀ (a : Prop), ∀ (b : Prop), Not a -> Not (And a b)'),
+            ('not_not_em', '∀ (a : Prop), Not (Not (Or a (Not a)))'),
+            ('and_self', '∀ (p : Prop), Eq.{1} Prop (And p p) p'),
+            ('or_self', '∀ (p : Prop), Eq.{1} Prop (Or p p) p'),
+            ('and_not_self', '∀ (a : Prop), Not (And a (Not a))'),
+            ('and_comm', '∀ (a : Prop), ∀ (b : Prop), Iff (And a b) (And b a)'),
+            ('or_comm', '∀ (a : Prop), ∀ (b : Prop), Iff (Or a b) (Or b a)'),
+            ('imp.swap', '∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Iff (a -> b -> c) (b -> a -> c)'),
+            ('absurd', '∀ (a : Prop), ∀ (b : Sort v), a -> Not a -> b'),
+        ]
+        for name, text in pairs:
+            const_ty = ExprPtr.closed(core.env.get_declar(core.name_to_ptr(name)).info.ty)
+            parsed = parse_expr(core, text)
+            assert tc.is_def_eq(const_ty, parsed), f"semantic mismatch: {name} vs {text}"
 
 
 class TestParser:

@@ -516,7 +516,8 @@ class BootstrapCore:
         #         Iff.intro (a -> b -> c) (b -> a -> c)
         #           (flip.{0,0,0} a b c) (flip.{0,0,0} b a c)
         # binder：c=0, b=1, a=2；深度3 下 a=var2, b=var1, c=var0
-        #   a -> b -> c = Pi(var2, Pi(var2, var2))；b -> a -> c = Pi(var1, Pi(var2, var2))
+        #   a -> b -> c = Pi(var2, Pi(var2, var2))（深4 b=var2、深5 c=var2）
+        #   b -> a -> c = Pi(var1, Pi(var3, var2))（深4 a=var3、深5 c=var2）
         swap_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
             ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
                 ctx, "c", BinderStyle.IMPLICIT, prop,
@@ -525,7 +526,7 @@ class BootstrapCore:
                         _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2),
                             ctx.mk_var(2)))),
                     _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(1),
-                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2),
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3),
                             ctx.mk_var(2)))))))
         swap_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
             ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
@@ -535,7 +536,7 @@ class BootstrapCore:
                         _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2),
                             ctx.mk_var(2)))),
                     _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(1),
-                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2),
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3),
                             ctx.mk_var(2)))),
                     ctx.mk_app(ctx.mk_app(ctx.mk_app(flip0, ctx.mk_var(2)),
                                           ctx.mk_var(1)), ctx.mk_var(0))),
