@@ -8,6 +8,37 @@ bug 与性能问题——每行查询都有超时保护，复杂表达式不会�
 
 ---
 
+## 0. 背景与原理
+
+### 这是什么
+
+py_nanobruijn 是 Lean 4 内核（类型检查器）的 Python 移植：把声明（定义、定理、
+公理）的表达式表示为 **de Bruijn 索引**（用"第几层 binder 外"的编号引用变量，不用名字）
+存储在 hash-consing DAG 里，由内核做三件事：
+
+- **infer**（类型推断）：给定表达式，算出它的类型
+- **whnf**（求值到弱头范式）：反复做 β 归约（λ 应用到参数）与 δ 归约（展开定义），
+  直到头部不再是 redex——内核判定两个表达式是否"定义相等"的基础
+- **def_eq**（定义相等）：两个表达式经 whnf 后是否同构
+
+本 REPL 把这套真实内核直接暴露给学习者：`#check` 调用 infer，`#reduce` 调用
+whnf，`#print` 读出声明。**没有教学模拟器**——学生看到的行为与真实 Lean 内核一致。
+
+### 为什么要"逐步"展示
+
+内核的 `whnf` 是黑盒：一个函数调用返回最终范式，中途步骤看不见。本 REPL 的
+`#reduce` 通过**镜像内核主循环**（复用 `whnf_no_unfolding` 与 `unfold_def` 两个原语，
+自己驱动循环）把每一步还原出来。这正是教学价值所在：β 归约与 δ 展开的交替过程，
+是理解"计算"在类型论中如何发生的直观入口。
+
+### 为什么不会卡死
+
+老项目的问题：复杂表达式类型推断耗时失控。本 REPL 每行创建新的 `TypeChecker`
+（干净缓存），默认 5 秒超时（`--timeout` 可调，`0` 表示不限）——超时返回友好
+错误，进程不挂。
+
+---
+
 ## 1. 快速开始
 
 ```bash
@@ -74,7 +105,25 @@ And True True : Prop
 (fun {α : Prop} => fun (a : α) => a) True True.intro => True.intro  [beta]
 ```
 
-已是正常形时输出 `(already in normal form)`。
+**归约规则**：
+
+| 规则 | 含义 | 例子 |
+|---|---|---|
+| β（beta） | `(fun (x : A) => e) a` 把 a 代入 e 中所有 x | `(fun (x : Prop) => x) True.intro => True.intro` |
+| δ（delta） | 展开常量定义（Definition 才有，Axiom 不可展开） | `@id ... => (fun {α} (a : α) => a) ...` |
+| let | 展开 let 绑定（内核规则，本核心较少出现） | — |
+
+**执行流程**（镜像内核 `whnf_inner` 主循环）：每步先做头部 β/let 归约
+（`whnf_no_unfolding`，一次折叠头部所有 redex，标 `[beta]`），再尝试 δ 展开
+（`unfold_def`，标 `[delta]`），直到两者都无变化——此时表达式已是 WHNF
+（弱头范式）。注意：
+
+- `[beta]` 一步可能包含**多个** β 归约（如 `id.{0} True True.intro` 的两个 λ 应用
+  在一步内完成）——内核求值就是这样，教学上恰好演示"逐步收敛"
+- `[delta]` 只出现在应用了 **Definition** 的常量（`id`/`Not`/`Function.comp`/`flip`）；
+  Axiom（`True.intro`/`And` 等）没有定义可展开
+- 已是 WHNF 时输出 `(already in normal form)`
+- 超时保护：默认 5 秒（`--timeout`），循环失控时返回友好错误而非挂死
 
 ### `#print <name>`
 
