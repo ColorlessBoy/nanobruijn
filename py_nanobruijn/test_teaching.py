@@ -811,12 +811,12 @@ class TestCli:
         import sys
         proc = subprocess.run(
             [sys.executable, "-m", "py_nanobruijn", "repl", "--color"],
-            input="#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
+            input=b"#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
         )
         assert proc.returncode == 0
         assert b"\x1b[" in proc.stdout  # 管道下强制着色生效
         proc2 = subprocess.run(
             [sys.executable, "-m", "py_nanobruijn", "repl"],
-            input="#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
+            input=b"#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
         )
         assert b"\x1b[" not in proc2.stdout  # 默认管道无色
