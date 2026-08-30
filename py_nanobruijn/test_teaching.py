@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import pytest
+
+from .binder_style import BinderStyle
+from .errors import ParseError
 from .ptr import ExprPtr
 from .teaching.core import make_bootstrap
+from .teaching.parser import parse_expr
 
 
 class TestCore:
@@ -59,3 +64,64 @@ class TestCore:
         assert hb_view.tag == 'Var' and hb_view.dbj_idx == 1  # b at depth 3
         body_view = core.ctx.view_expr(body)
         assert body_view.tag == 'Var' and body_view.dbj_idx == 3  # a at depth 4
+
+
+class TestParser:
+    def test_parse_var(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "fun (x : Prop) => x")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'Lambda'
+        assert core.ctx.view_expr(v.body).tag == 'Var'
+
+    def test_parse_const_app(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "And.intro True.intro")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'App'
+        fun_v = core.ctx.view_expr(v.fun)
+        assert fun_v.tag == 'Const'
+
+    def test_parse_at_explicit(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "@And True True")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'App'
+
+    def test_parse_pi_arrow(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Prop -> Prop")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'Pi'
+
+    def test_parse_implicit_binder(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "fun {x : Prop} => x")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'Lambda'
+        assert v.binder_style == BinderStyle.IMPLICIT
+
+    def test_parse_nat_lit(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "42")
+        assert core.ctx.view_expr(e).tag == 'NatLit'
+
+    def test_parse_unbound_var_raises(self):
+        core = make_bootstrap()
+        with pytest.raises(ParseError):
+            parse_expr(core, "x")
+
+    def test_parse_fun_without_type_raises(self):
+        core = make_bootstrap()
+        with pytest.raises(ParseError):
+            parse_expr(core, "fun x => x")
+
+    def test_parse_unbalanced_paren_raises(self):
+        core = make_bootstrap()
+        with pytest.raises(ParseError):
+            parse_expr(core, "(fun (x : Prop) => x")
+
+    def test_parse_unknown_const_raises(self):
+        core = make_bootstrap()
+        with pytest.raises(ParseError):
+            parse_expr(core, "NoSuchConst")
