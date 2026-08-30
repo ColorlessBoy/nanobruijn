@@ -16,7 +16,8 @@ BANNER = (
     "py-nanobruijn teaching REPL\n"
     "输入表达式查看类型（等价 #check），或使用命令："
     "#check/#reduce/#print/#prove/#env/#help/#quit\n"
-    "语法：fun (x : A) => e、∀ (x : A), e、A -> B、@Const、Type、Prop"
+    "语法：fun (x : A) => e、forall (x : A), e、A -> B、@Const、Type、Prop\n"
+    "提示：∀ 可写 forall，→ 可写 ->（纯键盘友好）"
 )
 
 

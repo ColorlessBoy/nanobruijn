@@ -13,12 +13,14 @@
 
 所有剧本的终点都是 `done` → 合成完整 lambda → 内核检查。
 
+**输入提示**：剧本里的 `forall` 就是 `∀`（纯键盘友好，`∀` 也能打）；`->` 就是 `→`。
+
 ---
 
 ## 剧本 1：恒等（热身）
 
 ```
-#prove ∀ (a : Prop), ∀ (ha : a), a
+#prove forall (a : Prop), ∀ (ha : a), a
 intro a
 intro ha
 exact ha
@@ -40,7 +42,7 @@ done
 ## 剧本 2：蕴含传递（函数复合）
 
 ```
-#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), (a -> b) -> (b -> c) -> a -> c
+#prove forall (a : Prop), ∀ (b : Prop), ∀ (c : Prop), (a -> b) -> (b -> c) -> a -> c
 intro a
 intro b
 intro c
@@ -69,7 +71,7 @@ done
 ## 剧本 3：flip（参数交换）
 
 ```
-#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), (a -> b -> c) -> b -> a -> c
+#prove forall (a : Prop), ∀ (b : Prop), ∀ (c : Prop), (a -> b -> c) -> b -> a -> c
 intro a
 intro b
 intro c
@@ -88,7 +90,7 @@ done
 ## 剧本 4：三重否定弱化
 
 ```
-#prove ∀ (a : Prop), Not (Not (Not a)) -> Not a
+#prove forall (a : Prop), Not (Not (Not a)) -> Not a
 intro a
 intro hnn
 intro ha
@@ -115,7 +117,7 @@ done
 ## 剧本 5：合取构造（综合练习）
 
 ```
-#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b
+#prove forall (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b
 intro a
 intro b
 intro ha
@@ -143,7 +145,7 @@ done
 ## 剧本 6：逆否命题（mt 的手写）
 
 ```
-#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (f : a -> b), ∀ (hb : Not b), Not a
+#prove forall (a : Prop), ∀ (b : Prop), ∀ (f : a -> b), ∀ (hb : Not b), Not a
 intro a
 intro b
 intro f
@@ -172,6 +174,6 @@ done
 
 ## 进阶练习（自己试试）
 
-1. `∀ (a : Prop), ∀ (b : Prop), Or a b -> Or b a`（提示：需要 `apply` 之外的工具？——v1 的 `apply` 还不支持 recursor，先用手写 `Or.rec` 体验，或跳过）
-2. `∀ (a : Prop), a -> a -> a`（两个 `intro` 后选哪个 `exact`？两种答案都对——这是"柯里化"的直观感受）
-3. `∀ (a : Prop), ∀ (b : Prop), Iff (a -> b) (a -> b)`（`apply Iff.intro` + 两个 `intro` + `exact`）
+1. `forall (a : Prop), ∀ (b : Prop), Or a b -> Or b a`（提示：需要 `apply` 之外的工具？——v1 的 `apply` 还不支持 recursor，先用手写 `Or.rec` 体验，或跳过）
+2. `forall (a : Prop), a -> a -> a`（两个 `intro` 后选哪个 `exact`？两种答案都对——这是"柯里化"的直观感受）
+3. `forall (a : Prop), ∀ (b : Prop), Iff (a -> b) (a -> b)`（`apply Iff.intro` + 两个 `intro` + `exact`）

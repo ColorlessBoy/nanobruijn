@@ -268,8 +268,8 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 |---|---|---|
 | `fun (x : A) => e` | λ 抽象（**必须带类型注解**） | `fun (x : Prop) => x` |
 | `fun {x : A} => e` | 隐式参数 λ | `fun {x : Prop} => x` |
-| `∀ (x : A), e` | 依赖积（"对所有 x : A，e"） | `∀ (a : Prop), a -> a` |
-| `A -> B` | 蕴含（匿名 binder） | `Prop -> Prop` |
+| `∀ (x : A), e`（或 `forall`） | 依赖积（"对所有 x : A，e"） | `forall (a : Prop), a -> a` |
+| `A -> B`（或 `→`） | 蕴含（匿名 binder） | `Prop -> Prop` |
 | `e1 e2` | 应用（空格） | `And.intro True True True.intro True.intro` |
 | `@Const a b` | 显式填隐式参数 | `@And True True` |
 | `Name.{u}` | universe 实例化 | `id.{u}`、`id.{0}` |
