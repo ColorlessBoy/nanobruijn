@@ -111,6 +111,9 @@ class TestCore:
         'absurd', 'iff_of_true', 'Iff.refl', 'not_not_em', 'mt',
         'not_and_of_not_left', 'imp.swap', 'and_self', 'or_self',
         'and_not_self', 'and_comm', 'or_comm', 'Eq.symm', 'Eq.trans',
+        'And.imp', 'Or.elim', 'not_or_intro', 'and_imp', 'not_and',
+        'eq_true', 'or_iff_left_of_imp', 'or_iff_left', 'not_imp_of_and_not',
+        'congrArg',
     ]
 
     def _strict_validate(self, core, name):
@@ -135,7 +138,7 @@ class TestCore:
         core = make_bootstrap()
         for name in self.THEOREM_NAMES:
             self._strict_validate(core, name)
-        # 全部 14 个定理必须通过严格两阶段校验
+        # 全部 24 个定理必须通过严格两阶段校验
 
     # 语义等价验证：核心常量类型 vs 教学 parse 等价表达式（内核 def_eq 比较）。
     # 防止"良类型但语义错位"的构造回归（如 imp.swap 的 b -> a -> c 深度错误）。
@@ -172,6 +175,16 @@ class TestCore:
             ('or_comm', '∀ (a : Prop), ∀ (b : Prop), Iff (Or a b) (Or b a)'),
             ('imp.swap', '∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Iff (a -> b -> c) (b -> a -> c)'),
             ('absurd', '∀ (a : Prop), ∀ (b : Sort v), a -> Not a -> b'),
+            ('And.imp', '∀ (a : Prop), ∀ (c : Prop), ∀ (b : Prop), ∀ (d : Prop), (a -> c) -> (b -> d) -> And a b -> And c d'),
+            ('Or.elim', '∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Or a b -> (a -> c) -> (b -> c) -> c'),
+            ('not_or_intro', '∀ (a : Prop), ∀ (b : Prop), Not a -> Not b -> Not (Or a b)'),
+            ('and_imp', '∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Iff (And a b -> c) (a -> b -> c)'),
+            ('not_and', '∀ (a : Prop), ∀ (b : Prop), Iff (Not (And a b)) (a -> Not b)'),
+            ('eq_true', '∀ (p : Prop), p -> Eq.{1} Prop p True'),
+            ('or_iff_left_of_imp', '∀ (b : Prop), ∀ (a : Prop), (b -> a) -> Iff (Or a b) a'),
+            ('or_iff_left', '∀ (b : Prop), ∀ (a : Prop), Not b -> Iff (Or a b) a'),
+            ('not_imp_of_and_not', '∀ (a : Prop), ∀ (b : Prop), And a (Not b) -> Not (a -> b)'),
+            ('congrArg', '∀ (α : Sort u), ∀ (β : Sort v), ∀ (a1 : α), ∀ (a2 : α), ∀ (f : α -> β), Eq.{u} α a1 a2 -> Eq.{v} β (f a1) (f a2)'),
         ]
         for name, text in pairs:
             const_ty = ExprPtr.closed(core.env.get_declar(core.name_to_ptr(name)).info.ty)

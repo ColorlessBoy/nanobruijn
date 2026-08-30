@@ -806,6 +806,359 @@ class BootstrapCore:
                                 ctx.mk_var(0))))))))
         self._theorem("Eq.trans", trans_ty, trans_val, uparams=(t_ul,))
 
+        # --- 第二批定理（query_const.lean 移植）---
+        true_c = self._const("True", empty)
+        id0 = self._const("id", (z,))
+        and_right_c = self._const("And.right", empty)
+
+        # And.imp : {a} {c} {b} {d} (f : a -> c) (g : b -> d) (h : And a b) -> And c d
+        # value = fun {a} {c} {b} {d} (f : a -> c) (g : b -> d) (h : And a b) =>
+        #         And.intro c d (f (And.left a b h)) (g (And.right a b h))
+        # binder 从内到外：h=0, g=1, f=2, d=3, b=4, c=5, a=6（深度7）
+        #   深度4（f 的类型）：a=var3, c=var2 → Pi(var3, var3)
+        #   深度5（g 的类型）：b=var2, d=var1 → Pi(var2, var2)
+        #   深度6（h 的类型）：a=var5, b=var3 → And var5 var3
+        #   深度7（结果）：c=var5, d=var3 → And var5 var3
+        #   value body：And.intro var5 var3 (f (And.left var6 var4 var0)) (g (And.right var6 var4 var0))
+        and_imp_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "c", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+                    ctx, "d", BinderStyle.IMPLICIT, prop, _pi(
+                        ctx, "f", BinderStyle.DEFAULT,
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(3)), _pi(
+                            ctx, "g", BinderStyle.DEFAULT,
+                            _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2), ctx.mk_var(2)), _pi(
+                                ctx, "h", BinderStyle.DEFAULT,
+                                ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(5)), ctx.mk_var(3)),
+                                ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(5)), ctx.mk_var(3)))))))))
+        and_imp_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "c", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+                    ctx, "d", BinderStyle.IMPLICIT, prop, _lam(
+                        ctx, "f", BinderStyle.DEFAULT,
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(3)), _lam(
+                            ctx, "g", BinderStyle.DEFAULT,
+                            _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2), ctx.mk_var(2)), _lam(
+                                ctx, "h", BinderStyle.DEFAULT,
+                                ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(5)), ctx.mk_var(3)),
+                                ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                    and_intro_c, ctx.mk_var(5)), ctx.mk_var(3)),
+                                    ctx.mk_app(ctx.mk_var(2), ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                        and_left_c, ctx.mk_var(6)), ctx.mk_var(4)), ctx.mk_var(0)))),
+                                    ctx.mk_app(ctx.mk_var(1), ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                        and_right_c, ctx.mk_var(6)), ctx.mk_var(4)), ctx.mk_var(0)))))))))))
+        self._theorem("And.imp", and_imp_ty, and_imp_val)
+
+        # Or.elim : {a} {b} {c} (h : Or a b) (left : a -> c) (right : b -> c) -> c
+        # value = fun {a} {b} {c} (h : Or a b) (left : a -> c) (right : b -> c) =>
+        #         Or.rec a b (fun _ : Or a b => c) left right h
+        # binder 从内到外：right=0, left=1, h=2, c=3, b=4, a=5（深度6）
+        #   深度3（h 的类型）：a=var2, b=var1 → Or var2 var1
+        #   深度4（left 的类型）：a=var3, c=var2 → Pi(var3, var2)
+        #   深度5（right 的类型）：b=var3, c=var3 → Pi(var3, var3)
+        #   深度6（结果）：c=var3
+        #   motive（深度6）= fun _ : Or var5 var4 => var4（body 深度7: c=var(7-3)=var4）
+        #   body（深度6）= Or.rec var5 var4 motive var1 var0 var2
+        or_elim_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "c", BinderStyle.IMPLICIT, prop, _pi(
+                    ctx, "h", BinderStyle.DEFAULT,
+                    ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(2)), ctx.mk_var(1)), _pi(
+                        ctx, "left", BinderStyle.DEFAULT,
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(2)), _pi(
+                            ctx, "right", BinderStyle.DEFAULT,
+                            _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(3)),
+                            ctx.mk_var(3)))))))
+        or_elim_motive = _lam(ctx, "anon", BinderStyle.DEFAULT,
+                              ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(5)), ctx.mk_var(4)),
+                              ctx.mk_var(4))
+        or_elim_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "c", BinderStyle.IMPLICIT, prop, _lam(
+                    ctx, "h", BinderStyle.DEFAULT,
+                    ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(2)), ctx.mk_var(1)), _lam(
+                        ctx, "left", BinderStyle.DEFAULT,
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(2)), _lam(
+                            ctx, "right", BinderStyle.DEFAULT,
+                            _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(3)),
+                            ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                or_rec0, ctx.mk_var(5)), ctx.mk_var(4)), or_elim_motive),
+                                ctx.mk_var(1)), ctx.mk_var(0)), ctx.mk_var(2))))))))
+        self._theorem("Or.elim", or_elim_ty, or_elim_val)
+        or_elim_c = self._const("Or.elim", empty)
+
+        # not_or_intro : {a} {b} (ha : Not a) (hb : Not b) -> Not (Or a b)
+        # value = fun {a} {b} (ha : Not a) (hb : Not b) (x : Or a b) =>
+        #         Or.elim a b False x ha hb
+        # 类型 4 binder：codomain Not (Or a b) 的 δ 展开 = Pi(x : Or a b, False)，
+        # value 的 x lambda（推断 codomain Pi(x, False)）与之对齐
+        # binder 从内到外（value）：x=0, hb=1, ha=2, b=3, a=4（深度5）
+        #   深度2（ha 的类型）：Not var1（a）；深度3（hb 的类型）：Not var1（b）
+        #   深度4（x 的类型）：Or var3 var2；深度4（类型 codomain）：Not (Or var3 var2)
+        #   x 内（深度5）：a=var4, b=var3, ha=var2, hb=var1, x=var0
+        #     body = Or.elim var4 var3 False var0 var2 var1
+        noi_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "ha", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(1)), _pi(
+                    ctx, "hb", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(1)),
+                    ctx.mk_app(not_c, ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(3)),
+                                                 ctx.mk_var(2)))))))
+        noi_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "ha", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(1)), _lam(
+                    ctx, "hb", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(1)), _lam(
+                        ctx, "x", BinderStyle.DEFAULT,
+                        ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(3)), ctx.mk_var(2)),
+                        ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                            or_elim_c, ctx.mk_var(4)), ctx.mk_var(3)), false_c),
+                            ctx.mk_var(0)), ctx.mk_var(2)), ctx.mk_var(1)))))))
+        self._theorem("not_or_intro", noi_ty, noi_val)
+
+        # and_imp : {a} {b} {c} -> Iff (And a b -> c) (a -> b -> c)
+        # value = fun {a} {b} {c} =>
+        #   Iff.intro (And a b -> c) (a -> b -> c)
+        #     (fun (h : And a b -> c) => fun (ha : a) => fun (hb : b) => h (And.intro a b ha hb))
+        #     (fun (h : a -> b -> c) => fun (x : And a b) =>
+        #        And.rec a b (fun _ : And a b => c) (fun ha : a => fun hb : b => h ha hb) x)
+        # 深度3：a=var2, b=var1, c=var0
+        #   LHS = And a b -> c = Pi(anon, And var2 var1, var1)（body 深度4: c=var1）
+        #   RHS = a -> b -> c = Pi(anon, var2, Pi(anon, var2, var2))
+        # L1 内：h 深度3 → ha 深度4（T=var3）→ hb 深度5（T=var3）→ 深度6
+        #   h=var2, ha=var1, hb=var0 → var2 (and_intro var5 var4 var1 var0)
+        # L2 内：h 深度3 → x 深度4（T=And var3 var2）→ 深度5
+        #   motive = fun _ : And var4 var3 => var3（body 深度6: c=var(6-3)=var3）
+        #   case = fun ha : var4 => fun hb : var4 => h ha hb
+        #     [深度7：h=var3, ha=var1, hb=var0 → App(App(var3, var1), var0)]
+        #   And.rec var4 var3 motive var0 case
+        ai_lhs = _pi(ctx, "anon", BinderStyle.DEFAULT,
+                     ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(2)), ctx.mk_var(1)),
+                     ctx.mk_var(1))
+        ai_rhs = _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2),
+                     _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2), ctx.mk_var(2)))
+        ai_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "c", BinderStyle.IMPLICIT, prop,
+                ctx.mk_app(ctx.mk_app(iff_c, ai_lhs), ai_rhs))))
+        ai_l1_body = _lam(ctx, "ha", BinderStyle.DEFAULT, ctx.mk_var(3), _lam(
+            ctx, "hb", BinderStyle.DEFAULT, ctx.mk_var(3),
+            ctx.mk_app(ctx.mk_var(2), ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                and_intro_c, ctx.mk_var(5)), ctx.mk_var(4)), ctx.mk_var(1)), ctx.mk_var(0)))))
+        ai_l1 = _lam(ctx, "h", BinderStyle.DEFAULT, ai_lhs, ai_l1_body)
+        ai_motive = _lam(ctx, "anon", BinderStyle.DEFAULT,
+                         ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(4)), ctx.mk_var(3)),
+                         ctx.mk_var(3))
+        ai_case = _lam(ctx, "ha", BinderStyle.DEFAULT, ctx.mk_var(4), _lam(
+            ctx, "hb", BinderStyle.DEFAULT, ctx.mk_var(4),
+            ctx.mk_app(ctx.mk_app(ctx.mk_var(3), ctx.mk_var(1)), ctx.mk_var(0))))
+        ai_l2_body = _lam(ctx, "x", BinderStyle.DEFAULT,
+                          ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(3)), ctx.mk_var(2)),
+                          ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                              and_rec0, ctx.mk_var(4)), ctx.mk_var(3)), ai_motive),
+                              ctx.mk_var(0)), ai_case))
+        ai_l2 = _lam(ctx, "h", BinderStyle.DEFAULT, ai_rhs, ai_l2_body)
+        ai_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "c", BinderStyle.IMPLICIT, prop,
+                ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                    iff_intro_c, ai_lhs), ai_rhs), ai_l1), ai_l2))))
+        self._theorem("and_imp", ai_ty, ai_val)
+        and_imp_c = self._const("and_imp", empty)
+
+        # not_and : {a} {b} -> Iff (Not (And a b)) (a -> Not b)
+        # value = fun {a} {b} => and_imp a b False
+        # 深度2：a=var1, b=var0
+        #   LHS = Not (And var1 var0)；RHS = a -> Not b = Pi(anon, var1, Not var1)
+        #   body（深度2）= and_imp var1 var0 False
+        na_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "b", BinderStyle.IMPLICIT, prop,
+            ctx.mk_app(ctx.mk_app(iff_c,
+                ctx.mk_app(not_c, ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(1)),
+                                             ctx.mk_var(0)))),
+                _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(1),
+                    ctx.mk_app(not_c, ctx.mk_var(1))))))
+        na_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "b", BinderStyle.IMPLICIT, prop,
+            ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                and_imp_c, ctx.mk_var(1)), ctx.mk_var(0)), false_c)))
+        self._theorem("not_and", na_ty, na_val)
+
+        # eq_true : {p} (h : p) -> Eq Prop p True
+        # value = fun {p} (h : p) =>
+        #   propext p True (Iff.intro p True (fun _ : p => True.intro) (fun _ : True => h))
+        # binder：h=0, p=1（深度2）
+        #   深度1（h 的类型）：var0（p）；深度2（结果）：Eq.{1} Prop var1 True
+        #   L1 = fun _ : var1 => True.intro（body 深度3，值为 True.intro 常量）
+        #   L2 = fun _ : True => var1（body 深度3: h=var(3-2)=var1）
+        true_intro_c = self._const("True.intro", empty)
+        et_ty = _pi(ctx, "p", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "h", BinderStyle.DEFAULT, ctx.mk_var(0),
+            ctx.mk_app(ctx.mk_app(ctx.mk_app(eq1, prop), ctx.mk_var(1)), true_c)))
+        et_l1 = _lam(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(1), true_intro_c)
+        et_l2 = _lam(ctx, "anon", BinderStyle.DEFAULT, true_c, ctx.mk_var(1))
+        et_val = _lam(ctx, "p", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "h", BinderStyle.DEFAULT, ctx.mk_var(0),
+            ctx.mk_app(ctx.mk_app(ctx.mk_app(propext_c, ctx.mk_var(1)), true_c),
+                ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                    iff_intro_c, ctx.mk_var(1)), true_c), et_l1), et_l2))))
+        self._theorem("eq_true", et_ty, et_val)
+
+        # or_iff_left_of_imp : {b} {a} (hb : b -> a) -> Iff (Or a b) a
+        # value = fun {b} {a} (hb : b -> a) =>
+        #   Iff.intro (Or a b) a
+        #     (fun (t : Or a b) => Or.rec a b (fun _ : Or a b => a) (id a) hb t)
+        #     (Or.inl a b)
+        # binder 从内到外：hb=0, a=1, b=2（深度3）
+        #   深度2（hb 的类型）：b -> a = Pi(var1, var1)  [body 深度3: a=var(3-2)=var1]
+        #   深度3（结果）：a=var1, b=var2 → Iff (Or var1 var2) var1
+        #   L1 内（深度4）：a=var2, b=var3, hb=var1, t=var0
+        #     motive = fun _ : Or var2 var3 => var3（body 深度5: a=var(5-2)=var3）
+        #     Or.rec var2 var3 motive (id var2) var1 var0
+        #   L2（深度3）= Or.inl var1 var2
+        oil_ty = _pi(ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "hb", BinderStyle.DEFAULT,
+                _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(1), ctx.mk_var(1)),
+                ctx.mk_app(ctx.mk_app(iff_c,
+                    ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(1)), ctx.mk_var(2))),
+                    ctx.mk_var(1)))))
+        oil_motive = _lam(ctx, "anon", BinderStyle.DEFAULT,
+                          ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(2)), ctx.mk_var(3)),
+                          ctx.mk_var(3))
+        oil_l1 = _lam(ctx, "t", BinderStyle.DEFAULT,
+                      ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(1)), ctx.mk_var(2)),
+                      ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                          or_rec0, ctx.mk_var(2)), ctx.mk_var(3)), oil_motive),
+                          ctx.mk_app(id0, ctx.mk_var(2))), ctx.mk_var(1)), ctx.mk_var(0)))
+        oil_l2 = ctx.mk_app(ctx.mk_app(or_inl_c, ctx.mk_var(1)), ctx.mk_var(2))
+        oil_val = _lam(ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "hb", BinderStyle.DEFAULT,
+                _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(1), ctx.mk_var(1)),
+                ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                    iff_intro_c,
+                    ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(1)), ctx.mk_var(2))),
+                    ctx.mk_var(1)), oil_l1), oil_l2))))
+        self._theorem("or_iff_left_of_imp", oil_ty, oil_val)
+        oil_c = self._const("or_iff_left_of_imp", empty)
+
+        # or_iff_left : {b} {a} (hb : Not b) -> Iff (Or a b) a
+        # value = fun {b} {a} (hb : Not b) =>
+        #   or_iff_left_of_imp b a (fun (x : b) => absurd b a x hb)
+        # binder 从内到外：hb=0, a=1, b=2（深度3）
+        #   深度2（hb 的类型）：Not var1（b）；深度3（结果）：Iff (Or var1 var2) var1
+        #   x 内（深度4）：b=var3, a=var2, hb=var1, x=var0
+        #     absurd b a x hb = absurd0 var3 var2 var0 var1（absurd 全部显式实参）
+        #   body（深度3）= or_iff_left_of_imp var2 var1 (fun x : var2 => ...)
+        orl_ty = _pi(ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "hb", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(1)),
+                ctx.mk_app(ctx.mk_app(iff_c,
+                    ctx.mk_app(ctx.mk_app(or_c, ctx.mk_var(1)), ctx.mk_var(2))),
+                    ctx.mk_var(1)))))
+        orl_l1 = _lam(ctx, "x", BinderStyle.DEFAULT, ctx.mk_var(2),
+                      ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                          absurd0, ctx.mk_var(3)), ctx.mk_var(2)),
+                          ctx.mk_var(0)), ctx.mk_var(1)))
+        orl_val = _lam(ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "hb", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(1)),
+                ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                    oil_c, ctx.mk_var(2)), ctx.mk_var(1)), orl_l1))))
+        self._theorem("or_iff_left", orl_ty, orl_val)
+
+        # not_imp_of_and_not : {a} {b} (x : And a (Not b)) -> Not (a -> b)
+        # value = fun {a} {b} (x : And a (Not b)) (x1 : a -> b) =>
+        #   And.rec a (Not b) (fun _ : And a (Not b) => False)
+        #     (fun (ha : a) => fun (hb : Not b) => hb (x1 ha)) x
+        # 类型 3 binder：codomain Not (a -> b) 的 δ 展开 = Pi(x1 : a -> b, False)，
+        # value 的 x1 lambda（推断 codomain Pi(x1, False)）与之对齐
+        # binder 从内到外（value）：x1=0, x=1, b=2, a=3（深度4）
+        #   深度2（x 的类型）：And var1 (Not var0)
+        #   深度3（x1 的类型）：a -> b = Pi(var2, var2)
+        #   深度3（类型 codomain）：Not (a -> b) = Not (Pi(var2, var2))
+        #   motive（深度4）= fun _ : And var3 (Not var2) => False（body 深度5）
+        #   case（深度4）= fun ha : var3 => fun hb : Not var3 => var0 (var2 var1)
+        #     [深度6：x1=var(6-4)=var2, ha=var1, hb=var0]
+        #   body（深度4）= and_rec0 var3 (Not var2) motive var1 case
+        ni_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
+                ctx, "x", BinderStyle.DEFAULT,
+                ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(1)),
+                           ctx.mk_app(not_c, ctx.mk_var(0))),
+                ctx.mk_app(not_c,
+                    _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2), ctx.mk_var(2))))))
+        ni_motive = _lam(ctx, "anon", BinderStyle.DEFAULT,
+                         ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(3)),
+                                    ctx.mk_app(not_c, ctx.mk_var(2))), false_c)
+        ni_case = _lam(ctx, "ha", BinderStyle.DEFAULT, ctx.mk_var(3), _lam(
+            ctx, "hb", BinderStyle.DEFAULT, ctx.mk_app(not_c, ctx.mk_var(3)),
+            ctx.mk_app(ctx.mk_var(0), ctx.mk_app(ctx.mk_var(2), ctx.mk_var(1)))))
+        ni_val = _lam(ctx, "a", BinderStyle.IMPLICIT, prop, _lam(
+            ctx, "b", BinderStyle.IMPLICIT, prop, _lam(
+                ctx, "x", BinderStyle.DEFAULT,
+                ctx.mk_app(ctx.mk_app(and_c, ctx.mk_var(1)),
+                           ctx.mk_app(not_c, ctx.mk_var(0))), _lam(
+                    ctx, "x1", BinderStyle.DEFAULT,
+                    _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(2), ctx.mk_var(2)),
+                    ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                        and_rec0, ctx.mk_var(3)), ctx.mk_app(not_c, ctx.mk_var(2))),
+                        ni_motive), ctx.mk_var(1)), ni_case)))))
+        self._theorem("not_imp_of_and_not", ni_ty, ni_val)
+
+        # congrArg : {α : Sort u} -> {β : Sort v} -> {a1 : α} -> {a2 : α} ->
+        #            (f : α -> β) -> Eq α a1 a2 -> Eq β (f a1) (f a2)
+        # value = fun {α} {β} {a1} {a2} (f : α -> β) (h : Eq α a1 a2) =>
+        #   Eq.rec α a1 (fun x : α => Eq β (f a1) (f x)) (Eq.refl β (f a1)) a2 h
+        # binder 从内到外：h=0, f=1, a2=2, a1=3, β=4, α=5（深度6）
+        #   深度2（a1 的类型）：α=var1；深度3（a2 的类型）：α=var2
+        #   深度4（f 的类型）：α -> β = Pi(var3, var3)  [body 深度5: β=var(5-2)=var3]
+        #   深度5（h 的类型）：Eq.{u} α a1 a2 = Eq var4 var2 var1
+        #   深度6（结果）：Eq.{v} β (f a1) (f a2) = Eq var4 (var1 var3) (var1 var2)
+        #   motive（深度6）= fun x : var5 => Eq var5 (var2 var4) (var2 var0)（body 深度7）
+        #   ha（深度6）= Eq.refl.{v} var4 (var1 var3)
+        #   body（深度6）= Eq.rec.{u,0} var5 var3 motive ha var2 var0
+        _, cs_u, c_ul = _u(ctx, "u")
+        _, cs_v, c_vl = _u(ctx, "v")
+        eq_cu = self._const("Eq", (c_ul,))
+        eq_cv = self._const("Eq", (c_vl,))
+        eq_refl_v = self._const("Eq.refl", (c_vl,))
+        # motive 返回 Prop（Sort 0），故 Eq.rec 实例化 (u, 0) 而非 (u, v)
+        # （无 elaboration：motive : α -> Sort v 无法用 Prop-值对齐）
+        eq_rec_u0 = self._const("Eq.rec", (c_ul, z))
+        cg_ty = _pi(ctx, "α", BinderStyle.IMPLICIT, cs_u, _pi(
+            ctx, "β", BinderStyle.IMPLICIT, cs_v, _pi(
+                ctx, "a1", BinderStyle.DEFAULT, ctx.mk_var(1), _pi(
+                    ctx, "a2", BinderStyle.DEFAULT, ctx.mk_var(2), _pi(
+                        ctx, "f", BinderStyle.DEFAULT,
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(3)), _pi(
+                            ctx, "h", BinderStyle.DEFAULT,
+                            ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                eq_cu, ctx.mk_var(4)), ctx.mk_var(2)), ctx.mk_var(1)),
+                            ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                eq_cv, ctx.mk_var(4)),
+                                ctx.mk_app(ctx.mk_var(1), ctx.mk_var(3))),
+                                ctx.mk_app(ctx.mk_var(1), ctx.mk_var(2)))))))))
+        cg_motive = _lam(ctx, "x", BinderStyle.DEFAULT, ctx.mk_var(5),
+                         ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                             eq_cv, ctx.mk_var(5)),
+                             ctx.mk_app(ctx.mk_var(2), ctx.mk_var(4))),
+                             ctx.mk_app(ctx.mk_var(2), ctx.mk_var(0))))
+        cg_ha = ctx.mk_app(ctx.mk_app(eq_refl_v, ctx.mk_var(4)),
+                           ctx.mk_app(ctx.mk_var(1), ctx.mk_var(3)))
+        cg_val = _lam(ctx, "α", BinderStyle.IMPLICIT, cs_u, _lam(
+            ctx, "β", BinderStyle.IMPLICIT, cs_v, _lam(
+                ctx, "a1", BinderStyle.DEFAULT, ctx.mk_var(1), _lam(
+                    ctx, "a2", BinderStyle.DEFAULT, ctx.mk_var(2), _lam(
+                        ctx, "f", BinderStyle.DEFAULT,
+                        _pi(ctx, "anon", BinderStyle.DEFAULT, ctx.mk_var(3), ctx.mk_var(3)), _lam(
+                            ctx, "h", BinderStyle.DEFAULT,
+                            ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                eq_cu, ctx.mk_var(4)), ctx.mk_var(2)), ctx.mk_var(1)),
+                            ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(
+                                eq_rec_u0, ctx.mk_var(5)), ctx.mk_var(3)), cg_motive),
+                                cg_ha), ctx.mk_var(2)), ctx.mk_var(0))))))))
+        self._theorem("congrArg", cg_ty, cg_val, uparams=(c_ul, c_vl))
+
     # ---------- 公开 API ----------
 
     def name_to_ptr(self, s: str) -> NamePtr:
