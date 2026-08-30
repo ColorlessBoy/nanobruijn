@@ -79,7 +79,7 @@ class BootstrapCore:
 
         # --- 逻辑 Axiom ---
         self._axiom("True", prop)
-        self._axiom("True.intro", prop)
+        self._axiom("True.intro", self._const("True", empty))
         self._axiom("False", prop)
 
         # And : Prop -> Prop -> Prop

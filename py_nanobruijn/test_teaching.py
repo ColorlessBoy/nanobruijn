@@ -48,6 +48,22 @@ class TestCore:
         for name in core.constants():
             assert core.name_to_string(core.name_to_ptr(name)) == name
 
+    def test_true_intro_type_is_true(self):
+        # True.intro 的类型必须是 True（常量），不是 Prop（Sort 0）
+        core = make_bootstrap()
+        ty = core.env.get_declar(core.name_to_ptr("True.intro")).info.ty
+        v = core.ctx.view_expr(ExprPtr.closed(ty))
+        assert v.tag == 'Const'
+        assert core.ctx.name_to_string(v.name) == "True"
+
+    def test_and_intro_full_application(self):
+        # @And.intro True True True.intro True.intro : And True True
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "@And.intro True True True.intro True.intro")
+        ty = tc.infer(e, 'check')
+        assert pretty(core, ty) == "And True True"
+
     def test_core_count(self):
         core = make_bootstrap()
         assert set(core.constants()) >= {

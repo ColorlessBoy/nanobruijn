@@ -1,245 +1,376 @@
 # py-nanobruijn 教学 REPL 使用手册
 
-交互式 Lean 4 类型检查教学工具：内置 Prop 逻辑核心，复用 py_nanobruijn 的**真实内核**
-（infer / whnf / def_eq）做类型推断与逐步 β/δ 归约。灵感来自
-[lean4_lambda_calculator](https://github.com/ColorlessBoy/lean4_lambda_calculator)
-的 `query_const.lean`（手工定义逻辑常量 + `#print`/`#check` 查询），但没有老项目的
-bug 与性能问题——每行查询都有超时保护，复杂表达式不会卡死。
+> 面向完全初学者。你不需要任何类型论或 Lean 背景，照着做就能开始玩。
+> 本工具的核心承诺：**你看到的每一个行为，都来自真实 Lean 内核**——不是模拟器。
 
 ---
 
-## 0. 背景与原理
+## 0. 这是什么东西？（30 秒版）
 
-### 这是什么
+Lean 是一种"证明即编程"的语言：**写一个程序（lambda 表达式），证明一个命题**。
+本 REPL 是一个交互式实验室，让你：
 
-py_nanobruijn 是 Lean 4 内核（类型检查器）的 Python 移植：把声明（定义、定理、
-公理）的表达式表示为 **de Bruijn 索引**（用"第几层 binder 外"的编号引用变量，不用名字）
-存储在 hash-consing DAG 里，由内核做三件事：
+- 输入表达式，看它的**类型**（`#check`）
+- 让表达式一步步**归约**（`#reduce`）
+- 查询内置常量的**定义**（`#print`）
+- 用**tactic 草稿模式**（`#prove`）像搭积木一样构造证明
 
-- **infer**（类型推断）：给定表达式，算出它的类型
-- **whnf**（求值到弱头范式）：反复做 β 归约（λ 应用到参数）与 δ 归约（展开定义），
-  直到头部不再是 redex——内核判定两个表达式是否"定义相等"的基础
-- **def_eq**（定义相等）：两个表达式经 whnf 后是否同构
-
-本 REPL 把这套真实内核直接暴露给学习者：`#check` 调用 infer，`#reduce` 调用
-whnf，`#print` 读出声明。**没有教学模拟器**——学生看到的行为与真实 Lean 内核一致。
-
-### 为什么要"逐步"展示
-
-内核的 `whnf` 是黑盒：一个函数调用返回最终范式，中途步骤看不见。本 REPL 的
-`#reduce` 通过**镜像内核主循环**（复用 `whnf_no_unfolding` 与 `unfold_def` 两个原语，
-自己驱动循环）把每一步还原出来。这正是教学价值所在：β 归约与 δ 展开的交替过程，
-是理解"计算"在类型论中如何发生的直观入口。
-
-### 为什么不会卡死
-
-老项目的问题：复杂表达式类型推断耗时失控。本 REPL 每行创建新的 `TypeChecker`
-（干净缓存），默认 5 秒超时（`--timeout` 可调，`0` 表示不限）——超时返回友好
-错误，进程不挂。
+它内置了一个"最小 Lean 内核"：逻辑连接词（And/Or/Iff/Eq…）、递归器、以及 14 个
+从真实证明库移植的定理。39 个常量，启动即用，不需要下载任何东西。
 
 ---
 
-## 1. 快速开始
+## 1. 安装与启动
 
 ```bash
-# 在项目根目录（已配置 uv 虚拟环境）
-uv run python -m py_nanobruijn repl
-# 或（安装后）：
-uv run py-nanobruijn repl
-# 或直接：
+# 项目根目录（已经配置好 uv 虚拟环境）
 .venv/bin/python -m py_nanobruijn repl
 ```
 
-启动后看到 banner 与提示符：
+看到类似这样的界面就成功了：
 
 ```
 py-nanobruijn teaching REPL
-输入表达式查看类型（等价 #check），或使用命令：#check/#reduce/#print/#env/#help/#quit
+输入表达式查看类型（等价 #check），或使用命令：#check/#reduce/#print/#prove/#env/#help/#quit
 语法：fun (x : A) => e、∀ (x : A), e、A -> B、@Const、Type、Prop
-已加载 21 个常量，输入 #help 查看帮助
+已加载 39 个常量，输入 #help 查看帮助
 >
 ```
 
-在 `>` 提示符后输入**一行**内容，回车执行。退出方式：`#quit` 或 Ctrl-D。
+`>` 是你的提示符。输入内容，回车执行。退出：`#quit` 或 `Ctrl-D`。
 
-## 2. 交互规则
+---
 
-| 规则 | 说明 |
+## 2. 概念速成（5 分钟，够用了）
+
+### 类型与命题
+
+在 Lean 里，**命题就是类型**。下面这些"类型"同时也是命题：
+
+| 符号 | 含义 |
 |---|---|
-| 单行输入 | 每行一个表达式或命令；多行表达式不支持 |
-| 默认行为 | 直接输入表达式 = `#check`（显示类型） |
-| 空输入 | 无输出，回到提示符 |
-| 错误格式 | 一律一行 `error: ...`，无 traceback（`--timeout` 超时同样友好提示） |
-| 每行独立 | 每行创建新的 `TypeChecker`（干净缓存），默认 5 秒超时防卡死 |
+| `Prop` | 命题的宇宙（所有命题的类型） |
+| `True` / `False` | 恒真 / 恒假命题 |
+| `a -> b` | "如果 a 那么 b"（蕴含） |
+| `And a b` / `Or a b` | "a 且 b" / "a 或 b" |
+| `Iff a b` | "a 当且仅当 b" |
+| `Eq α a b` | "a 和 b 相等"（类型 α 中） |
 
-## 3. 命令参考
+试试：
 
-### `#check <e>`（或直接输入表达式）
+```
+> #check True
+True : Prop          ← True 是 Prop（一个命题）
+> #check And
+And : ∀ (a : Prop), ∀ (b : Prop), Prop
+```
+
+### 证明就是"类型为命题的值"
+
+命题 `p` 的**证明**，就是**一个类型为 `p` 的表达式**。就像 `42 : Nat` 是自然数，
+`真命题的证明` 是这个命题的"居民"。逻辑上的"证明"没有魔法——就是构建一个
+满足类型的 lambda 表达式。
+
+例如 `True.intro` 是命题 `True` 的证明（Axiom 直接给出）：
+
+```
+> #check True.intro
+True.intro : True
+```
+
+### 为什么是 lambda？
+
+`a -> b` 的证明是"把 a 的证明变成 b 的证明的函数"——`fun (ha : a) => ...`。
+所以证明构造 = 写 lambda 项。tactic 草稿模式（`#prove`）就是帮你**分步写这个
+lambda** 的工具（见第 5 节）。
+
+---
+
+## 3. 第一次会话（10 分钟，手把手）
+
+```
+> #env
+```
+看看有哪些内置常量。你会看到 And、Or、Iff、Eq、True、False、propext、
+id、Function.comp、flip，还有一批定理（and_comm、Eq.symm…）。
+
+```
+> #print And.intro
+```
+打印构造子的类型：
+```
+And.intro : ∀ {a : Prop}, ∀ {b : Prop}, ∀ (ha : a), ∀ (hb : b), And a b
+  (axiom)
+```
+读法：给定命题 `a`、`b`，给定 `a` 的证明 `ha`、`b` 的证明 `hb`，得到 `And a b`
+的证明。花括号 `{a : Prop}` 是**隐式参数**——通常不用手动填（`@` 语法可显式填）。
+
+```
+> #check @And True True
+And True True : Prop
+```
+`@And` 表示显式传所有参数：`And` 应用到 `True` 和 `True`，结果是命题
+`And True True`（"True 且 True"），它是个 Prop。
+
+```
+> #check @And.intro True True True.intro True.intro
+@And.intro True True True.intro True.intro : And True True
+```
+**这是 `And True True` 的证明**！`{a} := True`、`{b} := True`（隐式参数填好），
+`True.intro` 是 `True` 的证明，喂给 `And.intro`，得到一个类型为 `And True True`
+的表达式——证明完成。
+
+```
+> #reduce (fun (x : Prop) => x) True.intro
+(fun (x : Prop) => x) True.intro => True.intro  [beta]
+```
+β 归约：`(fun (x : Prop) => x) a` 把 `a` 代进 `x`，得到 `a`。
+
+恭喜，你已经完成一次完整的"证明"。接下来看第 5 节的 tactic 草稿模式——那是为
+更长证明准备的。
+
+---
+
+## 4. 命令参考
+
+### `#check <e>`（直接输入表达式等价）
 
 显示表达式的类型：
 
 ```
-> fun (x : Prop) => x
-fun (x : Prop) => x : ∀ (x : Prop), Prop
 > True
 True : Prop
 > Prop
 Prop : Type
 > Type
 Type : Type 1
-> id.{u}
-id.{u} : ∀ {α : Type u}, ∀ (a : α), α
-> @And True True
-And True True : Prop
+> fun (x : Prop) => x
+fun (x : Prop) => x : ∀ (x : Prop), Prop
 ```
 
 ### `#reduce <e>`
 
-逐步展示 β/δ 归约，每步标注 `[beta]`（β/let 归约）或 `[delta]`（定义展开）：
+逐步 β/δ 归约。`[beta]` = λ 应用；`[delta]` = 定义展开：
 
 ```
-> #reduce (fun (x : Prop) => x) True.intro
-(fun (x : Prop) => x) True.intro => True.intro  [beta]
 > #reduce id.{0} True True.intro
 @id True True.intro => (fun {α : Prop} => fun (a : α) => a) True True.intro  [delta]
 (fun {α : Prop} => fun (a : α) => a) True True.intro => True.intro  [beta]
 ```
-
-**归约规则**：
-
-| 规则 | 含义 | 例子 |
-|---|---|---|
-| β（beta） | `(fun (x : A) => e) a` 把 a 代入 e 中所有 x | `(fun (x : Prop) => x) True.intro => True.intro` |
-| δ（delta） | 展开常量定义（Definition 才有，Axiom 不可展开） | `@id ... => (fun {α} (a : α) => a) ...` |
-| let | 展开 let 绑定（内核规则，本核心较少出现） | — |
-
-**执行流程**（镜像内核 `whnf_inner` 主循环）：每步先做头部 β/let 归约
-（`whnf_no_unfolding`，一次折叠头部所有 redex，标 `[beta]`），再尝试 δ 展开
-（`unfold_def`，标 `[delta]`），直到两者都无变化——此时表达式已是 WHNF
-（弱头范式）。注意：
-
-- `[beta]` 一步可能包含**多个** β 归约（如 `id.{0} True True.intro` 的两个 λ 应用
-  在一步内完成）——内核求值就是这样，教学上恰好演示"逐步收敛"
-- `[delta]` 只出现在应用了 **Definition** 的常量（`id`/`Not`/`Function.comp`/`flip`）；
-  Axiom（`True.intro`/`And` 等）没有定义可展开
-- 已是 WHNF 时输出 `(already in normal form)`
-- 超时保护：默认 5 秒（`--timeout`），循环失控时返回友好错误而非挂死
+第一步 `[delta]`：把 `id` 的定义展开；第二步 `[beta]`：应用两个 λ。
 
 ### `#print <name>`
 
-打印常量完整类型与定义（Axiom 标 `(axiom)`，Definition 显示值）：
+显示常量类型 + 定义（Axiom 标 `(axiom)`）：
 
 ```
-> #print And.intro
-And.intro : ∀ {a : Prop}, ∀ {b : Prop}, ∀ (ha : a), ∀ (hb : b), And a b
-  (axiom)
-> #print id
-id : ∀ {α : Type u}, ∀ (a : α), α
-  = fun {α : Type u} => fun (a : α) => a
+> #print and_comm
+and_comm : ∀ {a : Prop}, ∀ {b : Prop}, Iff And a b And b a
+  = fun {a : Prop} => fun {b : Prop} => @Iff.intro And a b And b a ...
 ```
 
-### `#env`
+### `#env` / `#help` / `#quit`
 
-列出全部 21 个内置常量（排序后）。`#help` 显示 banner 帮助。`#quit` 退出。
-未知命令提示 `unknown command #xxx (try #help)`。
+常量列表 / 帮助 / 退出。
 
-## 4. 表达式语法
+### `#prove <类型>`
+
+进入**tactic 草稿模式**（下节详解）。
+
+---
+
+## 5. Tactic 草稿模式（`#prove`）——最重要的一节
+
+### 先说清楚一个关键认知
+
+**tactic 不是类型论的一部分。** 类型论只有一件事：构建 lambda 表达式。
+tactic 是**编辑器**——帮你分步写出那个（往往很长、不可能一次写完的）lambda 项。
+在 Lean 里 `#print` 任何定理都能看到它背后的 lambda 项——那才是"真相"；
+tactic 只是写它的工具。本工具的草稿模式把这个过程**完全透明化**：
+
+**每一步 tactic，都显示当前部分 lambda 项变成了什么样。**
+
+### 一个完整的例子
+
+```
+> #prove ∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b
+证明: ∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b
+上下文: （空）
+目标: ∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b
+当前项: _
+proof> intro a
+上下文: a : Prop
+目标: ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b
+当前项: fun (a : Prop) => _
+```
+
+`intro a` = 开始写 `fun (a : Prop) => ...`。目标变小，部分项变大——**一一对应**。
+
+继续：
+
+```
+proof> intro b
+proof> intro ha
+proof> intro hb
+上下文: a : Prop, b : Prop, ha : a, hb : b
+目标: And a b
+当前项: fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => _
+proof> apply And.intro
+目标: a
+当前项: fun ... => @And.intro a b _ ?2
+```
+
+`apply And.intro` 说："我想用 `And.intro` 来构造 `And a b`"。
+`And.intro` 的隐式参数 `{a}{b}` 被**自动匹配**（目标 `And a b` 告诉我们 a、b 是谁）；
+剩下的显式参数（`ha : a`、`hb : b`）变成两个新目标（`_` 和 `?2`）。
+
+```
+proof> exact ha
+proof> exact hb
+proof> done
+完整证明项:
+fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a b ha hb
+内核检查: 通过
+```
+
+`exact ha` = 当前目标正好是 `ha`（`ha : a`），直接填上。
+`done` = 所有洞填完 → 合成完整 lambda 项 → **真实内核检查** → 显示最终证明项。
+
+**注意最后那行 lambda**：`fun {a} {b} => fun (ha : a) => fun (hb : b) => @And.intro a b ha hb`
+——这就是你"证明"的实体。tactic 只是分步写出它的工具。用 `#print` 查看内置
+定理（如 `and_comm`）会看到同样风格的项——**tactic 和手写 lambda 是同一回事**。
+
+### tactic 清单
+
+| tactic | 作用 | 部分项变化 |
+|---|---|---|
+| `intro x` | 目标 `∀ (x : A), B` → 把 `x` 加入上下文，目标变 `B` | `_` → `fun (x : A) => _` |
+| `apply f` | 用常量 `f` 构造目标；隐式参数自动匹配，显式参数变新目标 | `_` → `@f ... _ ?n` |
+| `exact e` | 当前目标直接用表达式 `e` 填（内核检查类型） | `_` → `e` |
+| `done` | 全部填完 → 合成 + 内核检查 + 显示完整项 | — |
+| `abort` | 放弃，回到主 REPL | — |
+| `context` | 重新显示上下文/目标/当前项 | — |
+| `help` | tactic 帮助 | — |
+
+### 教学要点（给老师）
+
+- **洞是编辑器的状态，不是内核的概念**——本工具没有 metavariable，洞完全由
+  教学层维护，`done` 时才合成闭项交给内核。这恰好演示了"tactic 是编辑器，
+  内核是裁判"的分工。
+- 建议演示顺序：`#prove` 一个简单目标 → `done` 后把输出和 `#print` 内置定理的
+  项对比 → 说明"我们手写的和内核里存的是同一种东西"。
+
+---
+
+## 6. 表达式语法
 
 | 语法 | 含义 | 示例 |
 |---|---|---|
-| `fun (x : A) => e` | λ 抽象 | `fun (x : Prop) => x` |
+| `fun (x : A) => e` | λ 抽象（**必须带类型注解**） | `fun (x : Prop) => x` |
 | `fun {x : A} => e` | 隐式参数 λ | `fun {x : Prop} => x` |
-| `∀ (x : A), e` / `forall (x : A), e` | 依赖积 | `∀ (a : Prop), a -> a` |
-| `A -> B` | 非依赖箭头（匿名 binder） | `Prop -> Prop` |
-| `e1 e2` | 应用（空格） | `And.intro True.intro True.intro` |
-| `@Const a b` | 显式传隐式参数 | `@And True True` |
-| `Name.{u}` | 常量 universe 实例化 | `id.{u}`、`id.{0}`、`Function.comp.{u, v, w}` |
-| `Prop` / `Type` / `Sort u` | 宇宙 | `Type`、`Type u`、`Sort 0`、`Sort 1` |
-| `42` | Nat 字面量 | 可解析/打印/归约 |
+| `∀ (x : A), e` | 依赖积（"对所有 x : A，e"） | `∀ (a : Prop), a -> a` |
+| `A -> B` | 蕴含（匿名 binder） | `Prop -> Prop` |
+| `e1 e2` | 应用（空格） | `And.intro True True True.intro True.intro` |
+| `@Const a b` | 显式填隐式参数 | `@And True True` |
+| `Name.{u}` | universe 实例化 | `id.{u}`、`id.{0}` |
+| `Prop` / `Type` / `Sort u` | 宇宙 | `Type`、`Type u`、`Sort 0` |
+| `42` | Nat 字面量 | 可解析/归约（类型推断暂不支持） |
 
-**重要规则**：
+**三条重要规则**：
 
-- **binder 必须带类型注解**：`fun x => e` 报错，必须写 `fun (x : A) => e`。
-  因为内核的 Lambda 节点需要 binder 类型，本工具无 metavariable 推断。
-- **隐式参数不自动填充**：内核无 elaboration。`@And True True` 显式传全部参数，
-  省略的隐式参数不会自动补。
-- **universe 参数默认实例化为 0**（Prop 层）：`id` 等价于 `id.{0}`，类型显示
-  `∀ {α : Prop}, ...`。要观察 universe 多态请显式写 `id.{u}`。
-- **常量带 universe 参数时**：`.{...}` 中 level 数量必须与声明一致（多了/少了/
-  空括号报 ParseError）；无 universe 参数的常量（如 `And`）带 `.{...}` 也报错。
-- **Nat 字面量的类型推断暂不支持**：`#check 42` 返回友好错误（需要 Nat inductive
-  类型，v1 未内置）；`#reduce 42` 等不涉及类型推断的操作正常。
+1. **binder 必须带类型注解**：`fun x => e` 会报错。内核的 Lambda 需要 binder
+   类型，本工具不做类型推断（这是特性：逼你明确写出每一步）。
+2. **隐式参数不自动填充**（`#prove` 的 `apply` 除外）：`@And True True` 显式传。
+3. **universe 参数默认实例化为 0**（Prop 层）：`id` 等价 `id.{0}`；`id.{u}` 显式
+   观察 universe 多态（`∀ {α : Type u}, ∀ (a : α), α`）。
 
-## 5. 内置常量（21 个）
+---
 
-### Axiom（逻辑原语，不可 δ 展开）
+## 7. 内置内容（39 个常量）
 
-| 常量 | 类型 |
+### 逻辑原语（Axiom，不可 δ 展开）
+
+| 常量 | 类型（简化写法） |
 |---|---|
-| `True` | `Prop` |
-| `True.intro` | `True` |
+| `True` / `True.intro` | `Prop` / `True` |
 | `False` | `Prop` |
-| `And` | `∀ (a : Prop), ∀ (b : Prop), Prop` |
-| `And.intro` | `∀ {a}, ∀ {b}, ∀ (ha : a), ∀ (hb : b), And a b` |
-| `And.left` | `∀ {a}, ∀ {b}, ∀ (h : And a b), a` |
-| `And.right` | `∀ {a}, ∀ {b}, ∀ (h : And a b), b` |
-| `Or` | `∀ (a : Prop), ∀ (b : Prop), Prop` |
-| `Or.inl` | `∀ {a}, ∀ {b}, ∀ (h : a), Or a b` |
-| `Or.inr` | `∀ {a}, ∀ {b}, ∀ (h : b), Or a b` |
-| `Iff` | `∀ (a : Prop), ∀ (b : Prop), Prop` |
-| `Iff.intro` | `∀ {a}, ∀ {b}, ∀ (mp : ∀ (mp0 : a), b), ∀ (mpr : ∀ (mpr0 : b), a), Iff a b` |
-| `Iff.mp` | `∀ {a}, ∀ {b}, ∀ (h : Iff a b), ∀ (ha : a), b` |
-| `Iff.mpr` | `∀ {a}, ∀ {b}, ∀ (h : Iff a b), ∀ (hb : b), a` |
-| `Eq` | `∀ {α : Type u}, ∀ (a1 : α), ∀ (a2 : α), Prop` |
-| `Eq.refl` | `∀ {α : Type u}, ∀ (a : α), @Eq.{u} α a a` |
-| `propext` | `∀ {a : Prop}, ∀ {b : Prop}, ∀ (h : Iff a b), @Eq.{1} Prop a b` |
+| `And` / `And.intro` / `And.left` / `And.right` | `Prop -> Prop -> Prop` / 构造子 / 两个投影 |
+| `And.rec` | `And` 的递归器（归纳） |
+| `Or` / `Or.inl` / `Or.inr` / `Or.rec` | 析取 / 两个构造子 / 递归器 |
+| `Iff` / `Iff.intro` / `Iff.mp` / `Iff.mpr` | 当且仅当 / 构造子 / 两个消除子 |
+| `Eq` / `Eq.refl` / `Eq.rec` | 相等（universe 多态）/ 自反 / 递归器 |
+| `propext` | 命题外延性：`Iff a b -> Eq Prop a b` |
 
-### Definition（可 δ 展开，教学演示）
+### 定义（Definition，可 δ 展开）
 
 | 常量 | 类型 | 定义 |
 |---|---|---|
-| `Not` | `∀ (a : Prop), Prop` | `fun (a : Prop) => ∀ (n : a), False`（即 a -> False） |
-| `id` | `∀ {α : Type u}, ∀ (a : α), α` | `fun {α} (a : α) => a` |
-| `Function.comp` | `∀ {α}{β}{δ}, ∀ (f : ∀ (f0 : β), δ), ∀ (g : ∀ (g0 : α), β), ∀ (x : α), δ` | `fun f g x => f (g x)` |
-| `flip` | `∀ {α}{β}{φ}, ∀ (f : ∀ (f0 : α), ∀ (f1 : β), φ), ∀ (b : β), ∀ (a : α), φ` | `fun f b a => f a b` |
+| `Not` | `Prop -> Prop` | `fun a => a -> False` |
+| `id` | `{α : Type u} -> α -> α` | `fun {α} (a : α) => a` |
+| `Function.comp` | `(β -> δ) -> (α -> β) -> α -> δ` | `fun f g x => f (g x)` |
+| `flip` | `(α -> β -> φ) -> β -> α -> φ` | `fun f b a => f a b` |
+| `absurd` | `a -> Not a -> b`（从矛盾推出一切） | 用 `False.rec` |
 
-（表内 `{a}` 为隐式参数简写，实际显示为 `{a : Prop}`；`{α}` 为 `{α : Type u}`。
-命名 binder 一律显示 `∀ (x : A), ...`，不简写箭头——箭头简写只用于解析器合成的
-匿名 binder，如 `And : Prop -> Prop -> Prop`。）
+### 定理库（从 query_const.lean 移植）
 
-## 6. 教学流程示例
+| 定理 | 类型（简化） | 教学点 |
+|---|---|---|
+| `iff_of_true` | `a -> b -> Iff a b` | 纯构造，无递归器 |
+| `Iff.refl` | `(a : Prop) -> Iff a a` | 自反 |
+| `mt` | `(a -> b) -> Not b -> Not a` | 逆否（纯 lambda） |
+| `not_and_of_not_left` | `Not a -> Not (And a b)` | mt + 投影 |
+| `not_not_em` | `Not (Not (Or a (Not a)))` | 排中律的直觉主义版本 |
+| `and_self` | `Eq Prop (And p p) p` | propext 用法 |
+| `or_self` | `Eq Prop (Or p p) p` | Or.rec 用法 |
+| `and_not_self` | `Not (And a (Not a))` | And.rec + absurd |
+| `and_comm` | `Iff (And a b) (And b a)` | 交换律（经典练习） |
+| `or_comm` | `Iff (Or a b) (Or b a)` | Or.rec 双方向 |
+| `Eq.symm` | `Eq α a b -> Eq α b a` | Eq.rec 用法 |
+| `Eq.trans` | `Eq α a b -> Eq α b c -> Eq α a c` | 传递性 |
+| `imp.swap` | `Iff (a -> b -> c) (b -> a -> c)` | flip（⚠️ 已知内核问题，见 FAQ） |
 
-建议的入门路径（约 10 分钟）：
+`#print` 任何一个定理都能看到完整证明项——建议和 `#prove` 输出的项对比阅读。
 
-```
-> #env                                          # 1. 看看有哪些常量
-> #print And.intro                              # 2. 理解构造子的类型（隐式参数）
-> #print Iff.mp                                 # 3. 理解消除子
-> #check @And True True                         # 4. 显式应用逻辑连接词
-> #check @And.intro True.intro True.intro       # 5. 用构造子构造 And 的证明
-> #reduce (fun (x : Prop) => x) True.intro      # 6. 观察 β 归约
-> #reduce id.{0} True True.intro                # 7. 观察 δ 展开 + β 归约
-> #check id.{u}                                 # 8. 观察 universe 多态
-> #check id.{u} True                            # 9. 观察类型错误（Sort u ≠ Prop）
-```
+---
 
-## 7. 设计说明
+## 8. 常见问题（FAQ）
 
-- **复用真实内核**：类型推断走 `TypeChecker.infer`，逐步归约镜像内核
-  `whnf_inner` 主循环（`whnf_no_unfolding` + `unfold_def`），不是教学模拟器。
-  学生看到的行为与真实 Lean 内核一致。
-- **universe 语义是真实的**：内核无 elaboration，`id.{u} True` 报类型错误
-  （Sort u ≠ Prop）是正确行为——这正是显式 universe 的本来面目。
-- **零内核改动**：本工具只新增 `teaching/` 子包，不修改任何内核文件。
-
-## 8. 局限性与常见问题
-
-| 现象 | 原因 |
+| 现象 | 原因与建议 |
 |---|---|
-| `fun x => e` 报 ParseError | binder 必须带类型注解（内核无 metavariable） |
-| 隐式参数没自动补 | 内核无 elaboration，用 `@` 显式传 |
-| `#check 42` 报"Nat 字面量不支持" | NatLit 类型推断是内核死路径（需 Nat inductive） |
-| `id` 显示为 `∀ {α : Prop}` | universe 默认实例化为 0，写 `id.{u}` 看多态 |
-| `id.{u} True` 类型错误 | Sort u ≠ Prop，内核不做 universe 推断 |
-| `Type u+1` 显示不可再解析 | pretty 的 level 打印只保证展示，不保证往返 |
-| 每行新 TypeChecker | 干净的缓存；`--timeout` 可调超时（0 = 无限） |
+| `fun x => e` 报错 | binder 必须带类型：`fun (x : A) => e` |
+| 隐式参数没自动补 | 内核无推断，用 `@` 显式；`#prove` 里 `apply` 会自动匹配 |
+| `#check 42` 报 Nat 不支持 | Nat 字面量类型推断需要 Nat inductive（未内置），`#reduce 42` 可用 |
+| `id` 显示 `∀ {α : Prop}` | universe 默认 0；`id.{u}` 看多态 |
+| `id.{u} True` 类型错误 | Sort u ≠ Prop——内核不做 universe 推断，这正是显式 universe 的语义 |
+| `#prove` 里 `apply And.rec` 报头部不匹配 | 递归器结果头是 `motive t`（变量），模式匹配只支持常量头；v1 限制 |
+| `imp.swap` 的 `#print` 显示奇怪 | 已知内核 inst 缺陷（教学场景触发），修复中；其余 13 个定理正常 |
+| 想用 recursor 做归纳 | v1 的 `apply` 不支持；可手写 `@And.rec ...`（见 `#print and_comm` 的证明项） |
+
+---
+
+## 9. 术语表
+
+| 术语 | 含义 |
+|---|---|
+| **类型** | 表达式的分类；命题也是类型 |
+| **命题** | `Prop` 的居民，如 `True`、`And a b` |
+| **证明** | 类型为某命题的表达式 |
+| **隐式参数** | 花括号 `{a : Prop}`，通常省略（`@` 显式填） |
+| **β 归约** | `(fun x => e) a` → 代入 |
+| **δ 归约** | 展开常量定义 |
+| **universe** | `Prop`/`Type`/`Type u` 的层级（Sort 0/1/…） |
+| **洞** | `#prove` 里未完成的目标（`_`/`?n`），编辑器的状态 |
+| **tactic** | 构造证明项的分步工具（intro/apply/exact），不是类型论概念 |
+| **递归器** | 归纳原理（`And.rec` 等），手工证明"case 分析"的底层工具 |
+| **WHNF** | 弱头范式：头部不再可归约的表达式 |
+
+---
+
+## 10. 原理与致谢
+
+本工具复用了 py_nanobruijn 的真实 Lean 4 内核（de Bruijn 索引 + shift-homomorphic
+缓存），教学层零内核改动。定理库移植自
+[lean4_lambda_calculator](https://github.com/ColorlessBoy/lean4_lambda_calculator)
+的 `query_const.lean`（手工构造的 Prop 逻辑证明集合）。
+
+遇到任何疑惑：`#help`、`#env`、`#print` 是你的朋友。祝你玩得开心。
