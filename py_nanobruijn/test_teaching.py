@@ -726,7 +726,8 @@ class TestRepl:
         session_dir = os.path.join(os.path.dirname(__file__), "sessions")
         files = sorted(glob.glob(os.path.join(session_dir, "*.repl")))
         assert files
-        content = open(files[-1], encoding="utf-8").read()
+        with open(files[-1], encoding="utf-8") as f:
+            content = f.read()
         assert "#env" in content
         assert "intro ha" in content  # tactic 行也被记录
 
