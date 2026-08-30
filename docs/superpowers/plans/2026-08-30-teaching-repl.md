@@ -410,7 +410,7 @@ git commit -m "feat(teaching): bootstrap logic core with Prop-logic constants"
   - `lexer.py`: `tokenize(text: str) -> list[tuple[str, object]]`（`(kind, value)`；kind ∈ `name`/`kw`/`sym`/`int`；name 为点分字符串，sym 为 `(`,`)`,`:`,`,`,`@`,`=>`,`->`,`∀`，int 为 int）
   - `parser.py`: `parse_expr(core: BootstrapCore, text: str) -> ExprPtr`；错误抛 `ParseError`
   - 语法：`(e)`、`@name`、`fun (x : A) => e`、`fun {x : A} => e`、`∀ (x : A), e`、`forall (x : A), e`、`A -> B`、`Type`、`Prop`、`Type u`/`Sort u`、自然数、点分常量名、空格应用
-  - 常量带 universe 参数时自动填充 `u0/u1/...` 显式层级参数（否则 `unfold_def` 不展开，且 kernel 层 Const 应用需要 level 参数）
+  - 常量带 universe 参数时自动填充对应数量的 `Level.zero()`（Prop 层；否则 `unfold_def` 不展开，且 kernel 层 Const 应用需要 level 参数）
   - 未绑定标识符 → `ParseError`；`fun x => e`（无类型 binder）→ `ParseError`
 
 - [ ] **Step 1: 写失败测试**（追加到 test_teaching.py，import 更新为：`from .teaching.parser import parse_expr`、`from .level import Level`、`from .name import Name`）
@@ -686,9 +686,10 @@ class _ExprParser:
         if decl is not None:
             uparams = self.core.dag.uparams[decl.info.uparams]
             if uparams:
+                # 教学简化：universe 参数统一实例化为 0（Prop 层）
                 levels = tuple(
-                    self.ctx.dag.insert_level(Level.param(self.core.name_to_ptr(f"u{i}")))
-                    for i in range(len(uparams)))
+                    self.ctx.dag.insert_level(Level.zero())
+                    for _ in range(len(uparams)))
                 return self.ctx.mk_const(ptr, self.ctx.dag.insert_uparams(levels))
             return self.ctx.mk_const(ptr, self.ctx.dag.insert_uparams(()))
         if not explicit and "." not in dotted:
@@ -750,7 +751,7 @@ class _ExprParser:
 
 要点：
 - binder 类型在 push 名字**之前**解析（`_parse_binder` 不 push，`parse_fun`/`parse_pi` 在解析 body 前 push、`finally` 中 pop），保证嵌套 binder 的变量索引正确
-- `_const_or_bound` 对声明了 universe 参数的常量（id/Function.comp/flip/Eq/Eq.refl）填充 `u0/u1/...` 显式层级参数，使 `unfold_def` 的 level 数量检查通过（tc_whnf.py:100）
+- `_const_or_bound` 对声明了 universe 参数的常量（id/Function.comp/flip/Eq/Eq.refl）填充 `Level.zero()` 实例，使 `unfold_def` 的 level 数量检查通过（tc_whnf.py:100），且应用类型在 Prop 层可检查
 
 - [ ] **Step 5: 运行测试**
 
@@ -855,7 +856,7 @@ class _Pretty:
             return self.ctx.name_to_string(v.name)
         if tag == 'App':
             fun_v = self.ctx.view_expr(v.fun)
-            if fun_v.tag == 'Const' and self._const_is_implicit_first(v):
+            if fun_v.tag == 'Const' and self._const_is_implicit_first(fun_v):
                 return f"@{self.ctx.name_to_string(fun_v.name)} {self._pp(v.arg, names)}"
             return f"{self._pp(v.fun, names)} {self._pp(v.arg, names)}"
         if tag == 'Pi':
@@ -895,7 +896,7 @@ class _Pretty:
         head = "fun" if is_lambda else "∀"
         open_b, close_b = ("{", "}") if style == BinderStyle.IMPLICIT else ("(", ")")
         body_names = names + (name,)
-        if not is_lambda and not self._has_free0(body, 1):
+        if not is_lambda and not self._has_free0(body, 0):
             return f"{self._pp(binder_type, names)} -> {self._pp(body, body_names)}"
         return f"{head} {open_b}{name} : {self._pp(binder_type, names)}{close_b}, {self._pp(body, body_names)}"
 
@@ -992,8 +993,8 @@ class TestReduce:
     def test_delta_reduction_steps(self):
         core = make_bootstrap()
         tc = core.make_type_checker()
-        # id True.intro：先 δ 展开 id（α := True），再 β 归约
-        e = parse_expr(core, "id True.intro")
+        # id True True.intro：先 δ 展开 id（α := True），再 β 归约
+        e = parse_expr(core, "id True True.intro")
         steps = reduce_steps(tc, e)
         assert [s.kind for s in steps] == ["delta", "beta"]
         assert pretty(core, steps[-1].after) == "True.intro"
@@ -1068,7 +1069,7 @@ def show_reduction(core: BootstrapCore, steps: list[ReductionStep]) -> str:
 - [ ] **Step 4: 运行测试**
 
 Run: `pytest py_nanobruijn/test_teaching.py::TestReduce -q`
-Expected: PASS。若 `test_delta_reduction_steps` 失败（steps 为空，说明 `unfold_def` 返回 None），检查 Task 2 的 `_const_or_bound` 是否已为 `id` 填充 universe 参数（`u0`）；`unfold_def` 要求常量应用的 level 参数数量等于声明 uparams 数量（tc_whnf.py:100）。
+Expected: PASS。若 `test_delta_reduction_steps` 失败（steps 为空，说明 `unfold_def` 返回 None），检查 Task 2 的 `_const_or_bound` 是否已为 `id` 填充 universe 参数（`Level.zero()`）；`unfold_def` 要求常量应用的 level 参数数量等于声明 uparams 数量（tc_whnf.py:100）。
 
 - [ ] **Step 5: 运行全量测试 + 提交**
 
@@ -1103,7 +1104,7 @@ class TestRepl:
         r = self.make_repl()
         out = r.process_line("fun (x : Prop) => x")
         assert "fun (x : Prop) => x :" in out
-        assert "Prop -> Prop" in out
+        assert "∀ (x : Prop), Prop" in out
 
     def test_check_at_app(self):
         r = self.make_repl()
