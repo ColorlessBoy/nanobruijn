@@ -10,6 +10,22 @@ from .teaching.parser import parse_expr
 from .teaching.pretty import pretty
 from .teaching.reduce import reduce_steps, show_reduction
 from .teaching.repl import Repl
+from .teaching.style import color_enabled, colorize
+
+
+class TestStyle:
+    def test_colorize_known(self):
+        out = colorize("x", "red")
+        assert "\x1b[31m" in out
+        assert "\x1b[0m" in out
+        assert "x" in out
+
+    def test_colorize_unknown(self):
+        assert colorize("x", "hotpink") == "x"
+
+    def test_color_enabled_forced(self):
+        assert color_enabled(False) is False
+        assert color_enabled(True) is True
 
 
 class TestCore:
@@ -281,6 +297,12 @@ class TestPretty:
         e = parse_expr(core, "id.{0}")
         assert pretty(core, e) == "id"
 
+    def test_pretty_color(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Prop -> Prop")
+        assert "\x1b[36m" in pretty(core, e, color=True)
+        assert "\x1b[" not in pretty(core, e, color=False)
+
 
 class TestReduce:
     def test_beta_reduction_steps(self):
@@ -408,6 +430,14 @@ class TestRepl:
         code = r.run(stdin=io.StringIO("#env\n#quit\n"), stdout=buf)
         assert code == 0
         assert "And" in buf.getvalue()
+
+    def test_color_output(self):
+        r = Repl(make_bootstrap(), color=True)
+        assert "\x1b[36m" in r.process_line("#check Prop")
+        assert "\x1b[31m" in r.process_line("#check x")
+        r2 = Repl(make_bootstrap(), color=False)
+        assert "\x1b[" not in r2.process_line("#check Prop")
+        assert "\x1b[" not in r2.process_line("#check x")
 
 
 class TestCli:

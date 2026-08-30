@@ -8,6 +8,7 @@ from .core import BootstrapCore
 from .parser import parse_expr
 from .pretty import pretty
 from .reduce import reduce_steps, show_reduction
+from .style import color_enabled, colorize
 
 BANNER = (
     "py-nanobruijn teaching REPL\n"
@@ -17,9 +18,19 @@ BANNER = (
 
 
 class Repl:
-    def __init__(self, core: BootstrapCore, timeout_secs: float = 5.0):
+    def __init__(self, core: BootstrapCore, timeout_secs: float = 5.0,
+                 color: bool | None = None):
         self.core = core
         self.timeout_secs = float(timeout_secs)
+        self.color = color_enabled(color)
+
+    def _c(self, text: str, color: str) -> str:
+        if not self.color:
+            return text
+        return colorize(text, color)
+
+    def _error(self, msg: str) -> str:
+        return f"{self._c('error:', 'red')} {msg}"
 
     # ---------- 命令 ----------
 
@@ -53,14 +64,14 @@ class Repl:
         try:
             e = parse_expr(self.core, text)
             if self._has_nat_lit(e):
-                return "error: Nat 字面量的类型推断在 v1 教学核心中暂不支持（需要 Nat inductive 类型）"
+                return self._error("Nat 字面量的类型推断在 v1 教学核心中暂不支持（需要 Nat inductive 类型）")
             tc = self.core.make_type_checker(self.timeout_secs)
             ty = tc.infer(e, 'check')
-            return f"{pretty(self.core, e)} : {pretty(self.core, ty)}"
+            return f"{pretty(self.core, e, self.color)} : {pretty(self.core, ty, self.color)}"
         except (ValueError, CheckTimeoutError, ParseError) as err:
-            return f"error: {err}"
+            return self._error(str(err))
         except Exception as err:  # noqa: BLE001 - REPL 顶层兜底
-            return f"error: {type(err).__name__}: {err}"
+            return self._error(f"{type(err).__name__}: {err}")
 
     def _has_nat_lit(self, e: ExprPtr) -> bool:
         v = self.core.ctx.view_expr(e)
@@ -82,11 +93,11 @@ class Repl:
         try:
             e = parse_expr(self.core, text)
             tc = self.core.make_type_checker(self.timeout_secs)
-            return show_reduction(self.core, reduce_steps(tc, e))
+            return show_reduction(self.core, reduce_steps(tc, e), self.color)
         except (ValueError, CheckTimeoutError, ParseError) as err:
-            return f"error: {err}"
+            return self._error(str(err))
         except Exception as err:  # noqa: BLE001
-            return f"error: {type(err).__name__}: {err}"
+            return self._error(f"{type(err).__name__}: {err}")
 
     def _print_const(self, text: str) -> str:
         text = text.strip()
@@ -95,14 +106,14 @@ class Repl:
         ptr = self.core.name_to_ptr(text)
         decl = self.core.env.declars.get(ptr)
         if decl is None:
-            return f"error: unknown constant {text!r}"
+            return self._error(f"unknown constant {text!r}")
         from ..env import Axiom, Definition, OpaqueDecl, Theorem
         lines = [(f"{self.core.name_to_string(decl.info.name)} : "
-                  f"{pretty(self.core, ExprPtr.closed(decl.info.ty))}")]
+                  f"{pretty(self.core, ExprPtr.closed(decl.info.ty), self.color)}")]
         if isinstance(decl, (Definition, Theorem, OpaqueDecl)):
-            lines.append(f"  = {pretty(self.core, ExprPtr.closed(decl.value))}")
+            lines.append(f"  = {pretty(self.core, ExprPtr.closed(decl.value), self.color)}")
         elif isinstance(decl, Axiom):
-            lines.append("  (axiom)")
+            lines.append(f"  {self._c('(axiom)', 'gray')}")
         return "\n".join(lines)
 
     # ---------- 主循环 ----------
@@ -114,7 +125,8 @@ class Repl:
         print(f"已加载 {len(self.core.constants())} 个常量，输入 #help 查看帮助", file=stdout)
         while True:
             try:
-                line = input("> ") if stdin is sys.stdin else stdin.readline()
+                prompt = self._c("> ", "green")
+                line = input(prompt) if stdin is sys.stdin else stdin.readline()
             except EOFError:
                 return 0
             if not line:

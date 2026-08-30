@@ -6,6 +6,7 @@ from ..ptr import ExprPtr
 from ..tc_whnf import TypeChecker
 from .core import BootstrapCore
 from .pretty import pretty
+from .style import colorize
 
 
 class ReductionStep(NamedTuple):
@@ -32,9 +33,15 @@ def reduce_steps(tc: TypeChecker, e: ExprPtr) -> list[ReductionStep]:
     return steps
 
 
-def show_reduction(core: BootstrapCore, steps: list[ReductionStep]) -> str:
-    lines = [f"{pretty(core, s.before)} => {pretty(core, s.after)}  [{s.kind}]"
-             for s in steps]
+def show_reduction(core: BootstrapCore, steps: list[ReductionStep],
+                   color: bool = False) -> str:
+    lines = []
+    for s in steps:
+        tag = f"[{s.kind}]"
+        if color:
+            tag = colorize(tag, "blue" if s.kind == "beta" else "magenta")
+        lines.append(f"{pretty(core, s.before, color)} => "
+                     f"{pretty(core, s.after, color)}  {tag}")
     if not lines:
         return "(already in normal form)"
     return "\n".join(lines)

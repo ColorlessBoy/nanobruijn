@@ -57,7 +57,8 @@ def _run_repl(args: argparse.Namespace) -> int:
     from .teaching.core import make_bootstrap
     from .teaching.repl import Repl
     core = make_bootstrap()
-    return Repl(core, timeout_secs=args.timeout).run()
+    color = False if args.no_color else None
+    return Repl(core, timeout_secs=args.timeout, color=color).run()
 
 
 def _run_inspect(args: argparse.Namespace) -> int:
@@ -94,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     repl = subcommands.add_parser("repl", help="interactive teaching REPL")
     repl.add_argument("--timeout", type=float, default=5.0,
                       help="seconds before aborting a declaration check (default 5.0)")
+    repl.add_argument("--no-color", action="store_true",
+                      help="disable ANSI colors in output")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()

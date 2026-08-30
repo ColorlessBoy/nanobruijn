@@ -3,16 +3,23 @@ from __future__ import annotations
 from ..binder_style import BinderStyle
 from ..ptr import ExprPtr
 from .core import BootstrapCore
+from .style import colorize
 
 
-def pretty(core: BootstrapCore, e: ExprPtr) -> str:
-    return _Pretty(core)._pp(e, ())
+def pretty(core: BootstrapCore, e: ExprPtr, color: bool = False) -> str:
+    return _Pretty(core, color)._pp(e, ())
 
 
 class _Pretty:
-    def __init__(self, core: BootstrapCore):
+    def __init__(self, core: BootstrapCore, color: bool = False):
         self.core = core
         self.ctx = core.ctx
+        self.color = color
+
+    def _c(self, text: str, color: str) -> str:
+        if not self.color:
+            return text
+        return colorize(text, color)
 
     def _pp(self, e: ExprPtr, names: tuple[str, ...]) -> str:
         v = self.ctx.view_expr(e)
@@ -23,13 +30,13 @@ class _Pretty:
                 return names[-1 - idx]
             return f"#{idx}"
         if tag == 'Sort':
-            return self._pp_sort(v.level)
+            return self._c(self._pp_sort(v.level), "cyan")
         if tag == 'Const':
             return self._pp_const(v)
         if tag == 'App':
             fun_v = self.ctx.view_expr(v.fun)
             if fun_v.tag == 'Const' and self._const_is_implicit_first(fun_v):
-                return f"@{self._pp_const(fun_v)} {self._pp(v.arg, names)}"
+                return f"{self._pp_const(fun_v, '@')} {self._pp(v.arg, names)}"
             fun_str = self._pp(v.fun, names)
             if fun_v.tag == 'Lambda':
                 fun_str = f"({fun_str})"
@@ -51,13 +58,13 @@ class _Pretty:
             return str(self.ctx.dag.bignums[v.nat_ptr])
         return f"<{tag}>"
 
-    def _pp_const(self, v) -> str:
+    def _pp_const(self, v, prefix: str = "") -> str:
         name = self.ctx.name_to_string(v.name)
         levels = self.core.dag.uparams[v.const_levels]
         if any(not self.core.dag.get_level(l).is_zero() for l in levels):
             parts = ", ".join(self._pp_level(l) for l in levels)
-            return f"{name}.{{{parts}}}"
-        return name
+            return self._c(f"{prefix}{name}.{{{parts}}}", "yellow")
+        return self._c(f"{prefix}{name}", "yellow")
 
     def _pp_level(self, lv_ptr) -> str:
         lv = self.ctx.dag.get_level(lv_ptr)
@@ -117,7 +124,7 @@ class _Pretty:
                 and not self._has_free0(body, 0)):
             return f"{self._pp(binder_type, names)} -> {self._pp(body, body_names)}"
         sep = " => " if is_lambda else ", "
-        return f"{head} {open_b}{name} : {self._pp(binder_type, names)}{close_b}{sep}{self._pp(body, body_names)}"
+        return f"{head} {open_b}{self._c(name, 'green')} : {self._pp(binder_type, names)}{close_b}{sep}{self._pp(body, body_names)}"
 
     def _has_free0(self, e: ExprPtr, depth: int) -> bool:
         """判断 de Bruijn 索引 depth 是否自由出现在 e 中（view 已合成 shift）。"""
