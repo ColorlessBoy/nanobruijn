@@ -128,23 +128,53 @@ class _ExprParser:
             idx = self._bound_index(dotted)
             if idx is not None:
                 return self.ctx.mk_var(idx)
-        ptr = self.core.name_to_ptr(dotted)
+        ptr = self.core.name_to_ptr(dotted.rstrip('.'))
         decl = self.core.env.declars.get(ptr)
         if decl is not None:
             uparams = self.core.dag.uparams[decl.info.uparams]
-            if uparams:
-                # 教学简化：universe 参数统一实例化为 0（Prop 层）
-                levels = tuple(
-                    self.ctx.dag.insert_level(Level.zero())
-                    for _ in range(len(uparams)))
-                return self.ctx.mk_const(ptr, self.ctx.dag.insert_uparams(levels))
-            return self.ctx.mk_const(ptr, self.ctx.dag.insert_uparams(()))
+            levels = self._parse_universe_args(uparams, dotted)
+            return self.ctx.mk_const(ptr, self.ctx.dag.insert_uparams(levels))
         if not explicit and "." not in dotted:
             raise ParseError(
                 f"unknown identifier {dotted!r}: not a bound variable "
                 f"(try `fun ({dotted} : A) => ...`) nor a declared constant"
             )
         raise ParseError(f"unknown constant {dotted!r}")
+
+    def _parse_universe_args(self, uparams: tuple[int, ...], dotted: str) -> tuple[int, ...]:
+        if dotted.endswith('.') and self.is_sym("{"):
+            if not uparams:
+                raise ParseError(f"constant {dotted[:-1]!r} has no universe parameters")
+            self.advance()  # '{'
+            levels = []
+            if not self.is_sym("}"):
+                while True:
+                    levels.append(self._parse_level())
+                    if self.is_sym("}"):
+                        break
+                    self.expect_sym(",")
+            self.advance()  # '}'
+            if len(levels) != len(uparams):
+                raise ParseError(
+                    f"constant {dotted[:-1]!r} expects {len(uparams)} universe "
+                    f"parameter(s), got {len(levels)}")
+            return tuple(levels)
+        if dotted.endswith('.'):
+            raise ParseError(f"unexpected {self.peek()!r} after {dotted!r}")
+        if not uparams:
+            return ()
+        return tuple(self.ctx.dag.insert_level(Level.zero()) for _ in uparams)
+
+    def _parse_level(self) -> int:
+        tok = self.advance()
+        if tok[0] == "int":
+            lv = 0
+            for _ in range(tok[1]):
+                lv = self.ctx.dag.insert_level(Level.succ(lv))
+            return lv
+        if tok[0] == "name":
+            return self.ctx.dag.insert_level(Level.param(self.core.name_to_ptr(tok[1])))
+        raise ParseError(f"expected universe level, got {tok!r}")
 
     def _bound_index(self, name: str) -> int | None:
         for i, b in enumerate(reversed(self.binders)):

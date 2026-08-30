@@ -25,11 +25,11 @@ class _Pretty:
         if tag == 'Sort':
             return self._pp_sort(v.level)
         if tag == 'Const':
-            return self.ctx.name_to_string(v.name)
+            return self._pp_const(v)
         if tag == 'App':
             fun_v = self.ctx.view_expr(v.fun)
             if fun_v.tag == 'Const' and self._const_is_implicit_first(fun_v):
-                return f"@{self.ctx.name_to_string(fun_v.name)} {self._pp(v.arg, names)}"
+                return f"@{self._pp_const(fun_v)} {self._pp(v.arg, names)}"
             fun_str = self._pp(v.fun, names)
             if fun_v.tag == 'Lambda':
                 fun_str = f"({fun_str})"
@@ -50,6 +50,27 @@ class _Pretty:
         if tag == 'NatLit':
             return str(self.ctx.dag.bignums[v.nat_ptr])
         return f"<{tag}>"
+
+    def _pp_const(self, v) -> str:
+        name = self.ctx.name_to_string(v.name)
+        levels = self.core.dag.uparams[v.const_levels]
+        if any(not self.core.dag.get_level(l).is_zero() for l in levels):
+            parts = ", ".join(self._pp_level(l) for l in levels)
+            return f"{name}.{{{parts}}}"
+        return name
+
+    def _pp_level(self, lv_ptr) -> str:
+        lv = self.ctx.dag.get_level(lv_ptr)
+        if lv.is_zero():
+            return "0"
+        if lv.tag == 'Succ':
+            inner = self._pp_level(lv.pred)
+            if inner.isdigit():
+                return str(int(inner) + 1)
+            return f"{inner}+1"
+        if lv.tag == 'Param':
+            return self.ctx.name_to_string(lv.param_name)
+        return "<level>"
 
     def _pp_sort(self, level_ptr) -> str:
         lv = self.ctx.dag.get_level(level_ptr)

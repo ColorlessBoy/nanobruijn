@@ -129,6 +129,66 @@ class TestParser:
         with pytest.raises(ParseError):
             parse_expr(core, "NoSuchConst")
 
+    # ---- universe 参数实例化 name.{u} ----
+
+    def test_parse_universe_zero(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "id.{0}")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'Const'
+        levels = core.dag.uparams[v.const_levels]
+        assert core.dag.get_level(levels[0]).is_zero()
+
+    def test_parse_universe_num(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "id.{1}")
+        v = core.ctx.view_expr(e)
+        levels = core.dag.uparams[v.const_levels]
+        lv = core.dag.get_level(levels[0])
+        assert lv.tag == 'Succ' and core.dag.get_level(lv.pred).is_zero()
+
+    def test_parse_universe_param(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "id.{u}")
+        v = core.ctx.view_expr(e)
+        levels = core.dag.uparams[v.const_levels]
+        assert core.dag.get_level(levels[0]).tag == 'Param'
+
+    def test_parse_universe_multi(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Function.comp.{u, v, w}")
+        v = core.ctx.view_expr(e)
+        levels = core.dag.uparams[v.const_levels]
+        assert len(levels) == 3
+        assert all(core.dag.get_level(l).tag == 'Param' for l in levels)
+
+    def test_parse_universe_wrong_count(self):
+        core = make_bootstrap()
+        with pytest.raises(ParseError):
+            parse_expr(core, "id.{}")
+        with pytest.raises(ParseError):
+            parse_expr(core, "id.{0, 0}")
+
+    def test_parse_universe_no_uparams(self):
+        core = make_bootstrap()
+        with pytest.raises(ParseError):
+            parse_expr(core, "And.{0}")
+
+    def test_parse_universe_app_reduce(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "id.{0} True True.intro")
+        steps = reduce_steps(tc, e)
+        assert [s.kind for s in steps] == ["delta", "beta"]
+        assert pretty(core, steps[-1].after) == "True.intro"
+
+    def test_parse_universe_mismatch_fails_infer(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "id.{u} True")
+        with pytest.raises(ValueError):
+            tc.infer(e, 'check')
+
 
 class TestPretty:
     def test_pretty_var(self):
@@ -179,6 +239,23 @@ class TestPretty:
             "id",
         ]:
             assert pretty(core, parse_expr(core, text)) == text
+
+    # ---- universe 参数打印 ----
+
+    def test_pretty_universe_param(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "id.{u}")
+        assert pretty(core, e) == "id.{u}"
+
+    def test_pretty_universe_num(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "id.{1}")
+        assert pretty(core, e) == "id.{1}"
+
+    def test_pretty_universe_zero_omitted(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "id.{0}")
+        assert pretty(core, e) == "id"
 
 
 class TestReduce:
