@@ -57,7 +57,7 @@ def _run_repl(args: argparse.Namespace) -> int:
     from .teaching.core import make_bootstrap
     from .teaching.repl import Repl
     core = make_bootstrap()
-    color = False if args.no_color else None
+    color = True if args.color else (False if args.no_color else None)
     return Repl(core, timeout_secs=args.timeout, color=color).run()
 
 
@@ -97,6 +97,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="seconds before aborting a declaration check (default 5.0)")
     repl.add_argument("--no-color", action="store_true",
                       help="disable ANSI colors in output")
+    repl.add_argument("--color", action="store_true",
+                      help="force ANSI colors even when output is not a terminal")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
