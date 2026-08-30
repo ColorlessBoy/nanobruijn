@@ -276,3 +276,15 @@ class TestRepl:
         code = r.run(stdin=io.StringIO("#env\n#quit\n"), stdout=buf)
         assert code == 0
         assert "And" in buf.getvalue()
+
+
+class TestCli:
+    def test_cli_repl_subprocess(self):
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, "-m", "py_nanobruijn", "repl"],
+            input="#env\n#quit\n", capture_output=True, text=True, timeout=30, check=False,
+        )
+        assert proc.returncode == 0
+        assert "And" in proc.stdout

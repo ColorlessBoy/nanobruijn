@@ -53,6 +53,13 @@ def _run_check(args: argparse.Namespace) -> int:
     return 0 if result.ok else 1
 
 
+def _run_repl(args: argparse.Namespace) -> int:
+    from .teaching.core import make_bootstrap
+    from .teaching.repl import Repl
+    core = make_bootstrap()
+    return Repl(core, timeout_secs=args.timeout or 5.0).run()
+
+
 def _run_inspect(args: argparse.Namespace) -> int:
     export = load_export(args.input, _default_config(args.input))
     declarations = [
@@ -74,7 +81,7 @@ def _run_inspect(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     # Preserve the original ``python -m py_nanobruijn FILE`` invocation.
-    if argv and argv[0] not in {"check", "inspect", "-h", "--help"}:
+    if argv and argv[0] not in {"check", "inspect", "repl", "-h", "--help"}:
         argv.insert(0, "check")
     parser = argparse.ArgumentParser(prog="py-nanobruijn")
     subcommands = parser.add_subparsers(dest="command")
@@ -84,11 +91,18 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("input", help="NDJSON export file")
     inspect.add_argument("--declaration", help="only list matching declarations")
     inspect.add_argument("--json", action="store_true")
+    repl = subcommands.add_parser("repl", help="interactive teaching REPL")
+    repl.add_argument("--timeout", type=float, default=5.0,
+                      help="seconds before aborting a declaration check (default 5.0)")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
         return 2
-    return _run_check(args) if args.command == "check" else _run_inspect(args)
+    if args.command == "check":
+        return _run_check(args)
+    if args.command == "inspect":
+        return _run_inspect(args)
+    return _run_repl(args)
 
 
 if __name__ == "__main__":

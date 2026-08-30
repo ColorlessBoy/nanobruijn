@@ -124,3 +124,13 @@ by ammkrn.
 ## License
 
 Apache-2.0 (inherited from nanoda_lib)
+
+## Teaching REPL (Python)
+
+```
+python -m py_nanobruijn repl
+```
+
+交互式教学 REPL：内置 Prop 逻辑核心（True/False/And/Or/Iff/Eq/Not/propext/id/
+Function.comp/flip），输入表达式查看类型（#check）、逐步 β/δ 归约（#reduce）、
+打印常量定义（#print）。命令：#check/#reduce/#print/#env/#help/#quit。
