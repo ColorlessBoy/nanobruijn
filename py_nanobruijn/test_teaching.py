@@ -599,7 +599,7 @@ class TestProof:
         st.exact("ha")
         out = st.done()
         assert "内核检查: 通过" in out
-        assert "@Iff.intro a b fun (x : a) => hb fun (y : b) => ha" in out
+        assert "@Iff.intro a b (fun (x : a) => hb) (fun (y : b) => ha)" in out
 
 
 class TestRepl:

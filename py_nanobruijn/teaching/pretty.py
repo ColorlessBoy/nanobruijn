@@ -40,7 +40,11 @@ class _Pretty:
             fun_str = self._pp(v.fun, names)
             if fun_v.tag == 'Lambda':
                 fun_str = f"({fun_str})"
-            return f"{fun_str} {self._pp(v.arg, names)}"
+            arg_str = self._pp(v.arg, names)
+            arg_v = self.ctx.view_expr(v.arg)
+            if arg_v.tag in ('Pi', 'Lambda'):
+                arg_str = f"({arg_str})"
+            return f"{fun_str} {arg_str}"
         if tag == 'Pi':
             return self._pp_binder(v.binder_name, v.binder_style, v.binder_type, v.body,
                                    names, is_lambda=False)
