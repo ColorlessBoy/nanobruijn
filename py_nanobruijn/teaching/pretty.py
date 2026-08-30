@@ -116,7 +116,10 @@ class _Pretty:
         body_names = names + (name,)
         if (not is_lambda and self.ctx.dag.get_name(name_ptr).is_anon()
                 and not self._has_free0(body, 0)):
-            return f"{self._pp(binder_type, names)} -> {self._pp(body, body_names)}"
+            bt_str = self._pp(binder_type, names)
+            if self.ctx.view_expr(binder_type).tag == 'Pi':
+                bt_str = f"({bt_str})"
+            return f"{bt_str} -> {self._pp(body, body_names)}"
         sep = " => " if is_lambda else ", "
         return f"{head} {open_b}{self._c(name, 'green')} : {self._pp(binder_type, names)}{close_b}{sep}{self._pp(body, body_names)}"
 
