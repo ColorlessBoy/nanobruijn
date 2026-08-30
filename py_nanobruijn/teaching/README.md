@@ -105,7 +105,7 @@ id : ∀ {α : Type u}, ∀ (a : α), α
 | `e1 e2` | 应用（空格） | `And.intro True.intro True.intro` |
 | `@Const a b` | 显式传隐式参数 | `@And True True` |
 | `Name.{u}` | 常量 universe 实例化 | `id.{u}`、`id.{0}`、`Function.comp.{u, v, w}` |
-| `Prop` / `Type` / `Sort u` | 宇宙 | `Type`、`Type u` |
+| `Prop` / `Type` / `Sort u` | 宇宙 | `Type`、`Type u`、`Sort 0`、`Sort 1` |
 | `42` | Nat 字面量 | 可解析/打印/归约 |
 
 **重要规则**：
