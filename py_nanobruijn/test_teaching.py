@@ -10,6 +10,7 @@ from .ptr import ExprPtr
 from .teaching.core import make_bootstrap
 from .teaching.parser import parse_expr
 from .teaching.pretty import pretty
+from .teaching.proof import ProofState
 from .teaching.reduce import reduce_steps, show_reduction
 from .teaching.repl import Repl
 from .teaching.style import color_enabled, colorize
@@ -413,6 +414,138 @@ class TestReduce:
         assert "[beta]" in out
 
 
+class TestProof:
+    """#prove 草稿模式：ProofState + 洞/部分项模型。"""
+
+    def make_state(self, goal_text: str) -> ProofState:
+        core = make_bootstrap()
+        return ProofState(core, parse_expr(core, goal_text))
+
+    def test_intro_updates_state(self):
+        st = self.make_state("∀ (a : Prop), a -> a")
+        out = st.intro("a")
+        assert "上下文: a : Prop" in out
+        assert "目标: a -> a" in out
+        assert "当前项: fun (a : Prop) => _" in out
+
+    def test_intro_requires_pi(self):
+        st = self.make_state("Prop")
+        with pytest.raises(ValueError, match="intro: 目标不是函数类型"):
+            st.intro("a")
+
+    def test_intro_anon_requires_name(self):
+        st = self.make_state("Prop -> Prop")
+        with pytest.raises(ValueError, match="匿名 binder 需要名字"):
+            st.intro(None)
+
+    def test_intro_chained(self):
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), And a b")
+        out = st.intro("a b")
+        assert "上下文: a : Prop, b : Prop" in out
+        assert "目标: And a b" in out
+        assert "fun (a : Prop) => fun (b : Prop) => _" in out
+
+    def test_apply_and_intro(self):
+        st = self.make_state(
+            "∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b")
+        st.intro("a")
+        st.intro("b")
+        st.intro("ha")
+        st.intro("hb")
+        out = st.apply("And.intro")
+        # 两个新目标：a（当前，显示 _）与 b（显示 ?2）
+        assert "目标: a" in out
+        assert "@And.intro a b _ ?2" in out
+        # 填完第一个目标后，当前目标变为 b
+        st.exact("ha")
+        assert "目标: b" in st.context()
+        assert "?2" not in st.context()
+        st.exact("hb")
+        assert "所有目标已完成" in st.context()
+
+    def test_apply_iff_intro_nested_pi_goals(self):
+        # Iff.intro 的显式参数是复合类型（a -> b），经教学层替换得到嵌套 Pi 目标
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), Iff a b")
+        st.intro("a")
+        st.intro("b")
+        out = st.apply("Iff.intro")
+        assert "目标: ∀ (mp0 : a), b" in out
+
+    def test_apply_eq_refl_pattern_default(self):
+        # Eq.refl 的显式参数 a : α 出现在结果 Eq α a a 里 → 由目标对齐确定，无新目标
+        st = self.make_state("∀ (α : Type u), ∀ (x : α), Eq.{u} α x x")
+        st.intro("α")
+        st.intro("x")
+        out = st.apply("Eq.refl.{u}")
+        assert "所有目标已完成" in out  # 无新目标：apply 直接填满
+        assert "@Eq.refl.{u} α x" in out
+        done = st.done()
+        assert "内核检查: 通过" in done
+
+    def test_apply_mismatch(self):
+        st = self.make_state("Prop")
+        with pytest.raises(ValueError, match="不匹配"):
+            st.apply("And.intro")
+
+    def test_apply_rejects_non_const(self):
+        st = self.make_state("∀ (a : Prop), And a a")
+        st.intro("a")
+        with pytest.raises(ValueError, match="只支持常量"):
+            st.apply("(fun (x : Prop) => x)")
+
+    def test_apply_missing_implicit(self):
+        # 结果类型不含任何参数的常量（True.intro : Prop）无法 head 对齐
+        st = self.make_state("∀ (a : Prop), And a a")
+        st.intro("a")
+        with pytest.raises(ValueError, match="不匹配"):
+            st.apply("True.intro")
+
+    def test_exact_uses_hole_context(self):
+        st = self.make_state("∀ (a : Prop), ∀ (ha : a), a")
+        st.intro("a")
+        st.intro("ha")
+        assert st.exact("ha") == ""
+
+    def test_exact_wrong_type(self):
+        st = self.make_state("∀ (a : Prop), a -> a")
+        st.intro("a")
+        with pytest.raises(ValueError, match="exact:"):
+            st.exact("True.intro")
+
+    def test_done_unfilled_goals(self):
+        st = self.make_state("∀ (a : Prop), ∀ (ha : a), a")
+        st.intro("a")
+        with pytest.raises(ValueError, match="还有 1 个目标未完成"):
+            st.done()
+
+    def test_done_closed_loop(self):
+        # 完整闭项流程：intro → exact → done → 内核检查通过
+        st = self.make_state("∀ (a : Prop), ∀ (ha : a), a")
+        st.intro("a")
+        st.intro("ha")
+        st.exact("ha")
+        out = st.done()
+        assert "完整证明项:" in out
+        assert "fun (a : Prop) => fun (ha : a) => ha" in out
+        assert "内核检查: 通过" in out
+
+    def test_done_full_iff_intro_loop(self):
+        # apply 产生嵌套 Pi 目标后的完整闭项（Iff.intro 复合参数路径）
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), a -> b -> Iff a b")
+        st.intro("a")
+        st.intro("b")
+        st.intro("ha")
+        st.intro("hb")
+        st.apply("Iff.intro")
+        st.intro("x")
+        st.exact("hb")
+        st.intro("y")
+        st.exact("ha")
+        out = st.done()
+        assert "内核检查: 通过" in out
+        assert "@Iff.intro a b fun (x : a) => hb fun (y : b) => ha" in out
+
+
 class TestRepl:
     def make_repl(self):
         return Repl(make_bootstrap())
@@ -519,6 +652,66 @@ class TestRepl:
         code = r.run(stdin=io.StringIO("#env\n#quit\n"), stdout=buf)
         assert code == 0
         assert "And" in buf.getvalue()
+
+    def test_prove_full_session(self):
+        """旗舰闭回路：stdin 驱动完整 #prove 会话，done 后回到主循环。"""
+        import io
+        r = self.make_repl()
+        buf = io.StringIO()
+        script = (
+            "#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b\n"
+            "intro a\nintro b\nintro ha\nintro hb\n"
+            "apply And.intro\nexact ha\nexact hb\ndone\n"
+            "#env\n#quit\n"
+        )
+        code = r.run(stdin=io.StringIO(script), stdout=buf)
+        assert code == 0
+        out = buf.getvalue()
+        assert "证明: ∀ (a : Prop), ∀ (b : Prop)" in out
+        assert "上下文: a : Prop, b : Prop, ha : a, hb : b" in out
+        assert "目标: a" in out
+        assert "@And.intro a b _ ?2" in out
+        assert "完整证明项:" in out
+        assert "fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a b ha hb" in out
+        assert "内核检查: 通过" in out
+        assert "And" in out  # 主循环已恢复（#env 输出）
+
+    def test_prove_abort_returns_to_main_loop(self):
+        import io
+        r = self.make_repl()
+        buf = io.StringIO()
+        script = (
+            "#prove ∀ (a : Prop), a -> a\n"
+            "intro a\nabort\n"
+            "#env\n#quit\n"
+        )
+        code = r.run(stdin=io.StringIO(script), stdout=buf)
+        assert code == 0
+        out = buf.getvalue()
+        assert "上下文: a : Prop" in out
+        assert "And" in out  # abort 后回到主循环
+
+    def test_prove_bad_type(self):
+        import io
+        r = self.make_repl()
+        buf = io.StringIO()
+        code = r.run(stdin=io.StringIO("#prove NoSuchConst\n#quit\n"), stdout=buf)
+        assert code == 0
+        out = buf.getvalue()
+        assert "error" in out.lower()
+        assert "unknown identifier" in out
+        assert "证明: " not in out  # 未进入证明模式
+
+    def test_prove_non_pi_goal_stays_in_proof_mode(self):
+        import io
+        r = self.make_repl()
+        buf = io.StringIO()
+        script = "#prove Prop\nintro a\nabort\n#quit\n"
+        code = r.run(stdin=io.StringIO(script), stdout=buf)
+        assert code == 0
+        out = buf.getvalue()
+        assert "证明: Prop" in out
+        assert "intro: 目标不是函数类型" in out  # 报错后仍留在证明模式（abort 正常退出）
 
     def test_color_output(self):
         r = Repl(make_bootstrap(), color=True)

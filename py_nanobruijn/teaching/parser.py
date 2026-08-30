@@ -13,6 +13,17 @@ def parse_expr(core: BootstrapCore, text: str) -> ExprPtr:
     return _ExprParser(core, text).parse()
 
 
+def parse_expr_with_context(core: BootstrapCore, text: str,
+                            binders: list[str]) -> ExprPtr:
+    """Parse `text` with pre-bound variable names (outer → inner, innermost = 0)。
+
+    用于 #prove 的 exact：洞的上下文变量对解析器可见。
+    """
+    parser = _ExprParser(core, text)
+    parser.binders = list(binders)
+    return parser.parse()
+
+
 class _ExprParser:
     def __init__(self, core: BootstrapCore, text: str):
         self.core = core

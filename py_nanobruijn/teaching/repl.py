@@ -7,14 +7,25 @@ from ..ptr import ExprPtr
 from .core import BootstrapCore
 from .parser import parse_expr
 from .pretty import pretty
+from .proof import ProofState
 from .reduce import reduce_steps, show_reduction
 from .style import color_enabled, colorize
+from .tactics import AbortProof, ProofDone, run_tactic
 
 BANNER = (
     "py-nanobruijn teaching REPL\n"
-    "输入表达式查看类型（等价 #check），或使用命令：#check/#reduce/#print/#env/#help/#quit\n"
+    "输入表达式查看类型（等价 #check），或使用命令："
+    "#check/#reduce/#print/#prove/#env/#help/#quit\n"
     "语法：fun (x : A) => e、∀ (x : A), e、A -> B、@Const、Type、Prop"
 )
+
+
+class _ProveSession(Exception):
+    """process_line 的内部信号：进入 #prove 证明子循环（由 run() 捕获）。"""
+
+    def __init__(self, state: ProofState):
+        super().__init__("prove session")
+        self.state = state
 
 
 class Repl:
@@ -58,6 +69,8 @@ class Repl:
             return self._run_reduce(rest)
         if cmd == "check":
             return self._check(rest)
+        if cmd == "prove":
+            return self._prove(rest)
         return f"unknown command #{cmd} (try #help)"
 
     def _check(self, text: str) -> str:
@@ -116,6 +129,17 @@ class Repl:
             lines.append(f"  {self._c('(axiom)', 'gray')}")
         return "\n".join(lines)
 
+    def _prove(self, text: str) -> str:
+        text = text.strip()
+        if not text:
+            return "usage: #prove <类型>"
+        try:
+            goal_ty = parse_expr(self.core, text)
+            state = ProofState(self.core, goal_ty, self.timeout_secs, self.color)
+        except (ValueError, ParseError) as err:
+            return self._error(str(err))
+        raise _ProveSession(state)
+
     # ---------- 主循环 ----------
 
     def run(self, stdin=None, stdout=None) -> int:
@@ -135,7 +159,42 @@ class Repl:
                 continue
             try:
                 out = self.process_line(line)
+            except _ProveSession as session:
+                self._run_proof(session.state, stdin, stdout)
+                continue
             except EOFError:
                 return 0
+            if out:
+                print(out, file=stdout)
+
+    def _run_proof(self, state: ProofState, stdin, stdout) -> None:
+        """#prove 子循环：proof> 提示符；done/#quit/abort/EOF 退出回到主循环。"""
+        print(f"证明: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
+        print(state.context(), file=stdout)
+        while True:
+            try:
+                prompt = self._c("proof> ", "green")
+                line = input(prompt) if stdin is sys.stdin else stdin.readline()
+            except EOFError:
+                return
+            if not line:
+                if stdin is not sys.stdin:
+                    return
+                continue
+            if line.strip() == "#quit":
+                return
+            try:
+                out = run_tactic(state, line)
+            except ProofDone as done:
+                print(done.text, file=stdout)
+                return
+            except AbortProof:
+                return
+            except (ValueError, ParseError, CheckTimeoutError) as err:
+                print(self._error(str(err)), file=stdout)
+                continue
+            except Exception as err:  # noqa: BLE001 - REPL 顶层兜底
+                print(self._error(f"{type(err).__name__}: {err}"), file=stdout)
+                continue
             if out:
                 print(out, file=stdout)
