@@ -189,6 +189,30 @@ class TestParser:
         with pytest.raises(ValueError):
             tc.infer(e, 'check')
 
+    # ---- Sort 数字层级 ----
+
+    def test_parse_sort_zero(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Sort 0")
+        v = core.ctx.view_expr(e)
+        assert v.tag == 'Sort'
+        assert core.dag.get_level(v.level).is_zero()
+
+    def test_parse_sort_one(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Sort 1")
+        v = core.ctx.view_expr(e)
+        lv = core.dag.get_level(v.level)
+        assert lv.tag == 'Succ' and core.dag.get_level(lv.pred).is_zero()
+
+    def test_parse_sort_two(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Sort 2")
+        v = core.ctx.view_expr(e)
+        lv = core.dag.get_level(v.level)
+        assert lv.tag == 'Succ'
+        assert core.dag.get_level(lv.pred).tag == 'Succ'
+
 
 class TestPretty:
     def test_pretty_var(self):

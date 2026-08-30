@@ -117,10 +117,8 @@ class _ExprParser:
 
     def _parse_type(self) -> ExprPtr:
         tok = self.peek()
-        if tok is not None and tok[0] == "name":
-            self.advance()
-            n = self.ctx.dag.insert_name(Name.str(0, self.ctx.dag.insert_string(tok[1])))
-            return self.ctx.mk_sort(self.ctx.dag.insert_level(Level.param(n)))
+        if tok is not None and tok[0] in ("int", "name"):
+            return self.ctx.mk_sort(self._parse_level())
         return self.ctx.mk_sort_one()
 
     def _const_or_bound(self, dotted: str, explicit: bool) -> ExprPtr:
