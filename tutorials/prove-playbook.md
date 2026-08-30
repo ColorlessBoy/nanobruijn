@@ -3,6 +3,22 @@
 > 配套工具：教学 REPL 的 `#prove` 模式（`py_nanobruijn/teaching/`）。
 > 这些剧本全部经过真实 REPL 验证，可直接复制粘贴运行。
 
+## 学习路径（第一公里）
+
+这是一条从零开始的完整路径，分三节，每节大约一小时：
+
+| 节 | 主题 | 剧本 | 学完后你能 |
+|---|---|---|---|
+| **第 1 节** | λ 与类型——认识证明的语言 | 1-6 | 读懂 `fun`/`∀`/`->`，手写简单证明 |
+| **第 2 节** | recursor——遇见结构 | 7-11 | 用 `cases` 分解 And/Or/False/Exists |
+| **第 3 节** | 独立证明——第一公里终点 | 12-15 | 独立完成组合逻辑证明，阅读内置定理项 |
+
+**路线图**：每节的剧本按难度递增；第 2 节依赖第 1 节的 `apply`/`exact`；第 3 节
+会用到前两节的所有技巧（含 `cases h as a b` 自定义名）。每节结尾的"自己试试"
+是检验——能独立完成才进入下一节。
+
+---
+
 ## 怎么用
 
 把每个剧本**逐行**输入 REPL（`proof>` 提示符下）。每行 tactic 后观察三件事：
@@ -16,6 +32,13 @@
 **输入提示**：剧本里的 `forall` 就是 `∀`（纯键盘友好，`∀` 也能打）；`->` 就是 `→`。
 
 ---
+
+---
+
+# 第 1 节：λ 与类型——认识证明的语言
+
+> 目标：理解"命题即类型、证明即 lambda"；掌握 `intro`/`exact`/`apply`。
+> 前置：无（从零开始）。产出：能手写恒等、复合、交换类证明。
 
 ## 剧本 1：恒等（热身）
 
@@ -175,6 +198,11 @@ done
 
 ---
 
+# 第 2 节：recursor——遇见结构
+
+> 目标：理解 `cases` = 自动构造 recursor 应用；掌握 And/Or/False/Exists 分解。
+> 前置：第 1 节（`apply`/`exact`）。产出：能用 `cases` 完成结构归纳证明。
+
 ## 剧本 7：合取交换律（第一个 rec 证明——`cases` 登场）
 
 ```
@@ -301,6 +329,148 @@ done
   存在量词的全部秘密
 
 （注意 `.{1}`：`Prop : Sort 1`，universe 显式实例化。）
+
+---
+
+# 第 3 节：独立证明——第一公里终点
+
+> 目标：综合运用所有技巧（含 `cases h as a b` 自定义名），独立完成组合证明。
+> 前置：第 1、2 节。产出：能读懂内置定理的证明项，并自己构造等价证明。
+
+## 剧本 12：蕴含传递律 Iff.trans
+
+```
+#prove forall (a : Prop), forall (b : Prop), forall (c : Prop),
+       Iff a b -> Iff b c -> Iff a c
+intro a
+intro b
+intro c
+intro hab
+intro hbc
+apply Iff.intro
+intro ha
+exact Iff.mp b c hbc (Iff.mp a b hab ha)
+intro hc
+exact Iff.mpr a b hab (Iff.mpr b c hbc hc)
+done
+```
+
+**教学点**：前两节的所有技巧合流——`apply Iff.intro`（结构）、`intro`（消解）、
+`exact` 里的嵌套应用（`Iff.mp ... (Iff.mp ...)`）。对比内置 `Iff.trans` 的证明项
+（`#print Iff.trans`）——注意内置版本用 `Function.comp`，你写的是展开版——两种
+都正确，`def_eq` 判定定义相等。
+
+## 剧本 13：析取结合律（嵌套 cases + 自定义名）
+
+```
+#prove forall (a : Prop), forall (b : Prop), forall (c : Prop),
+       Iff (Or (Or a b) c) (Or a (Or b c))
+intro a
+intro b
+intro c
+apply Iff.intro
+intro x
+cases x as x1 x2
+cases x1 as y1 y2
+apply Or.inl
+exact y1
+apply Or.inr
+apply Or.inl
+exact y2
+apply Or.inr
+apply Or.inr
+exact x2
+intro y
+cases y as y1 y2
+apply Or.inl
+apply Or.inl
+exact y1
+cases y2 as z1 z2
+apply Or.inl
+apply Or.inr
+exact z1
+apply Or.inr
+exact z2
+done
+```
+
+**教学点**：
+- `cases x as x1 x2` 自定义分解名——**嵌套 cases 时这是必需的**（同名 h1/h2
+  会冲突，名字解析找最近的那个）
+- 双向证明：`Or (Or a b) c` 的每个分支都通向 `Or a (Or b c)`，反之亦然
+- 这个证明对应内置 `or_assoc`——`#print or_assoc` 对比
+
+## 剧本 14：分配律（cases 的组合拳）
+
+```
+#prove forall (a : Prop), forall (b : Prop), forall (c : Prop),
+       Iff (And a (Or b c)) (Or (And a b) (And a c))
+intro a
+intro b
+intro c
+apply Iff.intro
+intro x
+cases x as ha hbc
+cases hbc as hb hc
+apply Or.inl
+apply And.intro
+exact ha
+exact hb
+apply Or.inr
+apply And.intro
+exact ha
+exact hc
+intro y
+cases y as y1 y2
+cases y1 as ha hb
+apply And.intro
+exact ha
+apply Or.inl
+exact hb
+cases y2 as ha hc
+apply And.intro
+exact ha
+apply Or.inr
+exact hc
+done
+```
+
+**教学点**：分配律 `a ∧ (b ∨ c) ↔ (a ∧ b) ∨ (a ∧ c)` 的证明=**双重 cases**——
+先拆外层合取（得 `ha` 和 `hbc`），再拆内层析取（分支 b / c）。每层结构都对应
+一个 recursor。这是"结构递归"的直观体验。
+
+## 剧本 15：排中律的直觉主义版本（纯 lambda 的艺术）
+
+```
+#prove forall (a : Prop), Not (Not (Or a (Not a)))
+intro a
+intro h
+exact h (Or.inr a (Not a) (@Function.comp.{0, 0, 0} a (Or a (Not a)) False h (@Or.inl a (Not a))))
+done
+```
+
+**教学点**：
+- 经典排中律 `a ∨ ¬a` 在直觉主义里**证不出来**——但它的双重否定
+  `¬¬(a ∨ ¬a)` **可以**！这是"直觉主义 vs 经典"的第一课
+- 证明的关键：`h : (a ∨ ¬a) -> False`，用 `Or.inr` 构造 `a ∨ ¬a`（需要 `¬a`
+  的证明）——`¬a` 就是 `a -> False`，用 `Function.comp` 把 `h` 和 `Or.inl`
+  组合出来
+- 对比内置 `not_not_em`——一模一样
+
+---
+
+## 综合自测（第 3 节毕业练习）
+
+能独立完成以下任何两个，第一公里就毕业了：
+
+1. `forall (a : Prop), forall (b : Prop), Iff (Not (Or a b)) (And (Not a) (Not b))`
+   （De Morgan 全量版：`cases` 双方向）
+2. `forall (a : Prop), forall (b : Prop), forall (c : Prop), Iff (And (And a b) c) (And a (And b c))`
+   （合取结合律，双重重合取 cases）
+3. `forall (p : Prop -> Prop), forall (q : Prop -> Prop),
+   forall (h : forall (x : Prop), p x -> q x),
+   forall (e : @Exists.{1} Prop p), @Exists.{1} Prop q`
+   （`Exists.imp` 手写版：cases + Exists.intro）
 
 ---
 

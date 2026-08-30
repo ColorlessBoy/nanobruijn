@@ -375,13 +375,15 @@ class ProofState:
 
     # ---------- cases ----------
 
-    def cases(self, h_name: str) -> str:
+    def cases(self, h_name: str, names: list[str] | None = None) -> str:
         """对上下文变量 h 做情形分析（自动构造 recursor 应用）。
 
         - h : And a b  → 1 个新目标（上下文 + ha : a, hb : b）
         - h : Or a b   → 2 个分支目标（左 h1 : a / 右 h2 : b）
         - h : False    → 目标直接完成（exfalso）
         - h : Exists p → 1 个新目标（上下文 + x : α, hx : p x）
+
+        可自定义分解名：`cases h as x y`（嵌套 cases 时避免重名冲突）。
 
         教学叙事：cases 显示 rec 骨架（@And.rec a b (fun _ => ?goal) _ h），
         分支洞逐个填充——tactic 只是编辑证明项，rec 才是本质。
@@ -396,7 +398,9 @@ class ProofState:
                 f"（当前: {self._pp(h_ty, [n for (n, _, _) in hole.ctx])}）")
         kind = self.ctx.name_to_string(hv.name)
         if kind not in ('And', 'Or', 'False', 'Exists'):
-            raise ValueError(f"cases {h_name}: 暂不支持类型 {kind}")
+            raise ValueError(
+                f"cases {h_name}: 暂不支持类型 {kind}"
+                f"（支持 And/Or/False/Exists）")
         min_args = {'And': 2, 'Or': 2, 'Exists': 2, 'False': 0}[kind]
         if len(args) < min_args:
             raise ValueError(
@@ -408,13 +412,15 @@ class ProofState:
 
         if kind == 'And':
             a, b = args[0], args[1]
+            n1 = (names[0] if names else "ha")
+            n2 = (names[1] if names else "hb")
             motive = self._motive(h_ty, c_goal)
             new_id = self._new_hole(
-                list(hole.ctx) + [("ha", BinderStyle.DEFAULT, a.shift_up(1)),
-                                  ("hb", BinderStyle.DEFAULT, b.shift_up(2))],
+                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, a.shift_up(1)),
+                                  (n2, BinderStyle.DEFAULT, b.shift_up(2))],
                 c_goal.shift_up(2), after=hole.id)
-            case_node = IntroNode("ha", BinderStyle.DEFAULT, a.shift_up(1),
-                                   IntroNode("hb", BinderStyle.DEFAULT,
+            case_node = IntroNode(n1, BinderStyle.DEFAULT, a.shift_up(1),
+                                   IntroNode(n2, BinderStyle.DEFAULT,
                                              b.shift_up(2), HoleNode(new_id)))
             rec = self._rec_app(self.core.name_to_ptr("And.rec"), (0,),
                                 [a.shift_up(1), b.shift_up(1), motive, h_ref,
@@ -423,18 +429,20 @@ class ProofState:
                 self.subholes[hole.id], hole.id, rec)
         elif kind == 'Or':
             a, b = args[0], args[1]
+            n1 = (names[0] if names else "h1")
+            n2 = (names[1] if names else "h2")
             motive = self._motive(h_ty, c_goal)
             left_id = self._new_hole(
-                list(hole.ctx) + [("h1", BinderStyle.DEFAULT, a.shift_up(1))],
+                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, a.shift_up(1))],
                 c_goal.shift_up(1), after=hole.id)
             right_id = self._new_hole(
-                list(hole.ctx) + [("h2", BinderStyle.DEFAULT, b.shift_up(1))],
+                list(hole.ctx) + [(n2, BinderStyle.DEFAULT, b.shift_up(1))],
                 c_goal.shift_up(1), after=left_id)
             rec = self._rec_app(self.core.name_to_ptr("Or.rec"), (0,),
                                 [a.shift_up(1), b.shift_up(1), motive,
-                                 IntroNode("h1", BinderStyle.DEFAULT, a.shift_up(1),
+                                 IntroNode(n1, BinderStyle.DEFAULT, a.shift_up(1),
                                            HoleNode(left_id)),
-                                 IntroNode("h2", BinderStyle.DEFAULT, b.shift_up(1),
+                                 IntroNode(n2, BinderStyle.DEFAULT, b.shift_up(1),
                                            HoleNode(right_id)),
                                  h_ref])
             self.subholes[hole.id] = self._replace_hole(
@@ -447,15 +455,17 @@ class ProofState:
                 self.subholes[hole.id], hole.id, rec)
         else:  # Exists
             alpha, p = args[0], args[1]
+            n1 = (names[0] if names else "x")
+            n2 = (names[1] if names else "hx")
             u = self.ctx.dag.uparams[hv.const_levels]
             motive = self._motive(h_ty, c_goal)
             new_id = self._new_hole(
-                list(hole.ctx) + [("x", BinderStyle.DEFAULT, alpha.shift_up(1)),
-                                  ("hx", BinderStyle.DEFAULT,
+                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, alpha.shift_up(1)),
+                                  (n2, BinderStyle.DEFAULT,
                                    self.ctx.mk_app(p.shift_up(2), self.ctx.mk_var(0)))],
                 c_goal.shift_up(2), after=hole.id)
-            case_node = IntroNode("x", BinderStyle.DEFAULT, alpha.shift_up(1),
-                                   IntroNode("hx", BinderStyle.DEFAULT,
+            case_node = IntroNode(n1, BinderStyle.DEFAULT, alpha.shift_up(1),
+                                   IntroNode(n2, BinderStyle.DEFAULT,
                                              self.ctx.mk_app(p.shift_up(2),
                                                              self.ctx.mk_var(0)),
                                              HoleNode(new_id)))
