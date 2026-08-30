@@ -56,7 +56,8 @@ class _ExprParser:
             self.advance()
             right = self.parse_arrow()
             anon = self.ctx.dag.insert_name(Name.anon())
-            return self.ctx.mk_pi(anon, BinderStyle.DEFAULT, left, right)
+            # right 位于匿名 binder 之内（深度 +1）：所有自由变量引用提升 1 层
+            return self.ctx.mk_pi(anon, BinderStyle.DEFAULT, left, right.shift_up(1))
         return left
 
     def parse_app(self) -> ExprPtr:

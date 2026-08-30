@@ -73,7 +73,8 @@ class TcCache:
 
     def push_local(self, ty: ExprPtr) -> bool:
         if (self.frames and len(self.frames) > self._depth
-                and self.frames[self._depth].depth == self._depth + 1):
+                and self.frames[self._depth].depth == self._depth + 1
+                and self.frames[self._depth].ty == ty):
             reused = False
             if (self.frames[self._depth].whnf_cache == {}
                     and self.frames[self._depth].wnu_cache == {}
@@ -82,7 +83,6 @@ class TcCache:
                     and self.frames[self._depth].defeq_neg_cache == {}
                     and self.frames[self._depth].uf_cache == {}):
                 reused = True
-            self.frames[self._depth].ty = ty
             self.frames[self._depth].val = None
             self._depth += 1
             return reused
@@ -94,7 +94,9 @@ class TcCache:
 
     def push_local_let(self, ty: ExprPtr, val: ExprPtr) -> bool:
         if (self.frames and len(self.frames) > self._depth
-                and self.frames[self._depth].depth == self._depth + 1):
+                and self.frames[self._depth].depth == self._depth + 1
+                and self.frames[self._depth].ty == ty
+                and self.frames[self._depth].val == val):
             reused = False
             if (self.frames[self._depth].whnf_cache == {}
                     and self.frames[self._depth].wnu_cache == {}
@@ -103,8 +105,6 @@ class TcCache:
                     and self.frames[self._depth].defeq_neg_cache == {}
                     and self.frames[self._depth].uf_cache == {}):
                 reused = True
-            self.frames[self._depth].ty = ty
-            self.frames[self._depth].val = val
             self._depth += 1
             return reused
         self.frames = self.frames[:self._depth]

@@ -80,30 +80,20 @@ class _Pretty:
         return "<level>"
 
     def _pp_sort(self, level_ptr) -> str:
-        lv = self.ctx.dag.get_level(level_ptr)
+        lv = self.ctx.dag.get_level(self.ctx.simplify(level_ptr))
         if lv.is_zero():
             return "Prop"
         if lv.tag == 'Succ' and self.ctx.dag.get_level(lv.pred).is_zero():
             return "Type"
         if lv.tag == 'Param':
             return f"Type {self.ctx.name_to_string(lv.param_name)}"
-        if lv.tag in ('Max', 'IMax'):
-            l_lv = self.ctx.dag.get_level(lv.left)
-            r_lv = self.ctx.dag.get_level(lv.right)
-            if l_lv.is_zero() or (l_lv.tag == 'Succ'
-                                  and self.ctx.dag.get_level(l_lv.pred).is_zero()):
-                lv = r_lv
-            elif r_lv.is_zero():
-                lv = l_lv
-            else:
-                return f"Type <{lv.tag}>"
         n = 0
         cur = lv
         while cur.tag == 'Succ':
             n += 1
             cur = self.ctx.dag.get_level(cur.pred)
         if cur.is_zero():
-            return f"Type {n - 1}"
+            return f"Type {n - 1}" if n > 1 else "Type"
         if cur.tag == 'Param':
             return f"Type {self.ctx.name_to_string(cur.param_name)}+{n}"
         return f"Type <{lv.tag}>"

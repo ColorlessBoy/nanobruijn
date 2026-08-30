@@ -96,16 +96,6 @@ class TestCore:
         'and_not_self', 'and_comm', 'or_comm', 'Eq.symm', 'Eq.trans',
     ]
 
-    # Python 内核两个已知缺陷导致无法通过严格校验（见报告）：
-    # 1) tc_cache.push_local 帧复用缺失 Rust 参考实现的类型相等检查
-    #    （src/util.rs push_local：类型不匹配即 truncate），深度相同的兄弟
-    #    lambda 的 (bucket, core) 缓存互相污染
-    # 2) inst_beta 在深度 >= 1 处用变量实参实例化声明类型时产生错误结果
-    KERNEL_BUG_THEOREMS: ClassVar[dict[str, str]] = {
-        'and_comm': 'frame-reuse cache pollution: sibling case-lambdas collide',
-        'imp.swap': 'inst_beta with var args at depth>=1 produces wrong instantiation',
-    }
-
     def _strict_validate(self, core, name):
         ptr = core.name_to_ptr(name)
         decl = core.env.get_declar(ptr)
@@ -127,12 +117,22 @@ class TestCore:
     def test_core_theorems_valid(self):
         core = make_bootstrap()
         for name in self.THEOREM_NAMES:
-            if name in self.KERNEL_BUG_THEOREMS:
-                # 内核缺陷影响的两个定理：断言其严格校验如预期失败
-                with pytest.raises((ValueError, AssertionError)):
-                    self._strict_validate(core, name)
-            else:
-                self._strict_validate(core, name)
+            if name == 'imp.swap':
+                continue  # 已知内核 inst 深度缺陷，见 test_imp_swap_known_kernel_issue
+            self._strict_validate(core, name)
+        # 13/14 个定理必须通过严格两阶段校验（imp.swap 除外，见下）
+
+    def test_imp_swap_known_kernel_issue(self):
+        # imp.swap 触发内核 inst 路径缺陷：Iff.intro 的复合类型参数（嵌套 Pi）
+        # 在 open 上下文实例化时产生深度错位表达式（#3/#4 越界引用）。
+        # 这是教学 REPL 场景暴露的真实内核问题（tc_context.py inst/inst_beta），
+        # 与 Rust 版是否同样存在待专项确认。修复后删除本测试并把 imp.swap
+        # 移回 test_core_theorems_valid 的主循环。
+        core = make_bootstrap()
+        decl = core.env.get_declar(core.name_to_ptr('imp.swap'))
+        with pytest.raises(ValueError):
+            b = core.make_type_checker()
+            b.infer(ExprPtr.closed(decl.value), 'check')
 
 
 class TestParser:
@@ -278,6 +278,31 @@ class TestParser:
         lv = core.dag.get_level(v.level)
         assert lv.tag == 'Succ'
         assert core.dag.get_level(lv.pred).tag == 'Succ'
+
+    # ---- 箭头 body 引用变量（parse_arrow 提升回归）----
+
+    def test_parse_arrow_body_var_infers(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "fun (a : Prop) => fun (b : Prop) => a -> b")
+        # 结构断言：箭头 Pi 的 binder_type = a（深度2 的 var1），body = b（深度3 的 var1）
+        lam1 = core.ctx.view_expr(e)
+        lam2 = core.ctx.view_expr(lam1.body)
+        pi_v = core.ctx.view_expr(lam2.body)
+        assert pi_v.tag == 'Pi'
+        bt = core.ctx.view_expr(pi_v.binder_type)
+        bv = core.ctx.view_expr(pi_v.body)
+        assert bt.tag == 'Var' and bt.dbj_idx == 1  # a
+        assert bv.tag == 'Var' and bv.dbj_idx == 1  # b（anon 之后）
+        # 类型：a -> b : Prop
+        assert pretty(core, tc.infer(e, 'infer_only')) == "∀ (a : Prop), ∀ (b : Prop), Prop"
+
+    def test_parse_arrow_app_complex_args(self):
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "fun (a : Prop) => fun (b : Prop) => @Iff.intro (a -> b) (b -> a)")
+        tc.infer(e, 'check')
+        # 不抛异常即通过（复合类型参数经 inst 路径）
 
 
 class TestPretty:
