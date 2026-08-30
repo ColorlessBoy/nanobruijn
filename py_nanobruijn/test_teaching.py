@@ -719,6 +719,23 @@ class TestRepl:
         assert "内核检查: 通过" in out
         assert "And" in out  # 主循环已恢复（#env 输出）
 
+    def test_prove_mt_whnf_intro(self):
+        """mt 闭环：目标 Not a（定义）经 whnf 展开后可 intro（对齐 Lean 行为）。"""
+        import io
+        r = self.make_repl()
+        buf = io.StringIO()
+        script = (
+            "#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (f : a -> b), ∀ (hb : Not b), Not a\n"
+            "intro a\nintro b\nintro f\nintro hb\nintro ha\n"
+            "exact hb (f ha)\ndone\n"
+            "#quit\n"
+        )
+        code = r.run(stdin=io.StringIO(script), stdout=buf)
+        assert code == 0
+        out = buf.getvalue()
+        assert "内核检查: 通过" in out
+        assert "fun (a : Prop) => fun (b : Prop) => fun (f : a -> b) => fun (hb : Not b) => fun (ha : a) => hb f ha" in out
+
     def test_prove_abort_returns_to_main_loop(self):
         import io
         r = self.make_repl()

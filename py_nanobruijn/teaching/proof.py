@@ -170,8 +170,14 @@ class ProofState:
         """目标为 Pi 时把 binder 加入上下文（可连写 `intro a b c`）。"""
         hole = self._require_hole()
         wanted = names.split() if names else []
+        tc = self.core.make_type_checker()
+        # 洞上下文入栈，使 whnf 的深度与目标的变量引用一致
+        for (_, _, bt) in hole.ctx:
+            tc.push_local(bt)
         for given in wanted or [None]:
-            u = self.ctx.unfold_pi(hole.goal)
+            # 先 whnf 目标（如 Not a 定义展开为 a -> False），对齐真实 Lean intro 行为
+            goal_whnf = tc.whnf(hole.goal)
+            u = self.ctx.unfold_pi(goal_whnf)
             if u is None:
                 goal_str = self._pp(hole.goal, [n for (n, _, _) in hole.ctx])
                 raise ValueError(
@@ -188,6 +194,7 @@ class ProofState:
             self.subholes[hole.id] = self._replace_hole(
                 self.subholes[hole.id], hole.id,
                 IntroNode(bname, style, bt, HoleNode(hole.id)))
+            tc.push_local(bt)
         return self.context()
 
     # ---------- apply ----------
