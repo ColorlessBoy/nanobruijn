@@ -607,6 +607,85 @@ class TestProof:
         assert "内核检查: 通过" in out
         assert "@Iff.intro a b (fun (x : a) => hb) (fun (y : b) => ha)" in out
 
+    # ---------- cases（rec 分解）----------
+
+    def test_cases_and(self):
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), ∀ (x : And a b), And b a")
+        st.intro("a b x")
+        out = st.cases("x")
+        assert "上下文: a : Prop, b : Prop, x : And a b, ha : a, hb : b" in out
+        assert "目标: And b a" in out
+        assert "@And.rec a b" in out  # rec 骨架
+
+    def test_cases_or_two_branches(self):
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), ∀ (x : Or a b), Or b a")
+        st.intro("a b x")
+        st.cases("x")
+        assert len(st.holes) == 3  # 旧洞 + 左分支 + 右分支
+        assert "@Or.rec a b" in st.context()
+        assert "h1" in st.context()
+
+    def test_cases_false_solves(self):
+        st = self.make_state("∀ (a : Prop), ∀ (x : False), a")
+        st.intro("a x")
+        out = st.cases("x")
+        assert "所有目标已完成" in out  # False 无新洞，目标完成
+        assert "@False.rec" in out
+
+    def test_cases_exists(self):
+        st = self.make_state(
+            "∀ (p : Prop -> Prop), ∀ (h : ∀ (x : Prop), p x),"
+            "∀ (e : @Exists.{1} Prop p), @Exists.{1} Prop p")
+        st.intro("p h e")
+        out = st.cases("e")
+        assert "x : Prop" in out and "hx : p x" in out
+        assert "@Exists.rec" in out
+
+    def test_cases_not_supported(self):
+        st = self.make_state("∀ (p : Prop), ∀ (x : Prop), p")
+        st.intro("p x")
+        import pytest
+        with pytest.raises(ValueError, match="不是 And/Or/False/Exists"):
+            st.cases("x")
+
+    def test_cases_and_comm_full(self):
+        """闭环：and_comm 用 cases 全程证明。"""
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), Iff (And a b) (And b a)")
+        st.intro("a b")
+        st.apply("Iff.intro")
+        st.intro("x")
+        st.cases("x")
+        st.apply("And.intro")
+        st.exact("hb")
+        st.exact("ha")
+        st.intro("y")
+        st.cases("y")
+        st.apply("And.intro")
+        st.exact("hb")
+        st.exact("ha")
+        out = st.done()
+        assert "内核检查: 通过" in out
+
+    def test_cases_or_comm_full(self):
+        """闭环：or_comm 用 cases 全程证明（双分支）。"""
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), Iff (Or a b) (Or b a)")
+        st.intro("a b")
+        st.apply("Iff.intro")
+        st.intro("x")
+        st.cases("x")
+        st.apply("Or.inr")
+        st.exact("h1")
+        st.apply("Or.inl")
+        st.exact("h2")
+        st.intro("y")
+        st.cases("y")
+        st.apply("Or.inr")
+        st.exact("h1")
+        st.apply("Or.inl")
+        st.exact("h2")
+        out = st.done()
+        assert "内核检查: 通过" in out
+
 
 class TestRepl:
     def make_repl(self):

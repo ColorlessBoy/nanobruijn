@@ -19,6 +19,7 @@ TACTIC_HELP = (
     "tactic（草稿模式）:\n"
     "  intro [x ...]   目标为函数类型时引入 binder（可连写，如 intro a b）\n"
     "  apply <f>       用常量 f 匹配目标；隐式参数自动填充，显式参数变为新目标\n"
+    "  cases <h>       对上下文变量 h 做情形分析（And/Or/False/Exists → rec 分解）\n"
     "  exact <e>       当前目标用表达式 e 精确填充（内核检查 e : 目标）\n"
     "  done            全部目标填充后合成证明项并做内核检查\n"
     "  context         重显当前状态\n"
@@ -58,6 +59,10 @@ def _run_one(state: ProofState, line: str) -> str:
         if not rest:
             raise ValueError("exact: 缺少表达式（如 exact ha）")
         return state.exact(rest)
+    if head == "cases":
+        if not rest:
+            raise ValueError("cases: 缺少上下文变量（如 cases h）")
+        return state.cases(rest)
     if head == "done":
         raise ProofDone(state.done())
     if head == "abort":

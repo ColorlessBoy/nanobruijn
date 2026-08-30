@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ..binder_style import BinderStyle
+from ..name import Name
 from ..ptr import ExprPtr
 from .core import BootstrapCore
 from .parser import parse_expr, parse_expr_with_context
@@ -211,6 +212,7 @@ class ProofState:
             raise ValueError("apply: 只支持常量，如 And.intro")
         tc = self.core.make_type_checker(self.timeout_secs)
         f_ty = tc.infer(fexpr, 'infer_only')
+        last_id = hole.id
         chain: list[tuple[str, BinderStyle, ExprPtr]] = []
         cur = f_ty
         while True:
@@ -276,7 +278,8 @@ class ProofState:
                 raise AssertionError(f"apply {f}: 隐式参数 {name} 未确定（内部错误）")
             else:
                 goal = self._instantiate_binder_type(bt, k, values, f)
-                new_id = self._new_hole(list(hole.ctx), goal)
+                new_id = self._new_hole(list(hole.ctx), goal, after=last_id)
+                last_id = new_id
                 args.append(HoleNode(new_id))
         node: _Node = ExactNode(fexpr)
         for a in args:
@@ -284,10 +287,17 @@ class ProofState:
         self.subholes[hole.id] = self._replace_hole(self.subholes[hole.id], hole.id, node)
         return self.context()
 
-    def _new_hole(self, ctx: list, goal: ExprPtr) -> int:
+    def _new_hole(self, ctx: list, goal: ExprPtr, after: int | None = None) -> int:
         new_id = self._next_hole_id
         self._next_hole_id += 1
-        self.holes.append(Hole(new_id, ctx, goal))
+        hole = Hole(new_id, ctx, goal)
+        if after is None:
+            self.holes.append(hole)
+        else:
+            # 插入到 after 洞之后：cases 的 case-洞是当前洞的延续，
+            # 应优先于兄弟洞（如 Iff.intro 的 mpr）被填充。
+            idx = next(i for i, h in enumerate(self.holes) if h.id == after)
+            self.holes.insert(idx + 1, hole)
         self.subholes[new_id] = HoleNode(new_id)
         return new_id
 
@@ -362,6 +372,129 @@ class ProofState:
         self.subholes[hole.id] = self._replace_hole(self.subholes[hole.id], hole.id,
                                                     ExactNode(e))
         return self.context()
+
+    # ---------- cases ----------
+
+    def cases(self, h_name: str) -> str:
+        """对上下文变量 h 做情形分析（自动构造 recursor 应用）。
+
+        - h : And a b  → 1 个新目标（上下文 + ha : a, hb : b）
+        - h : Or a b   → 2 个分支目标（左 h1 : a / 右 h2 : b）
+        - h : False    → 目标直接完成（exfalso）
+        - h : Exists p → 1 个新目标（上下文 + x : α, hx : p x）
+
+        教学叙事：cases 显示 rec 骨架（@And.rec a b (fun _ => ?goal) _ h），
+        分支洞逐个填充——tactic 只是编辑证明项，rec 才是本质。
+        """
+        hole = self._require_hole()
+        h_ty = self._lookup_ctx_type(hole, h_name)
+        head, args = self.ctx.unfold_apps(h_ty)
+        hv = self.ctx.view_expr(head)
+        if hv.tag != 'Const':
+            raise ValueError(
+                f"cases {h_name}: {h_name} 的类型不是 And/Or/False/Exists"
+                f"（当前: {self._pp(h_ty, [n for (n, _, _) in hole.ctx])}）")
+        kind = self.ctx.name_to_string(hv.name)
+        if kind not in ('And', 'Or', 'False', 'Exists'):
+            raise ValueError(f"cases {h_name}: 暂不支持类型 {kind}")
+        min_args = {'And': 2, 'Or': 2, 'Exists': 2, 'False': 0}[kind]
+        if len(args) < min_args:
+            raise ValueError(
+                f"cases {h_name}: {h_name} 的类型是 {kind} 的部分应用"
+                f"（请用 @{kind}.{{u}} α p 等显式写全类型参数）")
+        h_idx = self._ctx_index(hole, h_name)
+        h_ref = self.ctx.mk_var(h_idx)  # h 的变量引用（ctx 内）
+        c_goal = hole.goal
+
+        if kind == 'And':
+            a, b = args[0], args[1]
+            motive = self._motive(h_ty, c_goal)
+            new_id = self._new_hole(
+                list(hole.ctx) + [("ha", BinderStyle.DEFAULT, a.shift_up(1)),
+                                  ("hb", BinderStyle.DEFAULT, b.shift_up(2))],
+                c_goal.shift_up(2), after=hole.id)
+            case_node = IntroNode("ha", BinderStyle.DEFAULT, a.shift_up(1),
+                                   IntroNode("hb", BinderStyle.DEFAULT,
+                                             b.shift_up(2), HoleNode(new_id)))
+            rec = self._rec_app(self.core.name_to_ptr("And.rec"), (0,),
+                                [a.shift_up(1), b.shift_up(1), motive, h_ref,
+                                 case_node])
+            self.subholes[hole.id] = self._replace_hole(
+                self.subholes[hole.id], hole.id, rec)
+        elif kind == 'Or':
+            a, b = args[0], args[1]
+            motive = self._motive(h_ty, c_goal)
+            left_id = self._new_hole(
+                list(hole.ctx) + [("h1", BinderStyle.DEFAULT, a.shift_up(1))],
+                c_goal.shift_up(1), after=hole.id)
+            right_id = self._new_hole(
+                list(hole.ctx) + [("h2", BinderStyle.DEFAULT, b.shift_up(1))],
+                c_goal.shift_up(1), after=left_id)
+            rec = self._rec_app(self.core.name_to_ptr("Or.rec"), (0,),
+                                [a.shift_up(1), b.shift_up(1), motive,
+                                 IntroNode("h1", BinderStyle.DEFAULT, a.shift_up(1),
+                                           HoleNode(left_id)),
+                                 IntroNode("h2", BinderStyle.DEFAULT, b.shift_up(1),
+                                           HoleNode(right_id)),
+                                 h_ref])
+            self.subholes[hole.id] = self._replace_hole(
+                self.subholes[hole.id], hole.id, rec)
+        elif kind == 'False':
+            motive = self._motive(h_ty, c_goal)
+            rec = self._rec_app(self.core.name_to_ptr("False.rec"), (0,),
+                                [motive, h_ref])
+            self.subholes[hole.id] = self._replace_hole(
+                self.subholes[hole.id], hole.id, rec)
+        else:  # Exists
+            alpha, p = args[0], args[1]
+            u = self.ctx.dag.uparams[hv.const_levels]
+            motive = self._motive(h_ty, c_goal)
+            new_id = self._new_hole(
+                list(hole.ctx) + [("x", BinderStyle.DEFAULT, alpha.shift_up(1)),
+                                  ("hx", BinderStyle.DEFAULT,
+                                   self.ctx.mk_app(p.shift_up(2), self.ctx.mk_var(0)))],
+                c_goal.shift_up(2), after=hole.id)
+            case_node = IntroNode("x", BinderStyle.DEFAULT, alpha.shift_up(1),
+                                   IntroNode("hx", BinderStyle.DEFAULT,
+                                             self.ctx.mk_app(p.shift_up(2),
+                                                             self.ctx.mk_var(0)),
+                                             HoleNode(new_id)))
+            rec = self._rec_app(self.core.name_to_ptr("Exists.rec"), tuple(u),
+                                [alpha.shift_up(1), p.shift_up(1), motive,
+                                 case_node, h_ref])
+            self.subholes[hole.id] = self._replace_hole(
+                self.subholes[hole.id], hole.id, rec)
+        return self.context()
+
+    def _lookup_ctx_type(self, hole: Hole, name: str) -> ExprPtr:
+        for (n, _style, ty) in reversed(hole.ctx):
+            if n == name:
+                return ty
+        raise ValueError(f"cases {name}: 上下文中没有变量 {name!r}")
+
+    def _ctx_index(self, hole: Hole, name: str) -> int:
+        """ctx 变量从内到外的 var 索引（最内层 = 0）。"""
+        for i, (n, _style, _ty) in enumerate(reversed(hole.ctx)):
+            if n == name:
+                return i
+        raise AssertionError(f"cases {name}: 变量不在上下文（内部错误）")
+
+    def _motive(self, h_ty: ExprPtr, c_goal: ExprPtr) -> ExprPtr:
+        """rec 的 motive：fun (anon : h 的类型) => 当前目标（提升 1 层）。"""
+        anon = self.ctx.dag.insert_name(Name.anon())
+        return self.ctx.mk_lambda(anon, BinderStyle.DEFAULT, h_ty.shift_up(1),
+                                  c_goal.shift_up(1))
+
+    def _rec_app(self, rec_name, levels: tuple, args: list) -> _Node:
+        """构造 rec 常量应用的 _Node 链。levels 为显式 universe 层级（空 = 默认 0 或常量自带）。"""
+        if levels:
+            rec_const = self.ctx.mk_const(rec_name, self.ctx.dag.insert_uparams(levels))
+        else:
+            rec_const = self.ctx.mk_const(rec_name, self.ctx.dag.insert_uparams(()))
+        node: _Node = ExactNode(rec_const)
+        for a in args:
+            node = AppNode(node, a if isinstance(a, _Node) else ExactNode(a))
+        return node
 
     # ---------- done ----------
 
