@@ -14,6 +14,13 @@ export default defineConfig({
     sidebar: [
       { text: '📖 导学', link: '/' },
       {
+        text: '🎯 教学剧本（#prove Playbook）',
+        collapsed: false,
+        items: [
+          { text: '第一公里 · 三节路径', link: '/prove-playbook' },
+        ],
+      },
+      {
         text: '第一部分 数据结构基础',
         collapsed: false,
         items: [
