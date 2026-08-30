@@ -103,7 +103,7 @@ class _ExprParser:
             return self.parse_pi()
         if kind == "kw" and value == "Prop":
             self.advance()
-            return self.ctx.mk_sort(0)
+            return self.ctx.mk_sort_zero()
         if kind == "kw" and value == "Type":
             self.advance()
             return self._parse_type()
@@ -121,7 +121,7 @@ class _ExprParser:
             self.advance()
             n = self.ctx.dag.insert_name(Name.str(0, self.ctx.dag.insert_string(tok[1])))
             return self.ctx.mk_sort(self.ctx.dag.insert_level(Level.param(n)))
-        return self.ctx.mk_sort(1)
+        return self.ctx.mk_sort_one()
 
     def _const_or_bound(self, dotted: str, explicit: bool) -> ExprPtr:
         if not explicit and "." not in dotted:

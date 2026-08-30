@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from ..errors import CheckTimeoutError
+from ..errors import CheckTimeoutError, ParseError
 from ..ptr import ExprPtr
 from .core import BootstrapCore
 from .parser import parse_expr
@@ -52,20 +52,38 @@ class Repl:
     def _check(self, text: str) -> str:
         try:
             e = parse_expr(self.core, text)
+            if self._has_nat_lit(e):
+                return "error: Nat 字面量的类型推断在 v1 教学核心中暂不支持（需要 Nat inductive 类型）"
             tc = self.core.make_type_checker(self.timeout_secs)
             ty = tc.infer(e, 'check')
             return f"{pretty(self.core, e)} : {pretty(self.core, ty)}"
-        except (ValueError, CheckTimeoutError) as err:
+        except (ValueError, CheckTimeoutError, ParseError) as err:
             return f"error: {err}"
         except Exception as err:  # noqa: BLE001 - REPL 顶层兜底
             return f"error: {type(err).__name__}: {err}"
+
+    def _has_nat_lit(self, e: ExprPtr) -> bool:
+        v = self.core.ctx.view_expr(e)
+        tag = v.tag
+        if tag == 'NatLit':
+            return True
+        if tag == 'App':
+            return self._has_nat_lit(v.fun) or self._has_nat_lit(v.arg)
+        if tag in ('Pi', 'Lambda'):
+            return self._has_nat_lit(v.binder_type) or self._has_nat_lit(v.body)
+        if tag == 'Let':
+            return (self._has_nat_lit(v.binder_type) or
+                    self._has_nat_lit(v.val) or self._has_nat_lit(v.body))
+        if tag == 'Proj':
+            return self._has_nat_lit(v.structure)
+        return False
 
     def _run_reduce(self, text: str) -> str:
         try:
             e = parse_expr(self.core, text)
             tc = self.core.make_type_checker(self.timeout_secs)
             return show_reduction(self.core, reduce_steps(tc, e))
-        except (ValueError, CheckTimeoutError) as err:
+        except (ValueError, CheckTimeoutError, ParseError) as err:
             return f"error: {err}"
         except Exception as err:  # noqa: BLE001
             return f"error: {type(err).__name__}: {err}"

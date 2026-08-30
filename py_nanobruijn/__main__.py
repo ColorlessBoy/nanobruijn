@@ -57,7 +57,7 @@ def _run_repl(args: argparse.Namespace) -> int:
     from .teaching.core import make_bootstrap
     from .teaching.repl import Repl
     core = make_bootstrap()
-    return Repl(core, timeout_secs=args.timeout or 5.0).run()
+    return Repl(core, timeout_secs=args.timeout).run()
 
 
 def _run_inspect(args: argparse.Namespace) -> int:

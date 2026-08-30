@@ -264,6 +264,37 @@ class TestRepl:
         assert "error" in out.lower()
         assert "Traceback" not in out
 
+    def test_check_type(self):
+        r = self.make_repl()
+        out = r.process_line("#check Type")
+        assert "Type" in out
+        assert "error" not in out.lower()
+
+    def test_check_prop_to_type(self):
+        r = self.make_repl()
+        out = r.process_line("#check Prop -> Type")
+        assert "-> Type" in out
+        assert "error" not in out.lower()
+
+    def test_check_sort_u(self):
+        r = self.make_repl()
+        out = r.process_line("#check Sort u")
+        assert ("Sort" in out or "Type u" in out)
+        assert "error" not in out.lower()
+
+    def test_check_lambda_over_type(self):
+        r = self.make_repl()
+        out = r.process_line("#check (fun (x : Type) => x)")
+        assert "error" not in out.lower()
+        assert "fun" in out
+
+    def test_check_nat_lit_friendly(self):
+        r = self.make_repl()
+        out = r.process_line("#check 42")
+        assert "Nat" in out
+        assert "不支持" in out
+        assert "AssertionError" not in out
+
     def test_quit(self):
         r = self.make_repl()
         with pytest.raises(EOFError):

@@ -57,7 +57,28 @@ class _Pretty:
             return "Prop"
         if lv.tag == 'Succ' and self.ctx.dag.get_level(lv.pred).is_zero():
             return "Type"
-        return f"Type {self.ctx.name_to_string(lv.param_name)}"
+        if lv.tag == 'Param':
+            return f"Type {self.ctx.name_to_string(lv.param_name)}"
+        if lv.tag in ('Max', 'IMax'):
+            l_lv = self.ctx.dag.get_level(lv.left)
+            r_lv = self.ctx.dag.get_level(lv.right)
+            if l_lv.is_zero() or (l_lv.tag == 'Succ'
+                                  and self.ctx.dag.get_level(l_lv.pred).is_zero()):
+                lv = r_lv
+            elif r_lv.is_zero():
+                lv = l_lv
+            else:
+                return f"Type <{lv.tag}>"
+        n = 0
+        cur = lv
+        while cur.tag == 'Succ':
+            n += 1
+            cur = self.ctx.dag.get_level(cur.pred)
+        if cur.is_zero():
+            return f"Type {n - 1}"
+        if cur.tag == 'Param':
+            return f"Type {self.ctx.name_to_string(cur.param_name)}+{n}"
+        return f"Type <{lv.tag}>"
 
     def _const_is_implicit_first(self, v) -> bool:
         info = self.core.env.get_declar(v.name).info
