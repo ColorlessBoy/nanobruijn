@@ -155,13 +155,13 @@ class BootstrapCore:
                     ctx.mk_var(2)))))
         self._axiom("Iff.mp", iff_mp_ty)
         # Iff.mpr : {a} -> {b} -> Iff a b -> b -> a
-        # binder：hb=0, h=1, b=2, a=3；hb 的类型（深度3）= var1（b）；body（深度4）= var2（a）
+        # binder：hb=0, h=1, b=2, a=3；hb 的类型（深度3）= var1（b）；body（深度4）= var3（a）
         iff_mpr_ty = _pi(ctx, "a", BinderStyle.IMPLICIT, prop, _pi(
             ctx, "b", BinderStyle.IMPLICIT, prop, _pi(
                 ctx, "h", BinderStyle.DEFAULT,
                 ctx.mk_app(ctx.mk_app(iff_c, ctx.mk_var(1)), ctx.mk_var(0)), _pi(
                     ctx, "hb", BinderStyle.DEFAULT, ctx.mk_var(1),
-                    ctx.mk_var(2)))))
+                    ctx.mk_var(3)))))
         self._axiom("Iff.mpr", iff_mpr_ty)
 
         # Eq : {α : Sort u} -> α -> α -> Prop
