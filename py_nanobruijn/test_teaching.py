@@ -9,6 +9,7 @@ from .teaching.core import make_bootstrap
 from .teaching.parser import parse_expr
 from .teaching.pretty import pretty
 from .teaching.reduce import reduce_steps, show_reduction
+from .teaching.repl import Repl
 
 
 class TestCore:
@@ -212,3 +213,66 @@ class TestReduce:
         assert "(fun (x : Prop) => x) True.intro" in out
         assert "True.intro" in out
         assert "[beta]" in out
+
+
+class TestRepl:
+    def make_repl(self):
+        return Repl(make_bootstrap())
+
+    def test_check_expr(self):
+        r = self.make_repl()
+        out = r.process_line("fun (x : Prop) => x")
+        assert "fun (x : Prop) => x :" in out
+        assert "∀ (x : Prop), Prop" in out
+
+    def test_check_at_app(self):
+        r = self.make_repl()
+        out = r.process_line("#check @And True True")
+        assert ": Prop" in out
+
+    def test_reduce(self):
+        r = self.make_repl()
+        out = r.process_line("#reduce (fun (x : Prop) => x) True.intro")
+        assert "[beta]" in out
+        assert "True.intro" in out
+
+    def test_print(self):
+        r = self.make_repl()
+        out = r.process_line("#print And.intro")
+        assert "And.intro :" in out
+        assert "And" in out
+
+    def test_print_definition_value(self):
+        r = self.make_repl()
+        out = r.process_line("#print id")
+        assert "id :" in out
+        assert "fun" in out
+
+    def test_env(self):
+        r = self.make_repl()
+        out = r.process_line("#env")
+        assert "And" in out
+        assert "True" in out
+
+    def test_unknown_command(self):
+        r = self.make_repl()
+        assert "unknown command" in r.process_line("#bogus").lower()
+
+    def test_error_friendly(self):
+        r = self.make_repl()
+        out = r.process_line("#check x")
+        assert "error" in out.lower()
+        assert "Traceback" not in out
+
+    def test_quit(self):
+        r = self.make_repl()
+        with pytest.raises(EOFError):
+            r.process_line("#quit")
+
+    def test_run_loop(self):
+        import io
+        r = self.make_repl()
+        buf = io.StringIO()
+        code = r.run(stdin=io.StringIO("#env\n#quit\n"), stdout=buf)
+        assert code == 0
+        assert "And" in buf.getvalue()

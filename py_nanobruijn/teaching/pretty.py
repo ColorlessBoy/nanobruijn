@@ -71,7 +71,8 @@ class _Pretty:
         head = "fun" if is_lambda else "∀"
         open_b, close_b = ("{", "}") if style == BinderStyle.IMPLICIT else ("(", ")")
         body_names = names + (name,)
-        if not is_lambda and not self._has_free0(body, 0):
+        if (not is_lambda and self.ctx.dag.get_name(name_ptr).is_anon()
+                and not self._has_free0(body, 0)):
             return f"{self._pp(binder_type, names)} -> {self._pp(body, body_names)}"
         sep = " => " if is_lambda else ", "
         return f"{head} {open_b}{name} : {self._pp(binder_type, names)}{close_b}{sep}{self._pp(body, body_names)}"
