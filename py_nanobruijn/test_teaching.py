@@ -7,6 +7,7 @@ from .errors import ParseError
 from .ptr import ExprPtr
 from .teaching.core import make_bootstrap
 from .teaching.parser import parse_expr
+from .teaching.pretty import pretty
 
 
 class TestCore:
@@ -125,3 +126,54 @@ class TestParser:
         core = make_bootstrap()
         with pytest.raises(ParseError):
             parse_expr(core, "NoSuchConst")
+
+
+class TestPretty:
+    def test_pretty_var(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "fun (x : Prop) => x")
+        assert pretty(core, e) == "fun (x : Prop) => x"
+
+    def test_pretty_arrow_shortcut(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "Prop -> Prop")
+        assert pretty(core, e) == "Prop -> Prop"
+
+    def test_pretty_pi_forall(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "∀ (a : Prop), a -> Prop")
+        assert pretty(core, e) == "∀ (a : Prop), a -> Prop"
+
+    def test_pretty_const_app(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "@And.intro True True")
+        assert pretty(core, e) == "@And.intro True True"
+
+    def test_pretty_nat_lit(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "42")
+        assert pretty(core, e) == "42"
+
+    def test_pretty_implicit_binder(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "fun {x : Prop} => x")
+        assert pretty(core, e) == "fun {x : Prop} => x"
+
+    def test_pretty_const(self):
+        core = make_bootstrap()
+        e = parse_expr(core, "And.intro")
+        assert pretty(core, e) == "And.intro"
+
+    def test_pretty_parse_roundtrip(self):
+        core = make_bootstrap()
+        for text in [
+            "fun (x : Prop) => x",
+            "Prop -> Prop",
+            "∀ (a : Prop), a -> Prop",
+            "@And.intro True.intro True.intro",
+            "And True True",
+            "fun {x : Prop} => x",
+            "42",
+            "id",
+        ]:
+            assert pretty(core, parse_expr(core, text)) == text
