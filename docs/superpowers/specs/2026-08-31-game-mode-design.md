@@ -167,7 +167,7 @@ ban/hint/step 计数包装）。
 |---|---|---|
 | 1 | `a -> Or a b` | Or.inl |
 | 2 | `b -> Or a b` | Or.inr |
-| 3 | `Or a b -> (a -> c) -> (b -> c) -> c` | Or.rec 本质（不用 cases，apply Or.rec） |
+| 3 | `Or a b -> (a -> c) -> (b -> c) -> c` | Or.rec 本质（cases 体验消去；apply 不支持 recursor 头部，这是已知限制） |
 | 4 | `Or a b -> Or b a` | 交换律（cases 双分支） |
 | 5 | `Or a b -> Not a -> b` | Or 消去 + 矛盾 |
 
