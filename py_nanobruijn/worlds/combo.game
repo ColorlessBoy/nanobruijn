@@ -64,7 +64,7 @@ exact h (Or.inr a b hb)
 level 4
 name 合取的构造与应用
 goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), And (a -> b) (a -> c) -> a -> And b c
-hint: intro h1 h2 h3 —— 前提 h1 : And (a -> b) (a -> c)，h3 : a
+hint: intro h1、intro h3 —— 前提 h1 : And (a -> b) (a -> c)，h3 : a
 hint: apply And.intro 后两个目标：And.left h1 h3 与 And.right h1 h3
 solution:
 intro a
