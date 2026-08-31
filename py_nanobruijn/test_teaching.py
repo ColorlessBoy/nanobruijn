@@ -921,3 +921,85 @@ class TestCli:
             input=b"#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
         )
         assert b"\x1b[" not in proc2.stdout  # 默认管道无色
+
+
+class TestGameLoader:
+    """game.py：.game 纯文本解析。"""
+
+    def _write(self, tmp_path, text):
+        p = tmp_path / "and.game"
+        p.write_text(text, encoding="utf-8")
+        return str(p)
+
+    def test_parse_minimal(self, tmp_path):
+        path = self._write(tmp_path, (
+            "world And\n"
+            "title 合取世界\n"
+            "intro 欢迎\n"
+            "level 1\n"
+            "name 初见合取\n"
+            "goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b\n"
+            "hint: 目标头部是 And\n"
+            "ban: cases\n"
+            "solution:\n"
+            "intro a\n"
+            "intro b\n"
+            "apply And.intro\n"
+        ))
+        from py_nanobruijn.teaching.game import GameLoader
+        g = GameLoader().load(path)
+        assert g.world_id == "And"
+        assert g.title == "合取世界"
+        assert len(g.levels) == 1
+        lv = g.levels[0]
+        assert lv.number == 1 and lv.name == "初见合取"
+        assert "And a b" in lv.goal
+        assert lv.hints == ["目标头部是 And"]
+        assert lv.solution == ["intro a", "intro b", "apply And.intro"]
+        assert lv.bans == ["cases"]
+
+    def test_multiple_levels(self, tmp_path):
+        path = self._write(tmp_path, (
+            "world Or\n"
+            "title 析取世界\n"
+            "level 1\n"
+            "goal: forall (a : Prop), a -> Or a b\n"
+            "---\n"
+            "level 2\n"
+            "goal: forall (a : Prop), Or a b -> b\n"
+        ))
+        from py_nanobruijn.teaching.game import GameLoader
+        g = GameLoader().load(path)
+        assert [lv.number for lv in g.levels] == [1, 2]
+
+    def test_missing_world(self, tmp_path):
+        path = self._write(tmp_path, "title 没有 world 字段\nlevel 1\ngoal: Prop\n")
+        from py_nanobruijn.teaching.game import GameLoader
+        with pytest.raises(ValueError, match="world"):
+            GameLoader().load(path)
+
+    def test_missing_goal(self, tmp_path):
+        path = self._write(tmp_path, "world And\nlevel 1\nname 无目标\n")
+        from py_nanobruijn.teaching.game import GameLoader
+        with pytest.raises(ValueError, match="goal"):
+            GameLoader().load(path)
+
+    def test_bad_ban(self, tmp_path):
+        path = self._write(tmp_path, (
+            "world And\nlevel 1\ngoal: Prop\nban: warp\n"))
+        from py_nanobruijn.teaching.game import GameLoader
+        with pytest.raises(ValueError, match="ban.*warp"):
+            GameLoader().load(path)
+
+    def test_hint_order_and_comment(self, tmp_path):
+        path = self._write(tmp_path, (
+            "world And\n"
+            "level 1\n"
+            "goal: Prop\n"
+            "# 注释行\n"
+            "hint: 第一\n"
+            "hint: 第二\n"
+        ))
+        from py_nanobruijn.teaching.game import GameLoader
+        g = GameLoader().load(path)
+        assert g.levels[0].hints == ["第一", "第二"]
