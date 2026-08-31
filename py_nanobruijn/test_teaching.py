@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import ClassVar
 
 import pytest
@@ -894,6 +895,56 @@ class TestRepl:
         r2 = Repl(make_bootstrap(), color=False)
         assert "\x1b[" not in r2.process_line("#check Prop")
         assert "\x1b[" not in r2.process_line("#check x")
+
+
+class TestGameRepl:
+    """REPL 游戏模式集成。"""
+
+    def make_repl(self):
+        from py_nanobruijn.teaching.game import GameLoader, GameSession
+        worlds_dir = os.path.join(os.path.dirname(__file__), "worlds")
+        path = os.path.join(worlds_dir, "and.game")
+        game = GameLoader().load(path)
+        repl = Repl(make_bootstrap())
+        repl.pending_game = GameSession(game, saves_dir=None)
+        return repl
+
+    def test_worlds_lists(self):
+        r = Repl(make_bootstrap())
+        out = r.process_line("#worlds")
+        assert "And" in out and "Combo" in out and len(out.splitlines()) >= 6
+
+    def test_game_unknown_world(self):
+        r = Repl(make_bootstrap())
+        out = r.process_line("#game Bogus")
+        assert "未知世界" in out
+
+    def test_enter_game_signal(self):
+        r = self.make_repl()
+        with pytest.raises(Exception) as exc:
+            r.process_line("#game And")
+        assert type(exc.value).__name__ == "_GameSession"
+
+    def test_level_hint_and_solution_lines(self):
+        r = self.make_repl()
+        r.pending_game = None
+        with pytest.raises(Exception) as exc:
+            r.process_line("#game And")
+        session = exc.value.session
+        from py_nanobruijn.teaching.repl import _GameSession
+        assert isinstance(session, _GameSession)
+        level = session.session.game.level(1)
+        assert level.hints[0] == "目标头部是 And —— 先 apply And.intro"
+
+    def test_ban_reported(self):
+        from py_nanobruijn.teaching.game import Game, Level
+        from py_nanobruijn.teaching.repl import Repl
+        g = Game("X", "t", "i", [Level(1, "L", "forall (a : Prop), a -> a",
+                                      [], ["intro a"], ["exact"])])
+        r = Repl(make_bootstrap())
+        out = r._game_tactic_check(g.level(1), "exact a")
+        assert "禁用" in out
+        assert r._game_tactic_check(g.level(1), "intro a") is None
 
 
 class TestCli:

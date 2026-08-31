@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import sys
 
 from ..errors import CheckTimeoutError, ParseError
 from ..ptr import ExprPtr
 from .core import BootstrapCore
+from .game import GameLoader, GameSession
 from .parser import parse_expr
 from .pretty import pretty
 from .proof import ProofState
@@ -29,12 +31,21 @@ class _ProveSession(Exception):
         self.state = state
 
 
+class _GameSession(Exception):
+    """process_line 的内部信号：进入 #game 游戏子循环（由 run() 捕获）。"""
+
+    def __init__(self, session):
+        super().__init__("game session")
+        self.session = session
+
+
 class Repl:
     def __init__(self, core: BootstrapCore, timeout_secs: float = 5.0,
                  color: bool | None = None):
         self.core = core
         self.timeout_secs = float(timeout_secs)
         self.color = color_enabled(color)
+        self.pending_game = None
 
     def _c(self, text: str, color: str) -> str:
         if not self.color:
@@ -72,6 +83,10 @@ class Repl:
             return self._check(rest)
         if cmd == "prove":
             return self._prove(rest)
+        if cmd == "worlds":
+            return self._worlds()
+        if cmd == "game":
+            return self._game(rest)
         return f"unknown command #{cmd} (try #help)"
 
     def _check(self, text: str) -> str:
@@ -141,6 +156,47 @@ class Repl:
             return self._error(str(err))
         raise _ProveSession(state)
 
+    def _worlds(self) -> str:
+        import glob
+        lines = []
+        for path in sorted(glob.glob(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "worlds", "*.game"))):
+            game = GameLoader().load(path)
+            prog = GameSession(game)
+            prog.load_progress()
+            stars = f"{len(prog.stars)}/5 关"
+            lines.append(f"{game.world_id} — {game.title}（{stars}）")
+        return "\n".join(lines) or "（暂无世界，worlds/ 目录为空）"
+
+    def _game(self, text: str) -> str:
+        text = text.strip()
+        if not text:
+            return "usage: #game <世界>（如 #game And；#worlds 查看全部）"
+        err = self.start_game(text)
+        if err:
+            return self._error(err)
+        # 双重 _GameSession 包装：外层是信号本身，内层携带 GameSession
+        # （run() 捕获后按 session.session.session 展开回 pending_game）
+        raise _GameSession(_GameSession(self.pending_game))
+
+    def start_game(self, world_id: str) -> str | None:
+        """加载世界并构造会话（失败返回错误文本）。"""
+        import glob
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                            "worlds", world_id.lower() + ".game")
+        if not os.path.exists(path):
+            known = sorted(os.path.basename(p)[:-5] for p in glob.glob(
+                os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                             "worlds", "*.game")))
+            return f"未知世界 {world_id!r}（可选：{', '.join(known)}）"
+        game = GameLoader().load(path)
+        session = GameSession(game)
+        session.load_progress()
+        self.pending_game = session
+        return None
+
+    STEP_TACTICS = ('intro', 'apply', 'exact', 'cases')
+
     # ---------- 主循环 ----------
 
     def run(self, stdin=None, stdout=None) -> int:
@@ -151,6 +207,11 @@ class Repl:
         session_path = self._open_session(stdout)
         while True:
             try:
+                if self.pending_game is not None:
+                    game = self.pending_game
+                    self.pending_game = None
+                    self._run_game(game, stdin, stdout, session_path)
+                    continue
                 prompt = self._c("> ", "green")
                 line = input(prompt) if stdin is sys.stdin else stdin.readline()
             except EOFError:
@@ -164,6 +225,9 @@ class Repl:
                 out = self.process_line(line)
             except _ProveSession as session:
                 self._run_proof(session.state, stdin, stdout, session_path)
+                continue
+            except _GameSession as session:
+                self.pending_game = session.session.session
                 continue
             except EOFError:
                 return 0
@@ -189,30 +253,99 @@ class Repl:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(line.rstrip("\n") + "\n")
 
-    def _run_proof(self, state: ProofState, stdin, stdout, session_path: str | None = None) -> None:
-        """#prove 子循环：proof> 提示符；done/#quit/abort/EOF 退出回到主循环。"""
+    def _run_game(self, game, stdin, stdout, session_path) -> None:
+        print(f"{game.game.title}", file=stdout)
+        print(f"{game.game.intro}", file=stdout)
+        while True:
+            no = game.next_unfinished()
+            if no is None:
+                print(self._c("🎉 世界通关！全部关卡完成。", "green"), file=stdout)
+                return
+            level = game.game.level(no)
+            name = level.name or ""
+            print(f"\n{self._c(f'第 {no} 关：{name}', 'green')}", file=stdout)
+            try:
+                goal_ty = parse_expr(self.core, level.goal)
+                state = ProofState(self.core, goal_ty, self.timeout_secs, self.color)
+            except (ValueError, ParseError) as err:
+                print(self._error(f"关卡 goal 解析失败: {err}"), file=stdout)
+                return
+            game.current_level_no = no
+            status = self._run_proof(state, stdin, stdout, session_path,
+                                     level=level, game=game)
+            if status == "abandoned":
+                return
+
+    def _game_tactic_check(self, level, line: str) -> str | None:
+        head = line.strip().split(maxsplit=1)[0].rstrip(';')
+        if head in level.bans:
+            return f"本关禁用 {head}——换一条路想想（如 apply/exact 直接构造）"
+        return None
+
+    def _run_proof(self, state: ProofState, stdin, stdout,
+                   session_path: str | None = None, *,
+                   level=None, game=None) -> str:
+        """#prove 子循环：proof> 提示符；done/#quit/abort/EOF 退出回到主循环。
+
+        返回 "completed"（通关/完成）或 "abandoned"（放弃）。level/game 非空时
+        处于游戏关卡内：hint/solution 命令、ban 检查、步数计数、星级存档。
+        """
         print(f"证明: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
         print(state.context(), file=stdout)
+        if level is not None:
+            print(f"目标: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
+            print(state.context(), file=stdout)
+        steps = 0
+        used_hint = False
+        hint_idx = 0
         while True:
             try:
                 prompt = self._c("proof> ", "green")
                 line = input(prompt) if stdin is sys.stdin else stdin.readline()
             except EOFError:
-                return
+                return "abandoned" if level is not None else "completed"
             if not line:
                 if stdin is not sys.stdin:
-                    return
+                    return "abandoned" if level is not None else "completed"
                 continue
             if line.strip() == "#quit":
-                return
+                return "abandoned" if level is not None else "completed"
             self._record_session(session_path, line)
+            if level is not None:
+                cmd = line.strip()
+                if cmd == "hint":
+                    if hint_idx < len(level.hints):
+                        hint = level.hints[hint_idx]
+                        hint_idx += 1
+                        used_hint = True
+                        print(f"提示 {hint_idx}/{len(level.hints)}: {hint}", file=stdout)
+                    else:
+                        print("没有更多提示了——再想想，或者 solution 看标准解", file=stdout)
+                    continue
+                if cmd == "solution":
+                    print("标准解：", file=stdout)
+                    print("\n".join(level.solution), file=stdout)
+                    print(self._c("（本关未通关。quit 或继续尝试）", "gray"), file=stdout)
+                    return "abandoned"
+                blocked = self._game_tactic_check(level, line)
+                if blocked:
+                    print(self._error(blocked), file=stdout)
+                    continue
+                if line.strip().split(maxsplit=1)[0] in self.STEP_TACTICS:
+                    steps += 1
             try:
                 out = run_tactic(state, line)
             except ProofDone as done:
                 print(done.text, file=stdout)
-                return
+                if level is not None and game is not None:
+                    stars = game.complete(steps, used_hint)
+                    print(self._c(f"过关！获得 {'★' * stars}{'☆' * (3 - stars)}", 'green'), file=stdout)
+                    if level.solution:
+                        print("标准解（你的路径可能不同，两种都正确）：", file=stdout)
+                        print("\n".join(level.solution), file=stdout)
+                return "completed"
             except AbortProof:
-                return
+                return "abandoned"
             except (ValueError, ParseError, CheckTimeoutError) as err:
                 print(self._error(str(err)), file=stdout)
                 continue
