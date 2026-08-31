@@ -364,6 +364,11 @@ class ProofState:
         try:
             inferred = tc.infer(e, 'check')
         except ValueError as err:
+            msg = str(err)
+            if 'ensure_pi could not produce a pi' in msg:
+                raise ValueError(
+                    f"exact: 你把 {expr_text} 当函数用了，但它不是函数类型"
+                    f"（参数给多了？检查应用数量）") from None
             raise ValueError(f"exact: {err}") from None
         if not tc.is_def_eq(inferred, hole.goal):
             raise ValueError(

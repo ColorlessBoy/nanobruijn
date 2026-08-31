@@ -56,8 +56,9 @@ py_nanobruijn/
 - 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ 归约）/
   `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#quit`；
   每行新 `TypeChecker`（`--timeout` 防卡死）
-- CLI：`repl --script "<行1>|<行2>"` 非交互执行；`--json` 输出机器可读 JSON
-  （agent 集成）；`--game <世界>` 启动即进入闯关世界
+- CLI：`repl --script "<多行文本，以真实换行分隔>"` 非交互执行（EOF 自动退出）；
+  `--json` 输出机器可读 JSON `{"ok": bool, "output": str}`（agent 集成，错误时
+  `ok: false` 且退出码非 0）；`--game <世界>` 启动即进入闯关世界
 - 语法：`fun (x : A) => e`、`∀ (x : A), e`、`A -> B`、`@Const`、`Type`/`Prop`/`Sort u`、
   `id.{u}`（universe 实例化，见下）、Nat 字面量
 - **binder 必须带类型注解**（内核 Lambda 需要 binder_type，无 metavariable）：
@@ -73,8 +74,9 @@ py_nanobruijn/
 
 - 6 个世界：And/Or/Not/Exists/Iff/Combo（各 5 关，见 `worlds/*.game`）；
   启动：`repl --game <世界>`，或 REPL 内 `#game <世界>` / `#worlds`（列出全部与完成度）
-- 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，用一次即降星）/
-  `solution`（显示标准解并放弃本关）；tactic 前导 `abort` 退出关卡回主 REPL
+- 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，用 hint 星级封顶 1★）/
+  `solution`（显示标准解并放弃本关回主 REPL，不记星）；`abort`/`#quit` 放弃关卡
+  回主 REPL
 - 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数；2★ = 无 hint；
   1★ = 其余；步数只计 STEP_TACTICS（intro/apply/exact/cases）；`ban:` 字段禁用的
   tactic 直接拒绝并提示换路
@@ -82,7 +84,8 @@ py_nanobruijn/
   `GameSession.load_progress` 启动时读取；通关条件 = 每关至少 1★（`next_unfinished`）
 - `.game` 格式（行式，`#` 注释）：`world <id>` / `title <标题>` / `intro <叙事>` /
   `level <n>` / `name <关名>` / `goal: <命题>` / `hint: <文本>`（可多个）/
-  `ban: <tactic>`（可多个）/ `solution:` 后跟标准解脚本行，`---` 结束（见 game.py docstring）
+  `ban: <tactic>`（可多个）/ `solution:` 后跟标准解脚本行，到 `---`/`level`/文件尾结束
+  （见 game.py docstring）
 
 ## 约定
 

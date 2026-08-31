@@ -272,7 +272,7 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 ```
 > #worlds
 And — 合取世界：从构造到分解（0/5 关）
-Or — 析取世界：分情况讨论（0/5 关）
+Or — 析取世界：选择的两条路（0/5 关）
 ...
 > #game And
 合取世界：从构造到分解
@@ -287,13 +287,13 @@ Or — 析取世界：分情况讨论（0/5 关）
 
 | 命令 | 作用 |
 |---|---|
-| `hint` | 逐条显示关卡提示（每条用一次，星级上限降为 2★） |
-| `solution` | 显示标准解并**放弃本关**（不记录星级） |
-| `abort` | 退出关卡回主 REPL（不记录星级） |
-| `quit` | 放弃关卡，退出 REPL |
+| `hint` | 逐条显示关卡提示（用了 hint 星级封顶 1★） |
+| `solution` | 显示标准解并放弃本关回主 REPL（不记录星级，下次从同关继续） |
+| `abort` | 放弃本关回主 REPL（不记录星级） |
+| `#quit` | 放弃本关，退出 REPL |
 
-部分关卡有 `ban:` 字段（如 Or 世界 L4 禁用 `exact`）——被禁用的 tactic 会直接
-拒绝并提示换路。
+部分关卡有 `ban:` 字段（如 And 世界 L2 禁用 `cases`）——被禁用的 tactic 会直接
+拒绝并提示换路（提示会指向本关设计的那条路线）。
 
 ### 星级与存档
 
@@ -309,10 +309,10 @@ Or — 析取世界：分情况讨论（0/5 关）
 |---|---|---|
 | `And` | 合取：构造与分解 | And.intro / And.left / And.right / cases |
 | `Or` | 析取：分情况讨论 | Or.inl / Or.inr / Or.rec（cases） |
-| `Not` | 否定与矛盾 | Not、False.elim、absurd、mt |
-| `Exists` | 存在量词 | Exists.intro / Exists.elim（cases） |
+| `Not` | 否定与矛盾 | Not（即 `-> False`）/ False.rec / mt |
+| `Exists` | 存在量词 | Exists.intro / Exists.rec（cases） |
 | `Iff` | 当且仅当 | Iff.intro / Iff.mp / Iff.mpr |
-| `Combo` | 综合：多概念混合证明 | 以上全部 |
+| `Combo` | 综合：多概念混合证明 | 各世界武器混用（And/Or/Not/Iff） |
 
 ---
 

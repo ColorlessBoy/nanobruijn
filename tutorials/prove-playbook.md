@@ -113,8 +113,8 @@ exact hb
   cases**，逼玩家认识投影：结论是裸变量 `b`，投影的结果也是裸变量，`apply`
   只匹配常量头部，所以用 `exact`。
 - **hints 设计**（2 条）：
-  1. 结论是 b，但前提是 And a b。本关禁用 cases —— 用投影 And.right
-  2. intro 引入 h : And a b 后 exact And.right a b h 一步收工（投影的结果是裸变量 b，apply 只匹配常量头部）
+  1. 结论是 b，但前提是 And a b。试试投影 And.right
+  2. intro 引入 h : And a b 后，用 exact And.right a b h 一步收工（And.right 是"取右半"的投影）
 - **ban 理由**：禁 `cases`，否则投影路线完全被跳过——本关唯一教学点是
   "投影 = 应用"。
 - **标准解**（4 步，3★ 上限）：

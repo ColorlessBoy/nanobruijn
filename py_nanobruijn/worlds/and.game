@@ -19,8 +19,8 @@ level 2
 name 只取右半
 goal: forall (a : Prop), forall (b : Prop), And a b -> b
 ban: cases
-hint: 结论是 b，但前提是 And a b。本关禁用 cases —— 用投影 And.right
-hint: intro 引入 h : And a b 后 exact And.right a b h 一步收工（投影的结果是裸变量 b，apply 只匹配常量头部）
+hint: 结论是 b，但前提是 And a b。试试投影 And.right
+hint: intro 引入 h : And a b 后，用 exact And.right a b h 一步收工（And.right 是"取右半"的投影）
 solution:
 intro a
 intro b

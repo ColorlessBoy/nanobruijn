@@ -525,6 +525,17 @@ class TestProof:
         st.exact("hb")
         assert "所有目标已完成" in st.context()
 
+    def test_exact_apply_non_function_friendly(self):
+        # 内核 ensure_pi 错误要翻译成教学消息，不能冒泡内部实现细节
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), a -> b -> And a b")
+        st.intro("a")
+        st.intro("b")
+        st.intro("ha")
+        st.intro("hb")
+        st.apply("And.intro")
+        with pytest.raises(ValueError, match="当函数用"):
+            st.exact("ha ha")
+
     def test_apply_iff_intro_nested_pi_goals(self):
         # Iff.intro 的显式参数是复合类型（a -> b），经教学层替换得到嵌套 Pi 目标
         st = self.make_state("∀ (a : Prop), ∀ (b : Prop), Iff a b")

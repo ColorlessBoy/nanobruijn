@@ -277,7 +277,8 @@ class Repl:
     def _game_tactic_check(self, level, line: str) -> str | None:
         head = line.strip().split(maxsplit=1)[0].rstrip(';')
         if head in level.bans:
-            return f"本关禁用 {head}——换一条路想想（如 apply/exact 直接构造）"
+            guide = level.hints[0] if level.hints else "想想 apply/exact 怎么构造"
+            return f"本关禁用 {head}——{guide}"
         return None
 
     def _run_proof(self, state: ProofState, stdin, stdout,
@@ -288,10 +289,10 @@ class Repl:
         返回 "completed"（通关/完成）或 "abandoned"（放弃）。level/game 非空时
         处于游戏关卡内：hint/solution 命令、ban 检查、步数计数、星级存档。
         """
-        print(f"证明: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
-        print(state.context(), file=stdout)
         if level is not None:
-            print(f"目标: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
+            print(state.context(), file=stdout)
+        else:
+            print(f"证明: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
             print(state.context(), file=stdout)
         steps = 0
         used_hint = False
