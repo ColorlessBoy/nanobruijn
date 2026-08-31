@@ -382,6 +382,10 @@ class ProofState:
                 raise ValueError(
                     f"exact: 你把 {expr_text} 当函数用了，但它不是函数类型"
                     f"（参数给多了？检查应用数量）") from None
+            if msg.startswith('assert_def_eq failed:'):
+                raise ValueError(
+                    f"exact: {expr_text} 的类型检查失败"
+                    f"（参数数量或顺序不对？应用不匹配）") from None
             raise ValueError(f"exact: {err}") from None
         if not tc.is_def_eq(inferred, hole.goal):
             raise ValueError(
@@ -413,7 +417,7 @@ class ProofState:
         if hv.tag != 'Const':
             raise ValueError(
                 f"cases {h_name}: {h_name} 的类型不是 And/Or/False/Exists"
-                f"（当前: {self._pp(h_ty, [n for (n, _, _) in hole.ctx])}）")
+                f"（不支持的情形分析，检查变量名）")
         kind = self.ctx.name_to_string(hv.name)
         if kind not in ('And', 'Or', 'False', 'Exists'):
             raise ValueError(

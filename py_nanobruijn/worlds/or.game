@@ -28,7 +28,7 @@ exact hb
 level 3
 name 消去律：两条路都要走
 goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or a b -> (a -> c) -> (b -> c) -> c
-hint: 前提 Or a b 必须两条路都走：cases h 分两路
+hint: 前提 Or a b 必须两条路都走：cases h as ha hb 分两路（分支名避开已有的 h1/h2）
 hint: 左路 ha : a 用 h1，右路 hb : b 用 h2 —— 这就是 Or.rec 的本质，cases 替你写好了
 solution:
 intro a

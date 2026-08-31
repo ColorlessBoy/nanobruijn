@@ -257,7 +257,7 @@ exact hb
   路，左路 `ha : a` 用 `h1`，右路 `hb : b` 用 `h2`。这就是 `Or.rec` 的本质，
   `cases` 替你写好了骨架（`@Or.rec a b (fun _ => c) _ _ h`）。
 - **hints 设计**（2 条）：
-  1. 前提 Or a b 必须两条路都走：cases h 分两路
+  1. 前提 Or a b 必须两条路都走：cases h as ha hb 分两路（分支名避开已有的 h1/h2）
   2. 左路 ha : a 用 h1，右路 hb : b 用 h2 —— 这就是 Or.rec 的本质，cases 替你写好了
 - **标准解**（9 步，3★ 上限）：
 
