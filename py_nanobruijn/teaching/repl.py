@@ -277,8 +277,8 @@ class Repl:
     def _game_tactic_check(self, level, line: str) -> str | None:
         head = line.strip().split(maxsplit=1)[0].rstrip(';')
         if head in level.bans:
-            guide = level.hints[0] if level.hints else "想想 apply/exact 怎么构造"
-            return f"本关禁用 {head}——{guide}"
+            return (f"本关禁用 {head}——这关故意不给你这条捷径，"
+                    f"换一条路想想（线索看 hint，hint 会扣星）")
         return None
 
     def _run_proof(self, state: ProofState, stdin, stdout,

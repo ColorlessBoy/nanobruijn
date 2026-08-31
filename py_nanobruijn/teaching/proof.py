@@ -4,7 +4,7 @@ from ..binder_style import BinderStyle
 from ..name import Name
 from ..ptr import ExprPtr
 from .core import BootstrapCore
-from .parser import parse_expr, parse_expr_with_context
+from .parser import ParseError, parse_expr, parse_expr_with_context
 from .pretty import _Pretty, pretty
 
 
@@ -206,10 +206,18 @@ class ProofState:
         模式匹配只做头部对齐（头部常量名 + 层级 + 参数数量相同），不做 unification。
         """
         hole = self._require_hole()
-        fexpr = parse_expr(self.core, f)
+        try:
+            fexpr = parse_expr(self.core, f)
+        except ParseError as err:
+            if not f.startswith('@'):
+                raise ValueError(
+                    f"apply: 找不到常量 {f!r}。如果你想应用上下文里的前提，"
+                    f"用 exact（apply 只接受常量名，如 And.intro）") from None
+            raise ValueError(f"apply: {err}") from None
         v = self.ctx.view_expr(fexpr)
         if v.tag != 'Const':
-            raise ValueError("apply: 只支持常量，如 And.intro")
+            raise ValueError(
+                "apply: 只支持常量，如 And.intro（上下文里的前提用 exact 应用）")
         tc = self.core.make_type_checker(self.timeout_secs)
         f_ty = tc.infer(fexpr, 'infer_only')
         last_id = hole.id
@@ -234,10 +242,15 @@ class ProofState:
                 or self.core.dag.uparams[r_hv.const_levels]
                 != self.core.dag.uparams[c_hv.const_levels]
                 or len(r_args) != len(c_args)):
+            goal_pi = self.ctx.unfold_pi(hole.goal)
+            hint = (f"（目标还是函数类型 {self._pp(hole.goal, hole_names)}，"
+                    f"先 intro 把它拆开）" if goal_pi is not None
+                    else f"（目标是 {self._pp(hole.goal, hole_names)}，"
+                         f"而 {f} 构造 {self._pp(result, chain_names)}——"
+                         f"检查是否用错了构造子）")
             raise ValueError(
                 f"apply {f}: 目标头部 ({self._pp(hole.goal, hole_names)}) 与 {f} 的结果 "
-                f"({self._pp(result, chain_names)}) 不匹配"
-                f"（提示：可尝试 apply @{f} 或检查目标）")
+                f"({self._pp(result, chain_names)}) 不匹配{hint}")
         n_chain = len(chain)
         values: dict[int, ExprPtr] = {}
         for i, r_arg in enumerate(r_args):

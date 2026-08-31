@@ -64,7 +64,7 @@ def _run_one(state: ProofState, line: str) -> str:
             raise ValueError("cases: 缺少上下文变量（如 cases h）")
         parts = rest.split()
         names = parts[2:] if len(parts) > 2 and parts[1] == "as" else None
-        if parts[1] != "as" and len(parts) > 1:
+        if len(parts) > 1 and parts[1] != "as":
             raise ValueError("cases: 语法为 `cases h` 或 `cases h as a b`")
         return state.cases(parts[0], names)
     if head == "done":

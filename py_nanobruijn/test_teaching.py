@@ -536,6 +536,28 @@ class TestProof:
         with pytest.raises(ValueError, match="当函数用"):
             st.exact("ha ha")
 
+    def test_apply_local_var_friendly_error(self):
+        # apply 本地变量/未知名字要引导用 exact，不诱导 fun
+        st = self.make_state("∀ (a : Prop), ∀ (ha : a), ∀ (b : Prop), a -> b -> b")
+        st.intro("a")
+        st.intro("ha")
+        with pytest.raises(ValueError, match="用 exact"):
+            st.apply("ha")
+        with pytest.raises(ValueError, match="用 exact"):
+            st.apply("bogus")
+
+    def test_apply_mismatch_guides_intro(self):
+        # 目标还是函数类型时，apply 报错要提示先 intro（不再建议 @ 死路）
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), a -> b -> And a b")
+        with pytest.raises(ValueError, match="先 intro"):
+            st.apply("And.intro")
+
+    def test_exact_fun_multiple_binders_friendly(self):
+        # 多 binder 连写提示嵌套写法
+        from .teaching.parser import ParseError
+        with pytest.raises(ParseError, match="嵌套"):
+            parse_expr(make_bootstrap(), "fun (w : Prop) (hw : w) => hw")
+
     def test_apply_iff_intro_nested_pi_goals(self):
         # Iff.intro 的显式参数是复合类型（a -> b），经教学层替换得到嵌套 Pi 目标
         st = self.make_state("∀ (a : Prop), ∀ (b : Prop), Iff a b")
@@ -659,6 +681,14 @@ class TestProof:
         import pytest
         with pytest.raises(ValueError, match="不是 And/Or/False/Exists"):
             st.cases("x")
+
+    def test_cases_bare_no_index_error(self):
+        # 裸 `cases h`（不带 as）是合法操作（tactics 短路顺序修复后不再 IndexError）
+        from .teaching.tactics import run_tactic
+        st = self.make_state("∀ (a : Prop), ∀ (b : Prop), ∀ (h : Or a b), b")
+        st.intro("a b h")
+        out = run_tactic(st, "cases h")
+        assert "h1 : a" in out or "h1 : a" in st.context()
 
     def test_cases_and_comm_full(self):
         """闭环：and_comm 用 cases 全程证明。"""
@@ -947,7 +977,7 @@ class TestGameRepl:
         session = exc.value.session
         assert isinstance(session, GameSession)
         level = session.game.level(1)
-        assert level.hints[0] == "目标头部是 And —— 先 apply And.intro"
+        assert level.hints[0] == "目标是函数类型（∀/->）时先 intro 拆开：intro a、intro b、intro ha、intro hb"
 
     def test_run_game_quit_terminates(self):
         import io

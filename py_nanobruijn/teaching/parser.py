@@ -197,7 +197,12 @@ class _ExprParser:
     def parse_fun(self) -> ExprPtr:
         self.advance()  # 'fun'
         binder = self._parse_binder()
-        self.expect_sym("=>")
+        try:
+            self.expect_sym("=>")
+        except ParseError:
+            raise ParseError(
+                "fun 只接受一个 binder：`fun (w : Prop) => ...`。多个 binder 要"
+                "嵌套写：`fun (w : Prop) => fun (hw : p w) => ...`") from None
         self.binders.append(binder[0])
         try:
             body = self.parse_arrow()

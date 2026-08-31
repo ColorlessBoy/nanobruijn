@@ -4,8 +4,9 @@ intro 你面前是合取的世界。目标是以 a → b → a ∧ b 为起点�
 level 1
 name 初见合取
 goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b
-hint: 目标头部是 And —— 先 apply And.intro
-hint: 剩下两个子目标 a 和 b：第一个 intro 引入后 exact，第二个同理
+hint: 目标是函数类型（∀/->）时先 intro 拆开：intro a、intro b、intro ha、intro hb
+hint: 现在目标只剩 And a b：apply And.intro 拆成 a 和 b 两个子目标
+hint: 两个子目标分别 exact ha、exact hb
 solution:
 intro a
 intro b
