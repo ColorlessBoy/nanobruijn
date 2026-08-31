@@ -985,6 +985,61 @@ class TestCli:
         assert b"\x1b[" not in proc2.stdout  # 默认管道无色
 
 
+class TestCliGame:
+    def test_cli_script_check(self):
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, "-m", "py_nanobruijn", "repl", "--script",
+             "#check forall (a : Prop), a -> a"],
+            capture_output=True, text=True, timeout=30, check=False)
+        assert proc.returncode == 0
+        assert "∀ (a : Prop), a -> a" in proc.stdout
+        assert "error" not in proc.stdout.lower()
+
+    def test_cli_script_json(self):
+        import json as _json
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, "-m", "py_nanobruijn", "repl", "--script",
+             "#check Prop", "--json"],
+            capture_output=True, text=True, timeout=30, check=False)
+        assert proc.returncode == 0
+        data = _json.loads(proc.stdout)
+        assert data["ok"] is True
+        assert "Prop" in data["output"]
+
+    def test_cli_script_prove_solution(self):
+        import subprocess
+        import sys
+        script = ("#prove forall (a : Prop), a -> a\n"
+                  "intro a\n"
+                  "intro ha\n"
+                  "exact ha\n"
+                  "done\n")
+        proc = subprocess.run(
+            [sys.executable, "-m", "py_nanobruijn", "repl", "--script", script],
+            capture_output=True, text=True, timeout=30, check=False)
+        assert "内核检查: 通过" in proc.stdout
+
+    def test_cli_script_error_nonzero(self):
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, "-m", "py_nanobruijn", "repl", "--script", "#check bogus"],
+            capture_output=True, text=True, timeout=30, check=False)
+        assert proc.returncode != 0
+
+    def test_cli_game_flag(self):
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, "-m", "py_nanobruijn", "repl", "--game", "And"],
+            input="#quit\n", capture_output=True, text=True, timeout=30, check=False)
+        assert "合取世界" in proc.stdout
+
+
 class TestGameLoader:
     """game.py：.game 纯文本解析。"""
 

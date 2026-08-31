@@ -54,11 +54,30 @@ def _run_check(args: argparse.Namespace) -> int:
 
 
 def _run_repl(args: argparse.Namespace) -> int:
+    import io
+
     from .teaching.core import make_bootstrap
     from .teaching.repl import Repl
     core = make_bootstrap()
     color = True if args.color else (False if args.no_color else None)
-    return Repl(core, timeout_secs=args.timeout, color=color).run()
+    repl = Repl(core, timeout_secs=args.timeout, color=color)
+    if args.game:
+        err = repl.start_game(args.game)
+        if err:
+            print(f"CHECK ERROR: {err}", file=sys.stderr)
+            return 1
+    if args.script:
+        buf = io.StringIO()
+        repl.run(stdin=io.StringIO(args.script), stdout=buf)
+        text = buf.getvalue()
+        code = 1 if "error:" in text else 0
+        if args.json:
+            print(json.dumps({"ok": code == 0, "output": text},
+                             ensure_ascii=False))
+        else:
+            sys.stdout.write(text)
+        return code
+    return repl.run()
 
 
 def _run_inspect(args: argparse.Namespace) -> int:
@@ -99,6 +118,10 @@ def main(argv: list[str] | None = None) -> int:
                       help="disable ANSI colors in output")
     repl.add_argument("--color", action="store_true",
                       help="force ANSI colors even when output is not a terminal")
+    repl.add_argument("--script", help="non-interactive: run these lines then exit")
+    repl.add_argument("--json", action="store_true",
+                      help="with --script: machine-readable JSON output")
+    repl.add_argument("--game", help="enter a world on startup")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
