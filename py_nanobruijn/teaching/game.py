@@ -18,6 +18,8 @@
 """
 from __future__ import annotations
 
+import json
+import os
 import re
 
 KNOWN_TACTICS = ('intro', 'apply', 'exact', 'cases', 'done',
@@ -113,3 +115,48 @@ class GameLoader:
         return Game(world_id, title, intro,
                     [Level(l['number'], l['name'], l['goal'], l['hints'],
                            l['solution'], l['bans']) for l in levels])
+
+SAVES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "saves")
+
+
+class GameSession:
+    def __init__(self, game: Game, saves_dir: str | None = None):
+        self.game = game
+        self.saves_dir = saves_dir if saves_dir is not None else SAVES_DIR
+        self.stars: dict[int, int] = {}
+        self.current_level_no: int | None = None
+
+    def unlocked(self, number: int) -> bool:
+        return number == 1 or (number - 1) in self.stars
+
+    def next_unfinished(self) -> int | None:
+        for lv in self.game.levels:
+            if lv.number not in self.stars:
+                return lv.number
+        return None
+
+    def complete(self, steps: int, used_hint: bool) -> int:
+        lv = self.game.level(self.current_level_no or self.next_unfinished())
+        stars = 1
+        if not used_hint:
+            stars = 2
+        if not used_hint and steps <= len(lv.solution):
+            stars = 3
+        self.stars[lv.number] = stars
+        self.save()
+        return stars
+
+    def save(self) -> None:
+        os.makedirs(self.saves_dir, exist_ok=True)
+        path = os.path.join(self.saves_dir, f"{self.game.world_id}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"stars": {str(k): v for k, v in self.stars.items()}},
+                      f, ensure_ascii=False)
+
+    def load_progress(self) -> None:
+        path = os.path.join(self.saves_dir, f"{self.game.world_id}.json")
+        if not os.path.exists(path):
+            return
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        self.stars = {int(k): v for k, v in data.get("stars", {}).items()}

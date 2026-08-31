@@ -1003,3 +1003,50 @@ class TestGameLoader:
         from py_nanobruijn.teaching.game import GameLoader
         g = GameLoader().load(path)
         assert g.levels[0].hints == ["第一", "第二"]
+
+
+class TestGameSession:
+    """game.py：星级 / 解锁 / 存档。"""
+
+    def _game(self):
+        from py_nanobruijn.teaching.game import Game, Level
+        return Game("And", "合取世界", "intro",
+                    [Level(1, "L1", "goal1", [], ["intro a"], []),
+                     Level(2, "L2", "goal2", [], ["intro b"], []),
+                     Level(3, "L3", "goal3", [], ["intro c"], [])])
+
+    def test_stars_1_to_3(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameSession
+        s = GameSession(self._game(), saves_dir=str(tmp_path))
+        s.current_level_no = 1  # 重玩当前关（3 次完成同一关，星级 1→2→3）
+        assert s.complete(steps=10, used_hint=True) == 1   # 用过 hint
+        assert s.complete(steps=10, used_hint=False) == 2  # 没用 hint
+        assert s.complete(steps=1, used_hint=False) == 3   # 步数 <= 标准解
+        assert s.stars == {1: 3}
+
+    def test_unlock_sequential(self):
+        from py_nanobruijn.teaching.game import GameSession
+        s = GameSession(self._game(), saves_dir=None)
+        assert s.unlocked(1)
+        assert not s.unlocked(2)
+        s.complete(1, False)
+        assert s.unlocked(2)
+        assert not s.unlocked(3)
+        assert s.next_unfinished() == 2
+
+    def test_next_unfinished_all_done(self):
+        from py_nanobruijn.teaching.game import GameSession
+        s = GameSession(self._game(), saves_dir=None)
+        for i in range(3):
+            s.complete(1, False)
+        assert s.next_unfinished() is None
+
+    def test_progress_persists(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameSession
+        s1 = GameSession(self._game(), saves_dir=str(tmp_path))
+        s1.complete(2, False)  # level 1, 2 星
+        s1.complete(1, True)   # level 2, 1 星
+        s2 = GameSession(self._game(), saves_dir=str(tmp_path))
+        s2.load_progress()
+        assert s2.stars == {1: 2, 2: 1}
+        assert s2.next_unfinished() == 3

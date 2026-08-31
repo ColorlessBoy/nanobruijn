@@ -29,3 +29,6 @@ tutorials/.vitepress/dist/
 tutorials/.vitepress/cache/
 tutorials/package-lock.json
 sessions/
+
+# game mode saves (per-world progress files)
+py_nanobruijn/saves/
