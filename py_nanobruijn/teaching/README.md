@@ -262,7 +262,61 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 
 ---
 
-## 6. 表达式语法
+## 6. 闯关模式（`#game` / `#worlds`）——把证明玩成游戏
+
+在 `#prove` 的基础上，本工具内置了 **6 个闯关世界**（And/Or/Not/Exists/Iff/Combo，
+各 5 关）。每一关就是一条待证明的命题，目标是**用最少步骤、不看提示**通关。
+
+### 启动与导航
+
+```
+> #worlds
+And — 合取世界：从构造到分解（0/5 关）
+Or — 析取世界：分情况讨论（0/5 关）
+...
+> #game And
+合取世界：从构造到分解
+你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
+```
+
+或启动时直接进入：`python -m py_nanobruijn repl --game And`。
+
+### 关卡内命令
+
+进入关卡后提示符变成 `proof>`，tactic 与 `#prove` 完全相同，另有：
+
+| 命令 | 作用 |
+|---|---|
+| `hint` | 逐条显示关卡提示（每条用一次，星级上限降为 2★） |
+| `solution` | 显示标准解并**放弃本关**（不记录星级） |
+| `abort` | 退出关卡回主 REPL（不记录星级） |
+| `quit` | 放弃关卡，退出 REPL |
+
+部分关卡有 `ban:` 字段（如 Or 世界 L4 禁用 `exact`）——被禁用的 tactic 会直接
+拒绝并提示换路。
+
+### 星级与存档
+
+- **3★**：没用 hint 且步数 ≤ 标准解行数；**2★**：没用 hint；**1★**：其余
+- 步数只计 `intro`/`apply`/`exact`/`cases`（`context`/`help` 等不计）
+- 通关后显示标准解（你的路径可能不同，两种都正确）
+- 每关至少拿 1★ 才算通关；进度自动存入 `py_nanobruijn/saves/<世界>.json`
+  （`#worlds` 显示各世界完成度，重新进入时自动续关）
+
+### 世界速览
+
+| 世界 | 主题 | 用到的新武器 |
+|---|---|---|
+| `And` | 合取：构造与分解 | And.intro / And.left / And.right / cases |
+| `Or` | 析取：分情况讨论 | Or.inl / Or.inr / Or.rec（cases） |
+| `Not` | 否定与矛盾 | Not、False.elim、absurd、mt |
+| `Exists` | 存在量词 | Exists.intro / Exists.elim（cases） |
+| `Iff` | 当且仅当 | Iff.intro / Iff.mp / Iff.mpr |
+| `Combo` | 综合：多概念混合证明 | 以上全部 |
+
+---
+
+## 7. 表达式语法
 
 | 语法 | 含义 | 示例 |
 |---|---|---|
@@ -286,7 +340,7 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 
 ---
 
-## 7. 内置内容（39 个常量）
+## 8. 内置内容（39 个常量）
 
 ### 逻辑原语（Axiom，不可 δ 展开）
 
@@ -333,7 +387,7 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 
 ---
 
-## 8. 常见问题（FAQ）
+## 9. 常见问题（FAQ）
 
 | 现象 | 原因与建议 |
 |---|---|
@@ -348,7 +402,7 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 
 ---
 
-## 9. 术语表
+## 10. 术语表
 
 | 术语 | 含义 |
 |---|---|
@@ -366,7 +420,7 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 
 ---
 
-## 10. 原理与致谢
+## 11. 原理与致谢
 
 本工具复用了 py_nanobruijn 的真实 Lean 4 内核（de Bruijn 索引 + shift-homomorphic
 缓存），教学层零内核改动。定理库移植自

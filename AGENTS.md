@@ -9,7 +9,7 @@ nanoda_lib）+ Python 移植（`py_nanobruijn/`）+ 教学 REPL（`py_nanobruijn
 
 ```bash
 # Python（唯一活跃开发目标）
-.venv/bin/python -m pytest py_nanobruijn -q   # 全量测试（当前 242 个）
+.venv/bin/python -m pytest py_nanobruijn -q   # 全量测试（当前 316 个）
 .venv/bin/ruff check py_nanobruijn            # lint（line-length 100, py310）
 
 # Rust（参考实现，非活跃）
@@ -30,6 +30,8 @@ py_nanobruijn/
   services/checker.py / results.py / api.py         # 编排层 + CLI 支撑
   __main__.py                                       # CLI: check / inspect / repl
   teaching/                                         # 教学 REPL（见下）
+    game.py                                         # GameLoader + GameSession（.game 关卡 + 星级/存档）
+  worlds/*.game                                     # 6 个闯关世界（And/Or/Not/Exists/Iff/Combo）
 ```
 
 内核约定（重要）：
@@ -52,7 +54,10 @@ py_nanobruijn/
 - 内置逻辑核心（`core.py`，21 个常量）：True/False/And/Or/Iff/Eq/propext/Not/id/
   Function.comp/flip——用 Python 构造器直接组装 `Env`，不依赖 NDJSON export
 - 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ 归约）/
-  `#print <name>` / `#env` / `#help` / `#quit`；每行新 `TypeChecker`（`--timeout` 防卡死）
+  `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#quit`；
+  每行新 `TypeChecker`（`--timeout` 防卡死）
+- CLI：`repl --script "<行1>|<行2>"` 非交互执行；`--json` 输出机器可读 JSON
+  （agent 集成）；`--game <世界>` 启动即进入闯关世界
 - 语法：`fun (x : A) => e`、`∀ (x : A), e`、`A -> B`、`@Const`、`Type`/`Prop`/`Sort u`、
   `id.{u}`（universe 实例化，见下）、Nat 字面量
 - **binder 必须带类型注解**（内核 Lambda 需要 binder_type，无 metavariable）：
@@ -63,6 +68,21 @@ py_nanobruijn/
 - 常量带 universe 参数时：不带 `.{...}` 默认实例化为 0（Prop 层）；`id.{u}`/`id.{0}`/
   `Function.comp.{u, v, w}` 显式实例化；数量不符或无 uparams 的常量带 `.{...}` 报 ParseError；
   `id.{u} True` 会类型错误（内核无 elaboration，Sort u ≠ Prop 即正确语义）
+
+## GAME 模式（闯关世界，py_nanobruijn/teaching/game.py + worlds/）
+
+- 6 个世界：And/Or/Not/Exists/Iff/Combo（各 5 关，见 `worlds/*.game`）；
+  启动：`repl --game <世界>`，或 REPL 内 `#game <世界>` / `#worlds`（列出全部与完成度）
+- 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，用一次即降星）/
+  `solution`（显示标准解并放弃本关）；tactic 前导 `abort` 退出关卡回主 REPL
+- 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数；2★ = 无 hint；
+  1★ = 其余；步数只计 STEP_TACTICS（intro/apply/exact/cases）；`ban:` 字段禁用的
+  tactic 直接拒绝并提示换路
+- 存档：`py_nanobruijn/saves/<world_id>.json`（`{"stars": {...}}`，已 gitignore）；
+  `GameSession.load_progress` 启动时读取；通关条件 = 每关至少 1★（`next_unfinished`）
+- `.game` 格式（行式，`#` 注释）：`world <id>` / `title <标题>` / `intro <叙事>` /
+  `level <n>` / `name <关名>` / `goal: <命题>` / `hint: <文本>`（可多个）/
+  `ban: <tactic>`（可多个）/ `solution:` 后跟标准解脚本行，`---` 结束（见 game.py docstring）
 
 ## 约定
 
@@ -87,6 +107,10 @@ py_nanobruijn/
   ——"良类型但语义错位"的一类（check 模式只验证良类型）
 - **已修复**（53bddaa）：`imp.swap` 的 `b -> a -> c` 内层 binder 类型深度错误
   （var2 应为 var3）——同类语义错位；修复后 14/14 定理通过严格验证
+- **已修复**（52acafd）：`cases` tactic 的 rec 应用/分支 binder 深度硬编码
+  shift 1/2（`proof.py`），当被分解的 `h` 不是最内层 binder（h_idx > 0）时
+  shift 不足导致变量引用错位——改为 `1 + h_idx`/`2 + h_idx` 后
+  `cases` 在任意上下文深度可用（Game 模式 Exists/Combo 世界依赖此修复）
 - **防护**（53bddaa）：`test_core_semantic_parity`——核心常量类型 vs 教学 parse
   等价表达式的内核 def_eq 比较，防止"良类型但语义错位"回归（该测试正是发现
   imp.swap 深度错误的手段；修改常量类型构造后必须保持此测试全绿）
