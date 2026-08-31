@@ -295,7 +295,6 @@ class Repl:
             print(f"证明: {pretty(self.core, state.goal_ty, self.color)}", file=stdout)
             print(state.context(), file=stdout)
         steps = 0
-        used_hint = False
         hint_idx = 0
         while True:
             try:
@@ -316,7 +315,6 @@ class Repl:
                     if hint_idx < len(level.hints):
                         hint = level.hints[hint_idx]
                         hint_idx += 1
-                        used_hint = True
                         print(f"提示 {hint_idx}/{len(level.hints)}: {hint}", file=stdout)
                     else:
                         print("没有更多提示了——再想想，或者 solution 看标准解", file=stdout)
@@ -337,7 +335,7 @@ class Repl:
             except ProofDone as done:
                 print(done.text, file=stdout)
                 if level is not None and game is not None:
-                    stars = game.complete(steps, used_hint)
+                    stars = game.complete(steps, hint_idx)
                     print(self._c(f"过关！获得 {'★' * stars}{'☆' * (3 - stars)}", 'green'), file=stdout)
                     if level.solution:
                         print("标准解（你的路径可能不同，两种都正确）：", file=stdout)

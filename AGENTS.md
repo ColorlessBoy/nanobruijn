@@ -74,11 +74,11 @@ py_nanobruijn/
 
 - 6 个世界：And/Or/Not/Exists/Iff/Combo（各 5 关，见 `worlds/*.game`）；
   启动：`repl --game <世界>`，或 REPL 内 `#game <世界>` / `#worlds`（列出全部与完成度）
-- 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，用 hint 星级封顶 1★）/
+- 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，每条 hint 降一星）/
   `solution`（显示标准解并放弃本关回主 REPL，不记星）；`abort`/`#quit` 放弃关卡
   回主 REPL
-- 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数；2★ = 无 hint；
-  1★ = 其余；步数只计 STEP_TACTICS（intro/apply/exact/cases）；`ban:` 字段禁用的
+- 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数；2★ = 1 条 hint 或步数超限；
+  1★ = ≥2 条 hint；步数只计 STEP_TACTICS（intro/apply/exact/cases）；`ban:` 字段禁用的
   tactic 直接拒绝并提示换路
 - 存档：`py_nanobruijn/saves/<world_id>.json`（`{"stars": {...}}`，已 gitignore）；
   `GameSession.load_progress` 启动时读取；通关条件 = 每关至少 1★（`next_unfinished`）

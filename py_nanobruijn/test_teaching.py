@@ -1146,10 +1146,11 @@ class TestGameSession:
     def test_stars_1_to_3(self, tmp_path):
         from py_nanobruijn.teaching.game import GameSession
         s = GameSession(self._game(), saves_dir=str(tmp_path))
-        s.current_level_no = 1  # 重玩当前关（3 次完成同一关，星级 1→2→3）
-        assert s.complete(steps=10, used_hint=True) == 1   # 用过 hint
-        assert s.complete(steps=10, used_hint=False) == 2  # 没用 hint
-        assert s.complete(steps=1, used_hint=False) == 3   # 步数 <= 标准解
+        s.current_level_no = 1  # 重玩当前关（多次完成同一关，星级变化）
+        assert s.complete(steps=10, hints_used=2) == 1   # 2 条 hint → 1★
+        assert s.complete(steps=10, hints_used=1) == 2   # 1 条 hint → 2★
+        assert s.complete(steps=10, hints_used=0) == 2   # 无 hint 但步数超限 → 2★
+        assert s.complete(steps=1, hints_used=0) == 3    # 无 hint 且步数 <= 标准解 → 3★
         assert s.stars == {1: 3}
 
     def test_unlock_sequential(self):
@@ -1157,7 +1158,7 @@ class TestGameSession:
         s = GameSession(self._game(), saves_dir=None)
         assert s.unlocked(1)
         assert not s.unlocked(2)
-        s.complete(1, False)
+        s.complete(1, 0)
         assert s.unlocked(2)
         assert not s.unlocked(3)
         assert s.next_unfinished() == 2
@@ -1166,14 +1167,14 @@ class TestGameSession:
         from py_nanobruijn.teaching.game import GameSession
         s = GameSession(self._game(), saves_dir=None)
         for i in range(3):
-            s.complete(1, False)
+            s.complete(1, 0)
         assert s.next_unfinished() is None
 
     def test_progress_persists(self, tmp_path):
         from py_nanobruijn.teaching.game import GameSession
         s1 = GameSession(self._game(), saves_dir=str(tmp_path))
-        s1.complete(2, False)  # level 1, 2 星
-        s1.complete(1, True)   # level 2, 1 星
+        s1.complete(2, 0)  # level 1, 2 星
+        s1.complete(1, 2)   # level 2, 1 星
         s2 = GameSession(self._game(), saves_dir=str(tmp_path))
         s2.load_progress()
         assert s2.stars == {1: 2, 2: 1}

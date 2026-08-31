@@ -135,12 +135,13 @@ class GameSession:
                 return lv.number
         return None
 
-    def complete(self, steps: int, used_hint: bool) -> int:
+    def complete(self, steps: int, hints_used: int) -> int:
+        """通关结算星级：每条 hint 降一星（0 hint → 3★/2★、1 hint → 2★、≥2 → 1★）。"""
         lv = self.game.level(self.current_level_no or self.next_unfinished())
         stars = 1
-        if not used_hint:
+        if hints_used <= 1:
             stars = 2
-        if not used_hint and steps <= len(lv.solution):
+        if hints_used == 0 and steps <= len(lv.solution):
             stars = 3
         self.stars[lv.number] = stars
         self.save()
