@@ -920,21 +920,32 @@ class TestGameRepl:
         assert "未知世界" in out
 
     def test_enter_game_signal(self):
+        from py_nanobruijn.teaching.game import GameSession
+        from py_nanobruijn.teaching.repl import _GameSession
         r = self.make_repl()
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(_GameSession) as exc:
             r.process_line("#game And")
-        assert type(exc.value).__name__ == "_GameSession"
+        assert isinstance(exc.value.session, GameSession)
 
     def test_level_hint_and_solution_lines(self):
+        from py_nanobruijn.teaching.game import GameSession
         r = self.make_repl()
         r.pending_game = None
         with pytest.raises(Exception) as exc:
             r.process_line("#game And")
         session = exc.value.session
-        from py_nanobruijn.teaching.repl import _GameSession
-        assert isinstance(session, _GameSession)
-        level = session.session.game.level(1)
+        assert isinstance(session, GameSession)
+        level = session.game.level(1)
         assert level.hints[0] == "目标头部是 And —— 先 apply And.intro"
+
+    def test_run_game_quit_terminates(self):
+        import io
+        import re
+        r = Repl(make_bootstrap())
+        out = io.StringIO()
+        rc = r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
+        assert rc == 0
+        assert len(re.findall(r"^第 \d+ 关", out.getvalue(), re.MULTILINE)) == 1
 
     def test_ban_reported(self):
         from py_nanobruijn.teaching.game import Game, Level

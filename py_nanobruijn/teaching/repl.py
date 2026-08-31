@@ -175,9 +175,7 @@ class Repl:
         err = self.start_game(text)
         if err:
             return self._error(err)
-        # 双重 _GameSession 包装：外层是信号本身，内层携带 GameSession
-        # （run() 捕获后按 session.session.session 展开回 pending_game）
-        raise _GameSession(_GameSession(self.pending_game))
+        raise _GameSession(self.pending_game)
 
     def start_game(self, world_id: str) -> str | None:
         """加载世界并构造会话（失败返回错误文本）。"""
@@ -227,7 +225,7 @@ class Repl:
                 self._run_proof(session.state, stdin, stdout, session_path)
                 continue
             except _GameSession as session:
-                self.pending_game = session.session.session
+                self.pending_game = session.session
                 continue
             except EOFError:
                 return 0
