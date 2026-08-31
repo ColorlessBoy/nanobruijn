@@ -1,0 +1,88 @@
+world Combo
+title 综合世界：第一公里终点
+intro 前五个世界的技巧在这里汇合。每一关都是一道完整的谜题。提示会越来越稀疏——是时候自己铺路了。
+level 1
+name 分配律反向
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or (And a b) (And a c) -> And a (Or b c)
+hint: 前提是析取：cases 分两路（h1 : And a b / h2 : And a c）
+hint: 左路：apply And.intro 拆目标为 a 和 Or b c——前者 exact (@And.left a b h1)，后者 apply Or.inl 再 exact (@And.right a b h1)
+hint: 右路同理：h2 给出的是 c，所以 apply Or.inr 再 exact (@And.right a c h2)
+solution:
+intro a
+intro b
+intro c
+intro h
+cases h as h1 h2
+apply And.intro
+exact (@And.left a b h1)
+apply Or.inl
+exact (@And.right a b h1)
+apply And.intro
+exact (@And.left a c h2)
+apply Or.inr
+exact (@And.right a c h2)
+---
+level 2
+name De Morgan 全量版
+goal: forall (a : Prop), forall (b : Prop), Iff (Not (Or a b)) (And (Not a) (Not b))
+hint: Iff.intro 拆两方向
+hint: 方向一：intro h 后 apply And.intro，两个目标各用 h (Or.inl ...) / h (Or.inr ...)
+hint: 方向二：intro h 后 intro x，cases x 分两路，各用 And.left/And.right 投影
+solution:
+intro a
+intro b
+apply Iff.intro
+intro h
+apply And.intro
+intro ha
+exact h (Or.inl a b ha)
+intro hb
+exact h (Or.inr a b hb)
+intro h
+intro x
+cases x as x1 x2
+exact (@And.left (Not a) (Not b) h) x1
+exact (@And.right (Not a) (Not b) h) x2
+---
+level 3
+name 函数与合取
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), (Or a b -> c) -> And (a -> c) (b -> c)
+hint: 前提 (Or a b -> c) 先 intro h 引入，再 apply And.intro 拆两目标
+hint: 第一个 a -> c：intro ha 后 exact h (Or.inl a b ha)
+hint: 第二个 b -> c：intro hb 后 exact h (Or.inr a b hb)
+solution:
+intro a
+intro b
+intro c
+intro h
+apply And.intro
+intro ha
+exact h (Or.inl a b ha)
+intro hb
+exact h (Or.inr a b hb)
+---
+level 4
+name 合取的构造与应用
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), And (a -> b) (a -> c) -> a -> And b c
+hint: intro h1 h2 h3 —— 前提 h1 : And (a -> b) (a -> c)，h3 : a
+hint: apply And.intro 后两个目标：And.left h1 h3 与 And.right h1 h3
+solution:
+intro a
+intro b
+intro c
+intro h1
+intro h3
+apply And.intro
+exact (@And.left (a -> b) (a -> c) h1) h3
+exact (@And.right (a -> b) (a -> c) h1) h3
+---
+level 5
+name 排中律的直觉主义版
+goal: forall (a : Prop), Not (Not (Or a (Not a)))
+hint: 经典排中律 a ∨ ¬a 直觉主义证不出来——但双重否定可以
+hint: intro h 后目标 False。h 需要 Or a (Not a) 的证明：Or.inr 构造右路，其参数是 Not a
+hint: Not a 就是 a -> False：用 Function.comp 把 h 和 Or.inl 组合（见 not_not_em）
+solution:
+intro a
+intro h
+exact h (Or.inr a (Not a) (@Function.comp.{0, 0, 0} a (Or a (Not a)) False h (@Or.inl a (Not a))))

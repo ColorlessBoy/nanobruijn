@@ -1,0 +1,62 @@
+world Not
+title 否定世界：把不可能写出来
+intro 否定 ¬a 不是魔法，它就是 a → False：一个把 a 的证明变成荒谬的函数。这一关的世界里，你会学会用这个定义思考。
+level 1
+name 否定的定义
+goal: forall (a : Prop), (a -> False) -> Not a
+hint: 目标 Not a 展开就是 a -> False：intro 即可
+hint: 把前提 h 的证明 exact 上去
+solution:
+intro a
+intro h
+intro ha
+exact h ha
+---
+level 2
+name 双重否定引入
+goal: forall (a : Prop), a -> Not (Not a)
+hint: 目标 Not (Not a) 展开是 (Not a) -> False：intro h
+hint: 现在目标是 False，而 h : Not a 即 a -> False —— h ha 就是 False
+solution:
+intro a
+intro ha
+intro h
+exact h ha
+---
+level 3
+name 三重否定弱化
+goal: forall (a : Prop), Not (Not (Not a)) -> Not a
+hint: 目标 Not a：intro hna（展开后 binder 是 a : Prop，所以 hna : a），目标 False
+hint: 前提 h : Not (Not (Not a)) 需要 Not (Not a) 的证明 —— 由 a 的双重否定引入可得
+hint: 构造 fun (hnn : Not a) => hnn hna：hnn hna : False ✓（hnn : a -> False）
+solution:
+intro a
+intro h
+intro hna
+exact h (fun (hnn : Not a) => hnn hna)
+---
+level 4
+name 逆否：mt 的手写
+goal: forall (a : Prop), forall (b : Prop), (a -> b) -> Not b -> Not a
+hint: 目标 Not a：intro hna，目标 False
+hint: 前提有 hab : a -> b 与 hnb : Not b —— hnb (hab hna) 就是 False
+solution:
+intro a
+intro b
+intro hab
+intro hnb
+intro hna
+exact hnb (hab hna)
+---
+level 5
+name 析取的否定：拆开它
+goal: forall (a : Prop), forall (b : Prop), Not (Or a b) -> Not a
+ban: cases
+hint: 目标 Not a：intro hna，目标 False
+hint: 前提 h : Not (Or a b) —— 构造 Or a b 的证明（Or.inl hna）交给 h 即可
+solution:
+intro a
+intro b
+intro h
+intro hna
+exact h (Or.inl a b hna)

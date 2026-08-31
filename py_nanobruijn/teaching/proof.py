@@ -409,46 +409,49 @@ class ProofState:
         h_idx = self._ctx_index(hole, h_name)
         h_ref = self.ctx.mk_var(h_idx)  # h 的变量引用（ctx 内）
         c_goal = hole.goal
+        # 分支洞内所有「来自 h 的类型」的表达式都要提升 1 + h_idx 层：
+        # args 位于 h 的类型深度（d - h_idx - 1），而 rec/分支 binder 位于当前
+        # 深度 d —— 只有 h 是最内层 binder（h_idx = 0）时硬编码的 1/2 才正确。
 
         if kind == 'And':
             a, b = args[0], args[1]
             n1 = (names[0] if names else "ha")
             n2 = (names[1] if names else "hb")
-            motive = self._motive(h_ty, c_goal)
+            motive = self._motive(h_ty, c_goal, h_idx)
             new_id = self._new_hole(
-                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, a.shift_up(1)),
-                                  (n2, BinderStyle.DEFAULT, b.shift_up(2))],
+                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, a.shift_up(1 + h_idx)),
+                                  (n2, BinderStyle.DEFAULT, b.shift_up(2 + h_idx))],
                 c_goal.shift_up(2), after=hole.id)
-            case_node = IntroNode(n1, BinderStyle.DEFAULT, a.shift_up(1),
+            case_node = IntroNode(n1, BinderStyle.DEFAULT, a.shift_up(1 + h_idx),
                                    IntroNode(n2, BinderStyle.DEFAULT,
-                                             b.shift_up(2), HoleNode(new_id)))
+                                             b.shift_up(2 + h_idx), HoleNode(new_id)))
             rec = self._rec_app(self.core.name_to_ptr("And.rec"), (0,),
-                                [a.shift_up(1), b.shift_up(1), motive, h_ref,
-                                 case_node])
+                                [a.shift_up(1 + h_idx), b.shift_up(1 + h_idx),
+                                 motive, h_ref, case_node])
             self.subholes[hole.id] = self._replace_hole(
                 self.subholes[hole.id], hole.id, rec)
         elif kind == 'Or':
             a, b = args[0], args[1]
             n1 = (names[0] if names else "h1")
             n2 = (names[1] if names else "h2")
-            motive = self._motive(h_ty, c_goal)
+            motive = self._motive(h_ty, c_goal, h_idx)
             left_id = self._new_hole(
-                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, a.shift_up(1))],
+                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, a.shift_up(1 + h_idx))],
                 c_goal.shift_up(1), after=hole.id)
             right_id = self._new_hole(
-                list(hole.ctx) + [(n2, BinderStyle.DEFAULT, b.shift_up(1))],
+                list(hole.ctx) + [(n2, BinderStyle.DEFAULT, b.shift_up(1 + h_idx))],
                 c_goal.shift_up(1), after=left_id)
             rec = self._rec_app(self.core.name_to_ptr("Or.rec"), (0,),
-                                [a.shift_up(1), b.shift_up(1), motive,
-                                 IntroNode(n1, BinderStyle.DEFAULT, a.shift_up(1),
-                                           HoleNode(left_id)),
-                                 IntroNode(n2, BinderStyle.DEFAULT, b.shift_up(1),
-                                           HoleNode(right_id)),
+                                [a.shift_up(1 + h_idx), b.shift_up(1 + h_idx), motive,
+                                 IntroNode(n1, BinderStyle.DEFAULT,
+                                           a.shift_up(1 + h_idx), HoleNode(left_id)),
+                                 IntroNode(n2, BinderStyle.DEFAULT,
+                                           b.shift_up(1 + h_idx), HoleNode(right_id)),
                                  h_ref])
             self.subholes[hole.id] = self._replace_hole(
                 self.subholes[hole.id], hole.id, rec)
         elif kind == 'False':
-            motive = self._motive(h_ty, c_goal)
+            motive = self._motive(h_ty, c_goal, h_idx)
             rec = self._rec_app(self.core.name_to_ptr("False.rec"), (0,),
                                 [motive, h_ref])
             self.subholes[hole.id] = self._replace_hole(
@@ -458,20 +461,21 @@ class ProofState:
             n1 = (names[0] if names else "x")
             n2 = (names[1] if names else "hx")
             u = self.ctx.dag.uparams[hv.const_levels]
-            motive = self._motive(h_ty, c_goal)
+            motive = self._motive(h_ty, c_goal, h_idx)
             new_id = self._new_hole(
-                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, alpha.shift_up(1)),
+                list(hole.ctx) + [(n1, BinderStyle.DEFAULT, alpha.shift_up(1 + h_idx)),
                                   (n2, BinderStyle.DEFAULT,
-                                   self.ctx.mk_app(p.shift_up(2), self.ctx.mk_var(0)))],
+                                   self.ctx.mk_app(p.shift_up(2 + h_idx),
+                                                   self.ctx.mk_var(0)))],
                 c_goal.shift_up(2), after=hole.id)
-            case_node = IntroNode(n1, BinderStyle.DEFAULT, alpha.shift_up(1),
+            case_node = IntroNode(n1, BinderStyle.DEFAULT, alpha.shift_up(1 + h_idx),
                                    IntroNode(n2, BinderStyle.DEFAULT,
-                                             self.ctx.mk_app(p.shift_up(2),
+                                             self.ctx.mk_app(p.shift_up(2 + h_idx),
                                                              self.ctx.mk_var(0)),
                                              HoleNode(new_id)))
             rec = self._rec_app(self.core.name_to_ptr("Exists.rec"), tuple(u),
-                                [alpha.shift_up(1), p.shift_up(1), motive,
-                                 case_node, h_ref])
+                                [alpha.shift_up(1 + h_idx), p.shift_up(1 + h_idx),
+                                 motive, case_node, h_ref])
             self.subholes[hole.id] = self._replace_hole(
                 self.subholes[hole.id], hole.id, rec)
         return self.context()
@@ -489,10 +493,14 @@ class ProofState:
                 return i
         raise AssertionError(f"cases {name}: 变量不在上下文（内部错误）")
 
-    def _motive(self, h_ty: ExprPtr, c_goal: ExprPtr) -> ExprPtr:
-        """rec 的 motive：fun (anon : h 的类型) => 当前目标（提升 1 层）。"""
+    def _motive(self, h_ty: ExprPtr, c_goal: ExprPtr, h_idx: int) -> ExprPtr:
+        """rec 的 motive：fun (anon : h 的类型) => 当前目标（提升 1 层）。
+
+        h 的类型位于深度 d - h_idx - 1（提升 1 + h_idx 到当前深度 d），
+        而目标就在深度 d（提升 1 到 motive 的 body 深度 d+1）。
+        """
         anon = self.ctx.dag.insert_name(Name.anon())
-        return self.ctx.mk_lambda(anon, BinderStyle.DEFAULT, h_ty.shift_up(1),
+        return self.ctx.mk_lambda(anon, BinderStyle.DEFAULT, h_ty.shift_up(1 + h_idx),
                                   c_goal.shift_up(1))
 
     def _rec_app(self, rec_name, levels: tuple, args: list) -> _Node:

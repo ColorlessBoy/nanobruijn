@@ -1050,3 +1050,45 @@ class TestGameSession:
         s2.load_progress()
         assert s2.stars == {1: 2, 2: 1}
         assert s2.next_unfinished() == 3
+
+
+class TestWorldContent:
+    """加载全部 6 个世界，结构合法。"""
+
+    def test_load_all_worlds(self):
+        import glob
+        import os
+
+        from py_nanobruijn.teaching.game import GameLoader
+        paths = sorted(glob.glob(os.path.join(
+            os.path.dirname(__file__), "worlds", "*.game")))
+        assert len(paths) == 6
+        ids = []
+        for p in paths:
+            g = GameLoader().load(p)
+            ids.append(g.world_id)
+            assert len(g.levels) == 5
+            assert all(lv.goal and lv.solution for lv in g.levels)
+        assert sorted(ids) == ["And", "Combo", "Exists", "Iff", "Not", "Or"]
+
+
+class TestWorldSolutions:
+    """每关标准解必须真实可证（ProofState + run_tactic 逐行跑）。"""
+
+    @pytest.mark.parametrize("world", ["And", "Or", "Not", "Exists", "Iff", "Combo"])
+    def test_every_level_solution(self, world):
+        import os
+
+        from py_nanobruijn.teaching.game import GameLoader
+        from py_nanobruijn.teaching.parser import parse_expr
+        from py_nanobruijn.teaching.proof import ProofState
+        from py_nanobruijn.teaching.tactics import ProofDone, run_tactic
+        path = os.path.join(os.path.dirname(__file__), "worlds", f"{world.lower()}.game")
+        g = GameLoader().load(path)
+        core = make_bootstrap()
+        for lv in g.levels:
+            state = ProofState(core, parse_expr(core, lv.goal))
+            for line in lv.solution:
+                run_tactic(state, line)
+            with pytest.raises(ProofDone):
+                run_tactic(state, "done")

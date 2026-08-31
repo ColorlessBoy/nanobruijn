@@ -1,0 +1,69 @@
+world Or
+title 析取世界：选择的两条路
+intro 析取 a ∨ b 的证明是「要么左边要么右边」：Or.inl 走左路，Or.inr 走右路。从前提里用 a ∨ b 时，必须两条路都铺好（Or.rec 的本质）。
+level 1
+name 左路
+goal: forall (a : Prop), forall (b : Prop), a -> Or a b
+hint: 目标头部是 Or —— apply Or.inl 选择左路
+hint: 剩下目标 a，intro 后 exact
+solution:
+intro a
+intro b
+intro ha
+apply Or.inl
+exact ha
+---
+level 2
+name 右路
+goal: forall (a : Prop), forall (b : Prop), b -> Or a b
+hint: 目标头部是 Or —— apply Or.inr 选择右路
+hint: 剩下目标 b，intro 后 exact
+solution:
+intro a
+intro b
+intro hb
+apply Or.inr
+exact hb
+---
+level 3
+name 消去律：两条路都要走
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or a b -> (a -> c) -> (b -> c) -> c
+hint: 前提 Or a b 必须两条路都走：cases h 分两路
+hint: 左路 ha : a 用 h1，右路 hb : b 用 h2 —— 这就是 Or.rec 的本质，cases 替你写好了
+solution:
+intro a
+intro b
+intro c
+intro h
+intro h1
+intro h2
+cases h as ha hb
+exact h1 ha
+exact h2 hb
+---
+level 4
+name 交换律
+goal: forall (a : Prop), forall (b : Prop), Or a b -> Or b a
+hint: 前提 Or a b 用 cases 分两条路；每条路都用 apply 指向对应方向
+solution:
+intro a
+intro b
+intro h
+cases h as ha hb
+apply Or.inr
+exact ha
+apply Or.inl
+exact hb
+---
+level 5
+name 析取消去与矛盾
+goal: forall (a : Prop), forall (b : Prop), Or a b -> Not a -> b
+hint: cases h 分两路：左路 ha : a 与 hna 矛盾——@False.rec 消去（motive := fun _ => b）；右路 hb : b 直接 exact
+solution:
+intro a
+intro b
+intro h
+intro hna
+cases h as ha hb
+exact @False.rec.{0} (fun (anon : False) => b) (hna ha)
+exact hb

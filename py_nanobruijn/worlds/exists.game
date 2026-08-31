@@ -1,0 +1,59 @@
+world Exists
+title 存在世界：给出证据
+intro 存在命题 ∃x, p x 的证明是一个「证人」：x 以及 p x 的证明。反向使用（从 ∃x, p x 里取证人）则是 cases 的领地。
+level 1
+name 平凡的存在
+goal: @Exists.{1} Prop (fun (x : Prop) => x) -> True
+hint: 结论是 True —— 直接 exact True.intro，前提甚至可以不用
+hint: 如果想练习分解：cases h 得到 x : Prop 与 hx : x，然后 exact True.intro
+solution:
+intro h
+exact True.intro
+---
+level 2
+name 证人传递（Exists.imp 方向一）
+goal: forall (p : Prop -> Prop), forall (q : Prop -> Prop), forall (h : forall (x : Prop), p x -> q x), @Exists.{1} Prop p -> @Exists.{1} Prop q
+hint: 前提 e : Exists p —— cases e 取出证人 x 与 hx : p x
+hint: 目标 Exists q：exact @Exists.intro.{1} Prop q x (h x hx) 一步给出证人（apply 只支持常量，recursor/构造子带参用 exact）
+solution:
+intro p
+intro q
+intro h
+intro e
+cases e as x hx
+exact @Exists.intro.{1} Prop q x (h x hx)
+---
+level 3
+name 矛盾的否定（not_exists 方向）
+goal: forall (p : Prop -> Prop), (forall (x : Prop), p x -> False) -> @Exists.{1} Prop p -> False
+hint: cases e 取证人 x 与 hx : p x
+hint: h x hx : False —— 直接 exact
+solution:
+intro p
+intro h
+intro e
+cases e as x hx
+exact h x hx
+---
+level 4
+name 冗余的包装
+goal: forall (p : Prop -> Prop), @Exists.{1} Prop (fun (x : Prop) => p x) -> @Exists.{1} Prop p
+hint: 左边 Exists (fun x => p x) 分解出 x 与 (fun x => p x) x —— 后者就是 p x
+hint: exact @Exists.intro.{1} Prop p x hx 一步给出证人
+solution:
+intro p
+intro e
+cases e as x hx
+exact @Exists.intro.{1} Prop p x hx
+---
+level 5
+name 取出与给出
+goal: forall (p : Prop -> Prop), forall (a : Prop), @Exists.{1} Prop p -> p a -> True
+hint: 结论 True：直接 exact True.intro
+hint: 想练习分解就 cases e 看看证人在哪
+solution:
+intro p
+intro a
+intro e
+intro hpa
+exact True.intro

@@ -1,0 +1,74 @@
+world And
+title 合取世界：从构造到分解
+intro 你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
+level 1
+name 初见合取
+goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b
+hint: 目标头部是 And —— 先 apply And.intro
+hint: 剩下两个子目标 a 和 b：第一个 intro 引入后 exact，第二个同理
+solution:
+intro a
+intro b
+intro ha
+intro hb
+apply And.intro
+exact ha
+exact hb
+---
+level 2
+name 只取右半
+goal: forall (a : Prop), forall (b : Prop), And a b -> b
+ban: cases
+hint: 结论是 b，但前提是 And a b。本关禁用 cases —— 用投影 And.right
+hint: intro 引入 h : And a b 后 exact And.right a b h 一步收工（投影的结果是裸变量 b，apply 只匹配常量头部）
+solution:
+intro a
+intro b
+intro h
+exact And.right a b h
+---
+level 3
+name 结合律
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), And (And a b) c -> And a (And b c)
+hint: 前提 And (And a b) c 先 intro h 引入，再 cases h 得到 hab : And a b 与 hc : c——目标保持 And a (And b c)
+hint: 目标 And a (And b c) 里的嵌套前提也需要拆：cases hab 得到 ha : a 与 hb : b（hc 仍在作用域内）
+hint: 现在 apply And.intro 拆目标为 a 和 And b c：前者 exact ha，后者再 apply And.intro 用 hb / hc
+solution:
+intro a
+intro b
+intro c
+intro h
+cases h as hab hc
+cases hab as ha hb
+apply And.intro
+exact ha
+apply And.intro
+exact hb
+exact hc
+---
+level 4
+name 交换律
+goal: forall (a : Prop), forall (b : Prop), And a b -> And b a
+hint: 和上一关同样的模式：apply And.intro 拆目标，cases 拆前提
+solution:
+intro a
+intro b
+intro h
+cases h as ha hb
+apply And.intro
+exact hb
+exact ha
+---
+level 5
+name 矛盾：不可兼得
+goal: forall (a : Prop), forall (b : Prop), Not a -> Not (And a b)
+hint: Not a 就是 a -> False。目标 Not (And a b) 也是函数类型：intro
+hint: 引入 h : And a b 后目标是 False —— cases h 分解出 ha : a，矛盾出现
+hint: 用 hna ha 得到 False，exact 收工
+solution:
+intro a
+intro b
+intro hna
+intro h
+cases h as ha hb
+exact hna ha

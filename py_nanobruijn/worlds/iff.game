@@ -1,0 +1,78 @@
+world Iff
+title 等价世界：两个方向的约定
+intro 等价 a ↔ b 是两座桥：Iff.mp 从 a 到 b，Iff.mpr 从 b 到 a。Iff.intro 则同时铺两条路。
+level 1
+name 自反
+goal: forall (a : Prop), Iff a a
+hint: apply Iff.intro 后两个目标都是 a -> a
+solution:
+intro a
+apply Iff.intro
+intro ha
+exact ha
+intro ha
+exact ha
+---
+level 2
+name 对称
+goal: forall (a : Prop), forall (b : Prop), Iff a b -> Iff b a
+hint: 前提 Iff a b 先 intro h 引入，再 apply Iff.intro 拆两个方向
+hint: 第一个方向 b -> a：intro hb 后 exact Iff.mpr a b h hb
+hint: 第二个方向 a -> b：intro ha 后 exact Iff.mp a b h ha
+solution:
+intro a
+intro b
+intro h
+apply Iff.intro
+intro hb
+exact Iff.mpr a b h hb
+intro ha
+exact Iff.mp a b h ha
+---
+level 3
+name 传递
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Iff a b -> Iff b c -> Iff a c
+hint: 两个前提先 intro hab hbc 引入，再 apply Iff.intro 拆两方向，各用 mp/mpr 组合
+hint: a -> c：Iff.mp b c hbc (Iff.mp a b hab ha)
+hint: c -> a：Iff.mpr a b hab (Iff.mpr b c hbc hc)
+solution:
+intro a
+intro b
+intro c
+intro hab
+intro hbc
+apply Iff.intro
+intro ha
+exact Iff.mp b c hbc (Iff.mp a b hab ha)
+intro hc
+exact Iff.mpr a b hab (Iff.mpr b c hbc hc)
+---
+level 4
+name 逆方向构造
+goal: forall (a : Prop), forall (b : Prop), (a -> b) -> (b -> a) -> Iff a b
+hint: apply Iff.intro 后第一个方向直接 exact h1，第二个 exact h2
+solution:
+intro a
+intro b
+intro h1
+intro h2
+apply Iff.intro
+exact h1
+exact h2
+---
+level 5
+name 等价保持否定
+goal: forall (a : Prop), forall (b : Prop), Iff a b -> Iff (Not a) (Not b)
+hint: 前提 Iff a b 先 intro h 引入，再 apply Iff.intro 拆两方向，每个方向都是逆否（mt 的模式）
+hint: Not a -> Not b：intro hna，再 intro hb，矛盾 hna (Iff.mpr a b h hb)
+solution:
+intro a
+intro b
+intro h
+apply Iff.intro
+intro hna
+intro hb
+exact hna (Iff.mpr a b h hb)
+intro hnb
+intro ha
+exact hnb (Iff.mp a b h ha)
