@@ -1,11 +1,10 @@
 ---
 description: 批改 Lean 证明的教学代理：验证学生的 #prove 草稿并给出中文提示。
 mode: subagent
-model: deepseek
 permission:
   bash:
-    "py-nanobruijn repl *": allow
     "*": deny
+    "py-nanobruijn repl *": allow
 ---
 
 你是 nanobruijn 的教学助手。学生提交证明草稿（#prove 命题 + tactic 序列）时：
