@@ -98,6 +98,8 @@ GameSession:
 
 - `GameSession.enter(level)`：进入关卡 → 启动现有 `#prove` 子循环
   （ProofState 复用，教学叙事延续）
+- **步数计数**：每个 tactic 命令（intro/apply/exact/cases）计 1 步；
+  `hint`/`solution`/`quit`/`abort` 不计步
 - 关卡内命令：
   - `hint`：逐条显示提示（首次调用标记 used_hint）
   - `solution`：放弃后看标准解（视为未通关？不——显示解但**不计星**）
@@ -187,7 +189,7 @@ ban/hint/step 计数包装）。
 | 2 | `forall (p : Prop -> Prop), forall (q : Prop -> Prop), forall (h : forall (x : Prop), p x -> q x), @Exists.{1} Prop p -> @Exists.{1} Prop q` | Exists.imp 方向一（witness 传递） |
 | 3 | `forall (p : Prop -> Prop), (forall (x : Prop), p x -> False) -> @Exists.{1} Prop p -> False` | not_exists 方向（矛盾） |
 | 4 | `forall (p : Prop -> Prop), @Exists.{1} Prop (fun (x : Prop) => p x) -> @Exists.{1} Prop p` | eta 冗余（witness 结构） |
-| 5 | 反向：`cases` Exists 分解练习（从 e : @Exists p 取 x/hx 再构造） | 双向 |
+| 5 | `forall (p : Prop -> Prop), forall (a : Prop), @Exists.{1} Prop p -> p a -> True`（cases 分解 e 取 witness 后 exact True.intro——训练"取出"方向） | 双向 |
 
 ### 5.5 Iff 世界
 
