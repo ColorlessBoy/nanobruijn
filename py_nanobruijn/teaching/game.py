@@ -129,7 +129,15 @@ class GameSession:
     def unlocked(self, number: int) -> bool:
         return number == 1 or (number - 1) in self.stars
 
+    def force_level(self, number: int) -> None:
+        """#game <世界> <关卡号>：重玩指定关卡（覆盖星级）。"""
+        self._forced_level = number
+
     def next_unfinished(self) -> int | None:
+        forced = getattr(self, '_forced_level', None)
+        if forced is not None:
+            self._forced_level = None
+            return forced
         for lv in self.game.levels:
             if lv.number not in self.stars:
                 return lv.number

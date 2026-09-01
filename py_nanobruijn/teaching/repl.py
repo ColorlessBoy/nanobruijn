@@ -46,6 +46,7 @@ class Repl:
         self.timeout_secs = float(timeout_secs)
         self.color = color_enabled(color)
         self.pending_game = None
+        self._intro_shown: set[str] = set()
 
     def _c(self, text: str, color: str) -> str:
         if not self.color:
@@ -61,6 +62,10 @@ class Repl:
         text = line.strip()
         if not text:
             return ""
+        if text == "hint":
+            return ("提示只在关卡内可用（#game <世界> 进入后，proof> 提示符下输入 hint）")
+        if text == "solution":
+            return ("标准解只在关卡内可用（#game <世界> 进入后，proof> 提示符下输入 solution）")
         if text.startswith("#"):
             return self._command(text)
         return self._check(text)
@@ -171,14 +176,21 @@ class Repl:
     def _game(self, text: str) -> str:
         text = text.strip()
         if not text:
-            return "usage: #game <世界>（如 #game And；#worlds 查看全部）"
-        err = self.start_game(text)
+            return "usage: #game <世界>（如 #game And；#worlds 查看全部）\n       #game <世界> <关卡号>（重玩指定关）"
+        parts = text.split()
+        level_no = None
+        if len(parts) > 1:
+            try:
+                level_no = int(parts[1])
+            except ValueError:
+                return self._error(f"关卡号必须是数字：{parts[1]!r}")
+        err = self.start_game(parts[0], level_no)
         if err:
             return self._error(err)
         raise _GameSession(self.pending_game)
 
-    def start_game(self, world_id: str) -> str | None:
-        """加载世界并构造会话（失败返回错误文本）。"""
+    def start_game(self, world_id: str, level_no: int | None = None) -> str | None:
+        """加载世界并构造会话（失败返回错误文本；level_no 指定进入关卡）。"""
         import glob
         path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                             "worlds", world_id.lower() + ".game")
@@ -190,6 +202,10 @@ class Repl:
         game = GameLoader().load(path)
         session = GameSession(game)
         session.load_progress()
+        if level_no is not None:
+            if not 1 <= level_no <= len(game.levels):
+                return f"关卡号 {level_no} 超出范围（1-{len(game.levels)}）"
+            session.force_level(level_no)
         self.pending_game = session
         return None
 
@@ -252,8 +268,10 @@ class Repl:
                 f.write(line.rstrip("\n") + "\n")
 
     def _run_game(self, game, stdin, stdout, session_path) -> None:
-        print(f"{game.game.title}", file=stdout)
-        print(f"{game.game.intro}", file=stdout)
+        if game.game.world_id not in self._intro_shown:
+            print(f"{game.game.title}", file=stdout)
+            print(f"{game.game.intro}", file=stdout)
+            self._intro_shown.add(game.game.world_id)
         while True:
             no = game.next_unfinished()
             if no is None:
@@ -328,11 +346,14 @@ class Repl:
                 if blocked:
                     print(self._error(blocked), file=stdout)
                     continue
-                if line.strip().split(maxsplit=1)[0] in self.STEP_TACTICS:
-                    steps += 1
+                is_step = line.strip().split(maxsplit=1)[0] in self.STEP_TACTICS
+            else:
+                is_step = False
             try:
                 out = run_tactic(state, line)
             except ProofDone as done:
+                if level is not None and is_step:
+                    steps += 1
                 print(done.text, file=stdout)
                 if level is not None and game is not None:
                     stars = game.complete(steps, hint_idx)
@@ -349,5 +370,7 @@ class Repl:
             except Exception as err:  # noqa: BLE001 - REPL 顶层兜底
                 print(self._error(f"{type(err).__name__}: {err}"), file=stdout)
                 continue
+            if is_step:
+                steps += 1
             if out:
                 print(out, file=stdout)

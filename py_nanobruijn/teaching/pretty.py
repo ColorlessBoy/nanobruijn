@@ -42,7 +42,7 @@ class _Pretty:
                 fun_str = f"({fun_str})"
             arg_str = self._pp(v.arg, names)
             arg_v = self.ctx.view_expr(v.arg)
-            if arg_v.tag in ('Pi', 'Lambda'):
+            if arg_v.tag in ('Pi', 'Lambda', 'App'):
                 arg_str = f"({arg_str})"
             return f"{fun_str} {arg_str}"
         if tag == 'Pi':

@@ -890,7 +890,7 @@ class TestRepl:
         assert code == 0
         out = buf.getvalue()
         assert "内核检查: 通过" in out
-        assert "fun (a : Prop) => fun (b : Prop) => fun (f : a -> b) => fun (hb : Not b) => fun (ha : a) => hb f ha" in out
+        assert "fun (a : Prop) => fun (b : Prop) => fun (f : a -> b) => fun (hb : Not b) => fun (ha : a) => hb (f ha)" in out
 
     def test_prove_abort_returns_to_main_loop(self):
         import io
@@ -987,6 +987,29 @@ class TestGameRepl:
         rc = r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
         assert rc == 0
         assert len(re.findall(r"^第 \d+ 关", out.getvalue(), re.MULTILINE)) == 1
+
+    def test_game_reenter_no_intro_repeat(self):
+        import io
+        r = Repl(make_bootstrap())
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("#game And\n#quit\n#game And\n#quit\n"), stdout=out)
+        # 世界 intro 只显示一次（重进不重复）
+        assert out.getvalue().count("你面前是合取的世界") == 1
+
+    def test_game_replay_level(self):
+        import io
+        r = Repl(make_bootstrap())
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("#game And 3\n#quit\n"), stdout=out)
+        assert "第 3 关" in out.getvalue()
+
+    def test_game_hint_outside_level(self):
+        from py_nanobruijn.teaching.repl import Repl
+        r = Repl(make_bootstrap())
+        out = r.process_line("hint")
+        assert "只在关卡内可用" in out
+        out2 = r.process_line("solution")
+        assert "只在关卡内可用" in out2
 
     def test_ban_reported(self):
         from py_nanobruijn.teaching.game import Game, Level

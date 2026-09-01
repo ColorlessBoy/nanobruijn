@@ -385,7 +385,8 @@ class ProofState:
             if msg.startswith('assert_def_eq failed:'):
                 raise ValueError(
                     f"exact: {expr_text} 的类型检查失败"
-                    f"（参数数量或顺序不对？应用不匹配）") from None
+                    f"（参数数量或顺序不对？如果涉及隐式参数，试试显式传参"
+                    f"，如 Or.inl a b hna）") from None
             raise ValueError(f"exact: {err}") from None
         if not tc.is_def_eq(inferred, hole.goal):
             raise ValueError(
