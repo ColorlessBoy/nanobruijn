@@ -4,7 +4,7 @@ intro 前两个公里的终点，是等式的起点。p = q 不是魔法，它�
 level 1
 name 自反
 goal: forall (p : Prop), @Eq.{1} Prop p p
-hint: 任何东西都等于自己：exact @Eq.refl.{1} Prop p
+hint: 任何东西都等于自己：exact @Eq.refl.{1} Prop p（.{1} 是宇宙参数，照抄即可）
 variant: 试试 Eq.refl 不需要前提——等式的最基本事实
 solution:
 intro p

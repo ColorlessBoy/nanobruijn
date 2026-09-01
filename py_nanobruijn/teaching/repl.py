@@ -212,7 +212,7 @@ class Repl:
         self.pending_game = session
         return None
 
-    STEP_TACTICS = ('intro', 'apply', 'exact', 'cases')
+    STEP_TACTICS = ('intro', 'apply', 'exact', 'cases', 'rewrite')
 
     # ---------- 主循环 ----------
 

@@ -80,6 +80,7 @@ class ProofState:
         self.holes: list[Hole] = [Hole(0, [], goal_ty)]
         self.subholes: dict[int, _Node] = {0: HoleNode(0)}
         self._next_hole_id = 1
+        self._orig_goal_ty = goal_ty
 
     # ---------- 展示 ----------
 
@@ -175,14 +176,16 @@ class ProofState:
         # 洞上下文入栈，使 whnf 的深度与目标的变量引用一致
         for (_, _, bt) in hole.ctx:
             tc.push_local(bt)
-        for given in wanted or [None]:
+        for idx, given in enumerate(wanted or [None]):
             # 先 whnf 目标（如 Not a 定义展开为 a -> False），对齐真实 Lean intro 行为
             goal_whnf = tc.whnf(hole.goal)
             u = self.ctx.unfold_pi(goal_whnf)
             if u is None:
                 goal_str = self._pp(hole.goal, [n for (n, _, _) in hole.ctx])
+                prefix = f"前 {idx} 个已成功——" if idx else ""
                 raise ValueError(
-                    f"intro: 目标不是函数类型，无法 intro（当前目标: {goal_str}）")
+                    f"intro: {prefix}目标不是函数类型，无法 intro"
+                    f"（当前目标: {goal_str}）")
             name_ptr, style, bt, body = u
             if given is None:
                 if self.ctx.dag.get_name(name_ptr).is_anon():
@@ -563,15 +566,19 @@ class ProofState:
         a_d = a.shift_up(1 + h_idx)   # 等号左端在洞深度的实例
         b_d = b.shift_up(1 + h_idx)   # 等号右端
         old_goal = hole.goal
-        new_goal = self._replace_subexpr(old_goal, a_d, b_d)
-        if new_goal == old_goal:
+        new_goal, count = self._replace_subexpr_count(old_goal, a_d, b_d)
+        if count == 0:
             raise ValueError(
                 f"rewrite {h_name}: 目标中没有 {self._pp(a_d, [n for (n, _, _) in hole.ctx])} 的出现"
                 f"（等式左端没在目标里出现，无需替换）")
         hole.goal = new_goal
         self.goal_ty = self._replace_subexpr(self.goal_ty, old_goal, new_goal,
                                              0, False, len(hole.ctx))
-        return self.context()
+        names = [n for (n, _, _) in hole.ctx]
+        out = self.context()
+        out += (f"\n（rewrite 已替换 {count} 处："
+                f"{self._pp(a_d, names)} → {self._pp(b_d, names)}）")
+        return out
 
     def _replace_subexpr(self, e: ExprPtr, pat: ExprPtr, tgt: ExprPtr,
                          depth: int = 0, tgt_abs: bool = False,
@@ -604,6 +611,33 @@ class ProofState:
                                    self._replace_subexpr(v.val, pat, tgt, depth, tgt_abs, pat_base),
                                    self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
         return e
+
+    def _replace_subexpr_count(self, e: ExprPtr, pat: ExprPtr, tgt: ExprPtr,
+                               depth: int = 0, tgt_abs: bool = False,
+                               pat_base: int = 0) -> tuple[ExprPtr, int]:
+        """同 _replace_subexpr，额外返回替换次数（供 rewrite 反馈）。"""
+        if depth >= pat_base and self._struct_eq(e, pat.shift_up(depth - pat_base)):
+            return (tgt if tgt_abs else tgt.shift_up(depth - pat_base)), 1
+        v = self.ctx.view_expr(e)
+        tag = v.tag
+        if tag == 'App':
+            f, n1 = self._replace_subexpr_count(v.fun, pat, tgt, depth, tgt_abs, pat_base)
+            a, n2 = self._replace_subexpr_count(v.arg, pat, tgt, depth, tgt_abs, pat_base)
+            return self.ctx.mk_app(f, a), n1 + n2
+        if tag == 'Pi':
+            bt, n1 = self._replace_subexpr_count(v.binder_type, pat, tgt, depth, tgt_abs, pat_base)
+            bd, n2 = self._replace_subexpr_count(v.body, pat, tgt, depth + 1, tgt_abs, pat_base)
+            return self.ctx.mk_pi(v.binder_name, v.binder_style, bt, bd), n1 + n2
+        if tag == 'Lambda':
+            bt, n1 = self._replace_subexpr_count(v.binder_type, pat, tgt, depth, tgt_abs, pat_base)
+            bd, n2 = self._replace_subexpr_count(v.body, pat, tgt, depth + 1, tgt_abs, pat_base)
+            return self.ctx.mk_lambda(v.binder_name, v.binder_style, bt, bd), n1 + n2
+        if tag == 'Let':
+            bt, n1 = self._replace_subexpr_count(v.binder_type, pat, tgt, depth, tgt_abs, pat_base)
+            vl, n2 = self._replace_subexpr_count(v.val, pat, tgt, depth, tgt_abs, pat_base)
+            bd, n3 = self._replace_subexpr_count(v.body, pat, tgt, depth + 1, tgt_abs, pat_base)
+            return self.ctx.mk_let(v.binder_name, v.binder_style, bt, vl, bd), n1 + n2 + n3
+        return e, 0
 
     def _contains_var0(self, e: ExprPtr) -> bool:
         """表达式里是否有 var 0 的出现（view 深度对齐）。"""
@@ -661,7 +695,12 @@ class ProofState:
             tc.assert_def_eq(inferred, self.goal_ty)
         except ValueError as err:
             raise ValueError(f"done: 内核检查失败: {err}") from None
-        return f"完整证明项:\n{pretty(self.core, term, self.color)}\n内核检查: 通过"
+        note = ""
+        if self.goal_ty != self._orig_goal_ty:
+            note = ("\n（目标经 rewrite 变换——证明等价于原命题，"
+                    "教学层省略了 Eq.rec 包装）")
+        return (f"完整证明项:\n{pretty(self.core, term, self.color)}\n"
+                f"内核检查: 通过{note}")
 
     # ---------- 合成 ----------
 
