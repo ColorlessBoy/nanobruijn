@@ -537,6 +537,116 @@ class ProofState:
             node = AppNode(node, a if isinstance(a, _Node) else ExactNode(a))
         return node
 
+    # ---------- rewrite ----------
+
+    def rewrite(self, h_name: str) -> str:
+        """rewrite h：h : a = b 时把当前目标中所有 a 的出现替换为 b。
+
+        教学叙事：rewrite 等价于应用 Eq.rec（motive = 目标中 a 的抽象），
+        教学层直接变换洞的目标——你证明的是变换后的目标。
+        """
+        hole = self._require_hole()
+        h_ty = self._lookup_ctx_type(hole, h_name)
+        head, args = self.ctx.unfold_apps(h_ty)
+        hv = self.ctx.view_expr(head)
+        if not (hv.tag == 'Const'
+                and self.ctx.name_to_string(hv.name) == 'Eq'
+                and len(args) in (2, 3)):
+            raise ValueError(
+                f"rewrite {h_name}: {h_name} 的类型不是等式（a = b）")
+        h_idx = self._ctx_index(hole, h_name)
+        if len(args) == 3:
+            _alpha, a, b = args
+        else:
+            a, b = args
+        # args 位于 h 的类型深度（d - h_idx - 1），在洞深度 d 使用需提升 1 + h_idx
+        a_d = a.shift_up(1 + h_idx)   # 等号左端在洞深度的实例
+        b_d = b.shift_up(1 + h_idx)   # 等号右端
+        old_goal = hole.goal
+        new_goal = self._replace_subexpr(old_goal, a_d, b_d)
+        if new_goal == old_goal:
+            raise ValueError(
+                f"rewrite {h_name}: 目标中没有 {self._pp(a_d, [n for (n, _, _) in hole.ctx])} 的出现"
+                f"（等式左端没在目标里出现，无需替换）")
+        hole.goal = new_goal
+        self.goal_ty = self._replace_subexpr(self.goal_ty, old_goal, new_goal,
+                                             0, False, len(hole.ctx))
+        return self.context()
+
+    def _replace_subexpr(self, e: ExprPtr, pat: ExprPtr, tgt: ExprPtr,
+                         depth: int = 0, tgt_abs: bool = False,
+                         pat_base: int = 0) -> ExprPtr:
+        """递归替换 e 中所有与 pat 结构相等的子项为 tgt。
+
+        depth 是当前递归深度（binder 的 body +1）。pat 位于 pat_base 层
+        深处（在 e 的视角），匹配时提升 (depth - pat_base)；tgt 同理
+        （tgt_abs 时 tgt 是绝对引用如 var 0，不提升）。
+        """
+        if depth >= pat_base and self._struct_eq(e, pat.shift_up(depth - pat_base)):
+            return tgt if tgt_abs else tgt.shift_up(depth - pat_base)
+        v = self.ctx.view_expr(e)
+        tag = v.tag
+        if tag == 'App':
+            return self.ctx.mk_app(
+                self._replace_subexpr(v.fun, pat, tgt, depth, tgt_abs, pat_base),
+                self._replace_subexpr(v.arg, pat, tgt, depth, tgt_abs, pat_base))
+        if tag == 'Pi':
+            return self.ctx.mk_pi(v.binder_name, v.binder_style,
+                                  self._replace_subexpr(v.binder_type, pat, tgt, depth, tgt_abs, pat_base),
+                                  self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
+        if tag == 'Lambda':
+            return self.ctx.mk_lambda(v.binder_name, v.binder_style,
+                                      self._replace_subexpr(v.binder_type, pat, tgt, depth, tgt_abs, pat_base),
+                                      self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
+        if tag == 'Let':
+            return self.ctx.mk_let(v.binder_name, v.binder_style,
+                                   self._replace_subexpr(v.binder_type, pat, tgt, depth, tgt_abs, pat_base),
+                                   self._replace_subexpr(v.val, pat, tgt, depth, tgt_abs, pat_base),
+                                   self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
+        return e
+
+    def _contains_var0(self, e: ExprPtr) -> bool:
+        """表达式里是否有 var 0 的出现（view 深度对齐）。"""
+        v = self.ctx.view_expr(e)
+        tag = v.tag
+        if tag == 'Var':
+            return v.dbj_idx == 0
+        if tag == 'App':
+            return self._contains_var0(v.fun) or self._contains_var0(v.arg)
+        if tag in ('Pi', 'Lambda'):
+            return (self._contains_var0(v.binder_type)
+                    or self._contains_var0(v.body))
+        if tag == 'Let':
+            return (self._contains_var0(v.binder_type)
+                    or self._contains_var0(v.val)
+                    or self._contains_var0(v.body))
+        return False
+
+    def _struct_eq(self, e: ExprPtr, pat: ExprPtr) -> bool:
+        """view 结构相等（view 合成 shift 后深度对齐）。"""
+        v = self.ctx.view_expr(e)
+        p = self.ctx.view_expr(pat)
+        if v.tag != p.tag:
+            return False
+        if v.tag == 'Var':
+            return v.dbj_idx == p.dbj_idx
+        if v.tag == 'Const':
+            return v.name == p.name and v.const_levels == p.const_levels
+        if v.tag == 'Sort':
+            return str(v.level) == str(p.level)
+        if v.tag == 'App':
+            return (self._struct_eq(v.fun, p.fun)
+                    and self._struct_eq(v.arg, p.arg))
+        if v.tag in ('Pi', 'Lambda'):
+            return (self._struct_eq(v.binder_type, p.binder_type)
+                    and self._struct_eq(v.body, p.body)
+                    and v.binder_style == p.binder_style)
+        if v.tag == 'Let':
+            return (self._struct_eq(v.binder_type, p.binder_type)
+                    and self._struct_eq(v.val, p.val)
+                    and self._struct_eq(v.body, p.body))
+        return False
+
     # ---------- done ----------
 
     def done(self) -> str:

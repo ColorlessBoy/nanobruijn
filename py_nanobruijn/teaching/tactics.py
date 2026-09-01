@@ -20,6 +20,7 @@ TACTIC_HELP = (
     "  intro [x ...]   目标为函数类型时引入 binder（可连写，如 intro a b）\n"
     "  apply <f>       用常量 f 匹配目标；隐式参数自动填充，显式参数变为新目标\n"
     "  cases <h>       对上下文变量 h 做情形分析（And/Or/False/Exists → rec 分解）\n"
+    "  rewrite <h>     h : a = b 时把目标中所有 a 替换为 b（Eq.rec 自动应用）\n"
     "  exact <e>       当前目标用表达式 e 精确填充（内核检查 e : 目标）\n"
     "  done            全部目标填充后合成证明项并做内核检查\n"
     "  context         重显当前状态\n"
@@ -67,6 +68,10 @@ def _run_one(state: ProofState, line: str) -> str:
         if len(parts) > 1 and parts[1] != "as":
             raise ValueError("cases: 语法为 `cases h` 或 `cases h as a b`")
         return state.cases(parts[0], names)
+    if head == "rewrite":
+        if not rest:
+            raise ValueError("rewrite: 缺少等式前提（如 rewrite h）")
+        return state.rewrite(rest)
     if head == "done":
         raise ProofDone(state.done())
     if head == "abort":

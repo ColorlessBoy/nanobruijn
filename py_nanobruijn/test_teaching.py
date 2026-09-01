@@ -690,6 +690,61 @@ class TestProof:
         out = run_tactic(st, "cases h")
         assert "h1 : a" in out or "h1 : a" in st.context()
 
+    def test_rewrite_basic(self):
+        # rewrite h（h : p = q）：目标中的 p 全部换成 q
+        from .teaching.tactics import ProofDone, run_tactic
+        st = self.make_state(
+            "∀ (p : Prop), ∀ (q : Prop), ∀ (h : @Eq.{1} Prop p q), q -> p")
+        st.intro("p q h hq")
+        out = run_tactic(st, "rewrite h")
+        assert "目标: q" in out
+        run_tactic(st, "exact hq")
+        with pytest.raises(ProofDone):
+            run_tactic(st, "done")
+
+    def test_rewrite_pi_inside(self):
+        # 替换发生在函数类型内部（binder 深度同步）
+        from .teaching.tactics import ProofDone, run_tactic
+        st = self.make_state(
+            "∀ (p : Prop), ∀ (q : Prop), ∀ (h : @Eq.{1} Prop p q), p -> p")
+        st.intro("p q h")
+        run_tactic(st, "rewrite h")
+        assert "目标: q -> q" in st.context()
+        st.intro("hp")
+        run_tactic(st, "exact hp")
+        with pytest.raises(ProofDone):
+            run_tactic(st, "done")
+
+    def test_rewrite_no_match(self):
+        from .teaching.tactics import run_tactic
+        st = self.make_state(
+            "∀ (p : Prop), ∀ (q : Prop), ∀ (h : @Eq.{1} Prop p q), q -> q")
+        st.intro("p q h hq")
+        with pytest.raises(ValueError, match="无需替换"):
+            run_tactic(st, "rewrite h")
+
+    def test_rewrite_not_eq(self):
+        from .teaching.tactics import run_tactic
+        st = self.make_state(
+            "∀ (p : Prop), ∀ (h : Or p p), p -> p")
+        st.intro("p h hp")
+        with pytest.raises(ValueError, match="不是等式"):
+            run_tactic(st, "rewrite h")
+
+    def test_rewrite_h_not_innermost(self):
+        # h 不在最内层 binder（shift 1 + h_idx 路径）
+        from .teaching.tactics import ProofDone, run_tactic
+        st = self.make_state(
+            "∀ (p : Prop), ∀ (q : Prop), ∀ (x : Prop), "
+            "∀ (h : @Eq.{1} Prop p q), p -> x -> p")
+        st.intro("p q x h")
+        run_tactic(st, "rewrite h")
+        st.intro("hp")
+        st.intro("hx")
+        run_tactic(st, "exact hp")
+        with pytest.raises(ProofDone):
+            run_tactic(st, "done")
+
     def test_cases_and_comm_full(self):
         """闭环：and_comm 用 cases 全程证明。"""
         st = self.make_state("∀ (a : Prop), ∀ (b : Prop), Iff (And a b) (And b a)")
