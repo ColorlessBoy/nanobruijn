@@ -6,7 +6,7 @@ name 分配律正向
 goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), And a (Or b c) -> Or (And a b) (And a c)
 hint: cases h 拆出 ha : a 与 hbc : Or b c，再 cases hbc 分 b/c 两路
 hint: 每路 apply Or.inl/Or.inr 后 apply And.intro 组装（ha 全程复用）
-variant: 反向——Or (And a b) (And a c) -> And a (Or b c)（投影 And.left/And.right 一路平推）
+variant: 换组装顺序——And a (Or b c) -> Or b (Or a c)（先拆再换路）
 solution:
 intro a b c
 intro h
@@ -90,6 +90,7 @@ name 全量分配律
 goal: forall (p : Prop), forall (q : Prop), forall (r : Prop), Iff (And p (Or q r)) (Or (And p q) (And p r))
 hint: 方向一（And -> Or）：cases 两层拆出 p/q/r，两路组装
 hint: 方向二（Or -> And）：cases h 分两路，每路 p 用 And.left 投影、析取用 And.right + 方向
+hint: 整题先 apply Iff.intro 把目标拆成两个方向，再分别处理
 variant: 大满贯——把 Iff 换成双向函数：(And p (Or q r) -> Or (And p q) (And p r)) -> (Or (And p q) (And p r) -> And p (Or q r)) -> True（想想为什么）
 solution:
 intro p q r

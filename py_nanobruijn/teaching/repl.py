@@ -292,7 +292,9 @@ class Repl:
             game.current_level_no = no
             status = self._run_proof(state, stdin, stdout, session_path,
                                      level=level, game=game)
-            if status == "abandoned":
+            if status == "retry":
+                game.force_level(no)  # solution 后重新开始本关（可复制标准解）
+            elif status == "abandoned":
                 return
 
     def _game_tactic_check(self, level, line: str) -> str | None:
@@ -343,8 +345,8 @@ class Repl:
                 if cmd == "solution":
                     print("标准解：", file=stdout)
                     print("\n".join(level.solution), file=stdout)
-                    print(self._c("（本关未通关。重新 #game <世界> 可再试）", "gray"), file=stdout)
-                    return "abandoned"
+                    print(self._c("（本关未通关——输入任意命令重新开始本关，或 #quit 回主 REPL）", "gray"), file=stdout)
+                    return "retry"
                 blocked = self._game_tactic_check(level, line)
                 if blocked:
                     print(self._error(blocked), file=stdout)

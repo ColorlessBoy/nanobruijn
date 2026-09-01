@@ -1205,8 +1205,10 @@ class TestGameSession:
         assert s.complete(steps=10, hints_used=2) == 1   # 2 条 hint → 1★
         assert s.complete(steps=10, hints_used=1) == 2   # 1 条 hint → 2★
         assert s.complete(steps=10, hints_used=0) == 2   # 无 hint 但步数超限 → 2★
-        assert s.complete(steps=1, hints_used=0) == 3    # 无 hint 且步数 <= 标准解 → 3★
-        assert s.stars == {1: 3}
+        assert s.complete(steps=1, hints_used=0) == 3    # 步数 == 标准解 → 3★
+        assert s.complete(steps=3, hints_used=0) == 3    # 标准解+2（容错）→ 3★
+        assert s.complete(steps=4, hints_used=0) == 2    # 标准解+3 → 2★
+        assert s.stars == {1: 2}
 
     def test_unlock_sequential(self):
         from py_nanobruijn.teaching.game import GameSession
@@ -1228,8 +1230,8 @@ class TestGameSession:
     def test_progress_persists(self, tmp_path):
         from py_nanobruijn.teaching.game import GameSession
         s1 = GameSession(self._game(), saves_dir=str(tmp_path))
-        s1.complete(2, 0)  # level 1, 2 星
-        s1.complete(1, 2)   # level 2, 1 星
+        s1.complete(5, 0)  # level 1, 步数超限 → 2 星
+        s1.complete(1, 2)   # level 2, 2 条 hint → 1 星
         s2 = GameSession(self._game(), saves_dir=str(tmp_path))
         s2.load_progress()
         assert s2.stars == {1: 2, 2: 1}
