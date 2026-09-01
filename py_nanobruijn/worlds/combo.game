@@ -60,6 +60,7 @@ intro ha
 exact h (Or.inl a b ha)
 intro hb
 exact h (Or.inr a b hb)
+variant: 反向——And (a -> c) (b -> c) -> Or a b -> c（cases + 投影）
 ---
 level 4
 name 合取的构造与应用

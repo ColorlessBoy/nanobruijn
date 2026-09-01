@@ -870,6 +870,37 @@ exact h (Or.inr a (Not a) (@Function.comp.{0, 0, 0} a (Or a (Not a)) False h (@O
 
 ---
 
+---
+
+# 挑战世界（worlds/hard.game，6 关）——第二公里
+
+> 前置：前六个世界全部通关。这里是综合运用场：hints 更少、组合更深。
+> 每关的「变体挑战」已同步进 .game（通关时自动显示）。
+
+| 关 | 命题 | 教学点 |
+|---|---|---|
+| 1 分配律正向 | `And a (Or b c) -> Or (And a b) (And a c)` | 双重 cases：先拆合取再拆析取 |
+| 2 析取分配律 | `Or a (And b c) -> And (Or a b) (Or a c)` | Or 分支 × And.intro 组装 |
+| 3 curry 消去 | `(a -> b -> c) -> And a b -> c` | 拆开前提直接应用 |
+| 4 Or 的替换 | `(a -> b) -> Or a c -> Or b c` | 结构保持：cases 后换型 |
+| 5 积的映射 | `(a -> b) -> (c -> d) -> And a c -> And b d` | 两个函数各管一个目标 |
+| 6 全量分配律 | `Iff (And p (Or q r)) (Or (And p q) (And p r))` | boss：Iff 双向 + 投影 + 分支 |
+
+**设计意图**：这六关没有新的逻辑词——全是已有工具的**组合**。
+第 1-2 关是分配律的两半（与 Combo L1、剧本 14 呼应）；第 3-5 关是
+"函数前提"的处理套路（curry/替换/映射）；第 6 关把第 1 关与
+Combo L1 合并成 Iff，同时要求熟练 And.left/And.right 投影。
+六关全部 3★ 通关 = 第一公里正式毕业。
+
+### Hard-6 教学点（boss 关）
+
+- 方向一（`And p (Or q r)` → 右侧）：`cases` 拆两层，每路 `Or.inl/inr`
+  后 `And.intro` 组装——**hp 全程复用**
+- 方向二（右侧 → `And p (Or q r)`）：`cases h as h1 h2` 后**两路都要填**
+  ——p 用 `And.left` 投影，析取分量用 `And.right` + 方向构造子
+- 对比：方向二如果先 `apply And.intro` 再分解，会陷入"兄弟洞不可见
+  分支变量"的陷阱——投影是正解
+
 ## 加关卡指南
 
 新增一关的标准流程（先设计 → 落 .game → 自动验证 → 手动通关）：

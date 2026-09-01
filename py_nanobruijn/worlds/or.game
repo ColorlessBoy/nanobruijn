@@ -40,6 +40,7 @@ intro h2
 cases h as ha hb
 exact h1 ha
 exact h2 hb
+variant: 把前提换序——(a -> c) -> (b -> c) -> Or a b -> c 还成立吗？
 ---
 level 4
 name 交换律

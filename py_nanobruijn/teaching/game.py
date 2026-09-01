@@ -31,13 +31,14 @@ _FIELD_RE = re.compile(r'^([a-zA-Z]+):?\s*(.*)$')
 class Level:
     def __init__(self, number: int, name: str, goal: str,
                  hints: list[str], solution: list[str],
-                 bans: list[str]):
+                 bans: list[str], variants: list[str] | None = None):
         self.number = number
         self.name = name
         self.goal = goal
         self.hints = hints
         self.solution = solution
         self.bans = bans
+        self.variants = variants or []
 
 
 class Game:
@@ -72,8 +73,13 @@ class GameLoader:
                 if stripped.startswith('level '):
                     in_solution = False
                 else:
-                    cur['solution'].append(stripped)
-                    continue
+                    m = _FIELD_RE.match(stripped)
+                    if m and m.group(1) in ('hint', 'ban', 'variant',
+                                             'name', 'goal'):
+                        in_solution = False  # 字段行结束收集
+                    else:
+                        cur['solution'].append(stripped)
+                        continue
             if stripped == '---':
                 cur = None
                 continue
@@ -89,7 +95,7 @@ class GameLoader:
                 intro = val
             elif key == 'level':
                 cur = {'number': int(val), 'name': '', 'goal': '',
-                       'hints': [], 'solution': [], 'bans': []}
+                       'hints': [], 'solution': [], 'bans': [], 'variants': []}
                 levels.append(cur)
             elif cur is None:
                 raise ValueError(f"game: 第 {lineno} 行 {key} 在关卡外: {stripped!r}")
@@ -99,6 +105,8 @@ class GameLoader:
                 cur['goal'] = val
             elif key == 'hint':
                 cur['hints'].append(val)
+            elif key == 'variant':
+                cur['variants'].append(val)
             elif key == 'ban':
                 if val not in KNOWN_TACTICS:
                     raise ValueError(f"game: 第 {lineno} 行 ban 了未知 tactic {val!r}")
@@ -114,7 +122,8 @@ class GameLoader:
                 raise ValueError(f"game: level {lv['number']} 缺少 goal")
         return Game(world_id, title, intro,
                     [Level(l['number'], l['name'], l['goal'], l['hints'],
-                           l['solution'], l['bans']) for l in levels])
+                           l['solution'], l['bans'], l['variants'])
+                     for l in levels])
 
 SAVES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "saves")
 

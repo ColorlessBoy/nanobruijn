@@ -46,6 +46,7 @@ intro ha
 exact Iff.mp b c hbc (Iff.mp a b hab ha)
 intro hc
 exact Iff.mpr a b hab (Iff.mpr b c hbc hc)
+variant: 换向传递——Iff a b -> Iff a c -> Iff b c（用对称 + 传递组合）
 ---
 level 4
 name 逆方向构造

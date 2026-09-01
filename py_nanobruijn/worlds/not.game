@@ -22,6 +22,7 @@ intro a
 intro ha
 intro h
 exact h ha
+variant: 继续叠——Not (Not (Not (Not a))) -> Not (Not a)（四重否定弱化）
 ---
 level 3
 name 三重否定弱化

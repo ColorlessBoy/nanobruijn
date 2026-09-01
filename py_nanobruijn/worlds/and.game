@@ -15,6 +15,7 @@ intro hb
 apply And.intro
 exact ha
 exact hb
+variant: 证交换版 a -> b -> And b a（只换 exact 顺序）
 ---
 level 2
 name 只取右半
@@ -46,6 +47,7 @@ exact ha
 apply And.intro
 exact hb
 exact hc
+variant: 证反向结合律 And a (And b c) -> And (And a b) c（结构对称照搬）
 ---
 level 4
 name 交换律
@@ -73,3 +75,4 @@ intro hna
 intro h
 cases h as ha hb
 exact hna ha
+variant: 证 Not (Or a b) -> Not b（对称版本，只需改一条路）

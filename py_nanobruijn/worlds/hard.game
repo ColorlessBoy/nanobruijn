@@ -1,0 +1,117 @@
+world Hard
+title 挑战世界：第二公里
+intro 六个世界的技巧在这里合流。每关都是一道组合题，提示会很少——是时候把 And/Or/Not/Exists/Iff 当作真正的工具来用了。
+level 1
+name 分配律正向
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), And a (Or b c) -> Or (And a b) (And a c)
+hint: cases h 拆出 ha : a 与 hbc : Or b c，再 cases hbc 分 b/c 两路
+hint: 每路 apply Or.inl/Or.inr 后 apply And.intro 组装（ha 全程复用）
+variant: 反向——Or (And a b) (And a c) -> And a (Or b c)（投影 And.left/And.right 一路平推）
+solution:
+intro a b c
+intro h
+cases h as ha hbc
+cases hbc as hb hc
+apply Or.inl
+apply And.intro
+exact ha
+exact hb
+apply Or.inr
+apply And.intro
+exact ha
+exact hc
+---
+level 2
+name 析取分配律
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or a (And b c) -> And (Or a b) (Or a c)
+hint: 前提 Or 分两路：a 路（Or.inl 两次）与 And b c 路（再 cases）
+hint: 每路 apply And.intro 拆目标为两个析取，分别选择方向
+variant: 双向 Iff 版——Iff (Or a (And b c)) (And (Or a b) (Or a c))
+solution:
+intro a b c
+intro h
+cases h as ha hbc
+apply And.intro
+apply Or.inl
+exact ha
+apply Or.inl
+exact ha
+cases hbc as hb hc
+apply And.intro
+apply Or.inr
+exact hb
+apply Or.inr
+exact hc
+---
+level 3
+name curry 消去
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), (a -> b -> c) -> And a b -> c
+hint: 拆开 And a b 拿到 ha、hb 后，h ha hb 一步出 c
+variant: 反向——(And a b -> c) -> a -> b -> c（curry 引入）
+solution:
+intro a b c
+intro h
+intro hab
+cases hab as ha hb
+exact h ha hb
+---
+level 4
+name Or 的替换
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), (a -> b) -> Or a c -> Or b c
+hint: cases hoc 分两路：a 路用 h 换型后 Or.inl，c 路 Or.inr 原样
+variant: 换右分量——(c -> d) -> Or a c -> Or a d
+solution:
+intro a b c
+intro h
+intro hoc
+cases hoc as ha hc
+apply Or.inl
+exact h ha
+apply Or.inr
+exact hc
+---
+level 5
+name 积的映射
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), forall (d : Prop), (a -> b) -> (c -> d) -> And a c -> And b d
+hint: 拆开 And a c 拿 ha、hc；apply And.intro 后各用对应的函数
+variant: 换成 Or——(a -> b) -> (c -> d) -> Or a c -> Or b d（四种组合要分四路？想想）
+solution:
+intro a b c d
+intro h1
+intro h2
+intro hac
+cases hac as ha hc
+apply And.intro
+exact h1 ha
+exact h2 hc
+---
+level 6
+name 全量分配律
+goal: forall (p : Prop), forall (q : Prop), forall (r : Prop), Iff (And p (Or q r)) (Or (And p q) (And p r))
+hint: 方向一（And -> Or）：cases 两层拆出 p/q/r，两路组装
+hint: 方向二（Or -> And）：cases h 分两路，每路 p 用 And.left 投影、析取用 And.right + 方向
+variant: 大满贯——把 Iff 换成双向函数：(And p (Or q r) -> Or (And p q) (And p r)) -> (Or (And p q) (And p r) -> And p (Or q r)) -> True（想想为什么）
+solution:
+intro p q r
+apply Iff.intro
+intro h
+cases h as hp hqr
+cases hqr as hq hr
+apply Or.inl
+apply And.intro
+exact hp
+exact hq
+apply Or.inr
+apply And.intro
+exact hp
+exact hr
+intro h
+cases h as h1 h2
+apply And.intro
+exact (@And.left p q h1)
+apply Or.inl
+exact (@And.right p q h1)
+apply And.intro
+exact (@And.left p r h2)
+apply Or.inr
+exact (@And.right p r h2)

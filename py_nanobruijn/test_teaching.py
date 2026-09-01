@@ -1122,6 +1122,7 @@ class TestGameLoader:
             "goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b\n"
             "hint: 目标头部是 And\n"
             "ban: cases\n"
+            "variant: 证交换版 a -> b -> And b a\n"
             "solution:\n"
             "intro a\n"
             "intro b\n"
@@ -1135,6 +1136,7 @@ class TestGameLoader:
         lv = g.levels[0]
         assert lv.number == 1 and lv.name == "初见合取"
         assert "And a b" in lv.goal
+        assert lv.variants == ["证交换版 a -> b -> And b a"]
         assert lv.hints == ["目标头部是 And"]
         assert lv.solution == ["intro a", "intro b", "apply And.intro"]
         assert lv.bans == ["cases"]
@@ -1244,20 +1246,21 @@ class TestWorldContent:
         from py_nanobruijn.teaching.game import GameLoader
         paths = sorted(glob.glob(os.path.join(
             os.path.dirname(__file__), "worlds", "*.game")))
-        assert len(paths) == 6
+        assert len(paths) == 7
         ids = []
         for p in paths:
             g = GameLoader().load(p)
             ids.append(g.world_id)
-            assert len(g.levels) == 5
+            assert len(g.levels) == (6 if g.world_id == "Hard" else 5)
             assert all(lv.goal and lv.solution for lv in g.levels)
-        assert sorted(ids) == ["And", "Combo", "Exists", "Iff", "Not", "Or"]
+        assert sorted(ids) == ["And", "Combo", "Exists", "Hard", "Iff",
+                               "Not", "Or"]
 
 
 class TestWorldSolutions:
     """每关标准解必须真实可证（ProofState + run_tactic 逐行跑）。"""
 
-    @pytest.mark.parametrize("world", ["And", "Or", "Not", "Exists", "Iff", "Combo"])
+    @pytest.mark.parametrize("world", ["And", "Or", "Not", "Exists", "Iff", "Combo", "Hard"])
     def test_every_level_solution(self, world):
         import os
 

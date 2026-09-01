@@ -22,6 +22,7 @@ intro h
 intro e
 cases e as x hx
 exact @Exists.intro.{1} Prop q x (h x hx)
+variant: 链式传递——forall p q r, (forall x, p x -> q x) -> (forall x, q x -> r x) -> Exists p -> Exists r
 ---
 level 3
 name 矛盾的否定（not_exists 方向）
@@ -45,6 +46,7 @@ intro p
 intro e
 cases e as x hx
 exact @Exists.intro.{1} Prop p x hx
+variant: 去掉 eta 包装——Exists (fun (x : Prop) => p x) 与 Exists p 互相推出（双向）
 ---
 level 5
 name 取出与给出

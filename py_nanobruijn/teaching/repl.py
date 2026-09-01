@@ -172,7 +172,8 @@ class Repl:
             stars = "".join(str(prog.stars.get(lv.number, "-"))
                             for lv in game.levels)
             lines.append(f"{game.world_id} — {game.title}"
-                         f"（{len(prog.stars)}/5 关，星级 {stars}）")
+                         f"（{len(prog.stars)}/{len(game.levels)} 关，"
+                         f"星级 {stars}）")
         return "\n".join(lines) or "（暂无世界，worlds/ 目录为空）"
 
     def _game(self, text: str) -> str:
@@ -363,6 +364,8 @@ class Repl:
                     if level.solution:
                         print("标准解（你的路径可能不同，两种都正确）：", file=stdout)
                         print("\n".join(level.solution), file=stdout)
+                    for variant in level.variants:
+                        print(self._c(f"💡 变体挑战：{variant}", 'cyan'), file=stdout)
                 return "completed"
             except AbortProof:
                 return "abandoned"
