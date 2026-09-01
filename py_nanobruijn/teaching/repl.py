@@ -169,8 +169,10 @@ class Repl:
             game = GameLoader().load(path)
             prog = GameSession(game)
             prog.load_progress()
-            stars = f"{len(prog.stars)}/5 关"
-            lines.append(f"{game.world_id} — {game.title}（{stars}）")
+            stars = "".join(str(prog.stars.get(lv.number, "-"))
+                            for lv in game.levels)
+            lines.append(f"{game.world_id} — {game.title}"
+                         f"（{len(prog.stars)}/5 关，星级 {stars}）")
         return "\n".join(lines) or "（暂无世界，worlds/ 目录为空）"
 
     def _game(self, text: str) -> str:
@@ -340,7 +342,7 @@ class Repl:
                 if cmd == "solution":
                     print("标准解：", file=stdout)
                     print("\n".join(level.solution), file=stdout)
-                    print(self._c("（本关未通关。quit 或继续尝试）", "gray"), file=stdout)
+                    print(self._c("（本关未通关。重新 #game <世界> 可再试）", "gray"), file=stdout)
                     return "abandoned"
                 blocked = self._game_tactic_check(level, line)
                 if blocked:

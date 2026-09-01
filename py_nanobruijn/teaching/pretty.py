@@ -111,6 +111,8 @@ class _Pretty:
 
     def _pp_binder(self, name_ptr, style, binder_type, body, names, *, is_lambda):
         name = self.ctx.name_to_string(name_ptr)
+        if self.ctx.dag.get_name(name_ptr).is_anon():
+            name = "_"
         head = "fun" if is_lambda else "∀"
         open_b, close_b = ("{", "}") if style == BinderStyle.IMPLICIT else ("(", ")")
         body_names = names + (name,)

@@ -106,6 +106,8 @@ exact ha
 exact hb
 ```
 
+- **变体挑战**：证交换版 `a -> b -> And b a`（只换 exact 顺序）
+
 ### And-2 只取右半
 
 - **命题**：`forall (a : Prop), forall (b : Prop), And a b -> b`
@@ -152,6 +154,8 @@ exact hb
 exact hc
 ```
 
+- **变体挑战**：证反向结合律 `And a (And b c) -> And (And a b) c`（结构对称照搬）
+
 ### And-4 交换律
 
 - **命题**：`forall (a : Prop), forall (b : Prop), And a b -> And b a`
@@ -194,6 +198,8 @@ intro h
 cases h as ha hb
 exact hna ha
 ```
+
+- **变体挑战**：证 `Not (Or a b) -> Not b`（对称版本，只需改一条路）
 
 ---
 
@@ -272,6 +278,8 @@ cases h as ha hb
 exact h1 ha
 exact h2 hb
 ```
+
+- **变体挑战**：把前提换序——`(a -> c) -> (b -> c) -> Or a b -> c` 还成立吗？
 
 ### Or-4 交换律
 
@@ -372,6 +380,8 @@ intro ha
 intro h
 exact h ha
 ```
+
+- **变体挑战**：继续叠——`Not (Not (Not (Not a))) -> Not (Not a)`（四重否定弱化）
 
 ### Not-3 三重否定弱化
 
@@ -496,6 +506,8 @@ cases e as x hx
 exact @Exists.intro.{1} Prop q x (h x hx)
 ```
 
+- **变体挑战**：链式传递——`forall p q r, (forall x, p x -> q x) -> (forall x, q x -> r x) -> Exists p -> Exists r`
+
 ### Exists-3 矛盾的否定（not_exists 方向）
 
 - **命题**：`forall (p : Prop -> Prop), (forall (x : Prop), p x -> False) -> @Exists.{1} Prop p -> False`
@@ -532,6 +544,8 @@ intro e
 cases e as x hx
 exact @Exists.intro.{1} Prop p x hx
 ```
+
+- **变体挑战**：去掉 eta 包装——`@Exists.{1} Prop (fun (x : Prop) => p x)` 与 `@Exists.{1} Prop p` 互相推出（双向）
 
 ### Exists-5 取出与给出
 
@@ -643,6 +657,8 @@ intro hc
 exact Iff.mpr a b hab (Iff.mpr b c hbc hc)
 ```
 
+- **变体挑战**：换向传递——`Iff a b -> Iff a c -> Iff b c`（用对称 + 传递组合）
+
 ### Iff-4 逆方向构造
 
 - **命题**：`forall (a : Prop), forall (b : Prop), (a -> b) -> (b -> a) -> Iff a b`
@@ -686,6 +702,8 @@ intro hnb
 intro ha
 exact hnb (Iff.mp a b h ha)
 ```
+
+- **变体挑战**：换向传递——`Iff a b -> Iff a c -> Iff b c`（用对称 + 传递组合）
 
 ### 第 1 节小结：tactic 与 lambda 的对应关系
 
@@ -806,6 +824,8 @@ exact h (Or.inl a b ha)
 intro hb
 exact h (Or.inr a b hb)
 ```
+
+- **变体挑战**：反向——`And (a -> c) (b -> c) -> Or a b -> c`（cases + 投影）
 
 ### Combo-4 合取的构造与应用
 
