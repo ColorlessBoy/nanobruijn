@@ -57,8 +57,8 @@ exact h2
 level 6
 name 嵌套替换
 goal: forall (p : Prop), forall (q : Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop (And p p) (And q p)
-hint: rewrite 替换目标中所有 p 的出现——And p p 的两个 p 都换
-hint: 目标变 And q q = And q p 后 exact @Eq.refl.{1} Prop (And q q)
+hint: rewrite 替换目标中所有 p 的出现——左侧 And p p 的两个 p 和右侧 And q p 的一个 p 全换
+hint: 目标变 And q q = And q q 后 exact @Eq.refl.{1} Prop (And q q)
 variant: 只换一个 p 的场景——(And p q) = (And q q) 用 rewrite 后目标是什么？（想想为什么）
 solution:
 intro p q h
