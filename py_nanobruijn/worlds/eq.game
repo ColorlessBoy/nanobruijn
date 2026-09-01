@@ -1,0 +1,79 @@
+world Eq
+title 等式世界：第三公里
+intro 前两个公里的终点，是等式的起点。p = q 不是魔法，它就是一个可以被替换的证明：rewrite h 把目标里所有的 p 换成 q。这一关学会用等式。
+level 1
+name 自反
+goal: forall (p : Prop), @Eq.{1} Prop p p
+hint: 任何东西都等于自己：exact @Eq.refl.{1} Prop p
+variant: 试试 Eq.refl 不需要前提——等式的最基本事实
+solution:
+intro p
+exact @Eq.refl.{1} Prop p
+---
+level 2
+name 对称
+goal: forall (p : Prop), forall (q : Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop q p
+hint: 目标是 q = p，前提是 p = q——rewrite h 把 p 换成 q，目标变 q = q
+hint: exact @Eq.refl.{1} Prop q 收工
+variant: 反向思维——如果前提是 q = p，目标 p = q，rewrite 的方向还够用吗？（想想）
+solution:
+intro p q h
+rewrite h
+exact @Eq.refl.{1} Prop q
+---
+level 3
+name 传递
+goal: forall (p : Prop), forall (q : Prop), forall (r : Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop q r -> @Eq.{1} Prop p r
+hint: 目标 p = r——用 h1（p = q）把 p 换 q，目标变 q = r
+hint: 现在 exact h2（q = r）一步收工
+variant: 换一条路——先用 h2 再想 h1 能用吗？（体会 rewrite 的方向）
+solution:
+intro p q r h1 h2
+rewrite h1
+exact h2
+---
+level 4
+name 函数的等值（congrArg）
+goal: forall (p : Prop), forall (q : Prop), forall (f : Prop -> Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop (f p) (f q)
+hint: 目标 f p = f q——rewrite h 把 f p 里的 p 换成 q
+hint: exact @Eq.refl.{1} Prop (f q) 收工——这就是 congrArg 的原理
+variant: f 换成二元函数——(g p p) = (g q q) 需要几次 rewrite？
+solution:
+intro p q f h
+rewrite h
+exact @Eq.refl.{1} Prop (f q)
+---
+level 5
+name 换源
+goal: forall (p : Prop), forall (q : Prop), forall (r : Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop r p -> @Eq.{1} Prop r q
+hint: 目标是 r = q，而 r = p（h2）——把 h2 里的 p 换成 q 就是答案
+hint: 关键：先 intro h1 就 rewrite，让替换作用在整个目标上（包括前提的类型）
+solution:
+intro p q r h1
+rewrite h1
+intro h2
+exact h2
+---
+level 6
+name 嵌套替换
+goal: forall (p : Prop), forall (q : Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop (And p p) (And q p)
+hint: rewrite 替换目标中所有 p 的出现——And p p 的两个 p 都换
+hint: 目标变 And q q = And q p 后 exact @Eq.refl.{1} Prop (And q q)
+variant: 只换一个 p 的场景——(And p q) = (And q q) 用 rewrite 后目标是什么？（想想为什么）
+solution:
+intro p q h
+rewrite h
+exact @Eq.refl.{1} Prop (And q q)
+---
+level 7
+name 双重替换
+goal: forall (p : Prop), forall (q : Prop), forall (r : Prop), @Eq.{1} Prop p q -> @Eq.{1} Prop r q -> @Eq.{1} Prop p r
+hint: 目标 p = r——rewrite h1 把 p 换 q，目标变 q = r
+hint: 再 rewrite h2（r = q——注意方向！目标是 q = r 里 r 换 q）变 q = q
+hint: exact @Eq.refl.{1} Prop q 收工——两次 rewrite 的方向直觉
+variant: 如果把 h2 换成 r = s，第三关的传递是否也成立？（链式替换）
+solution:
+intro p q r h1 h2
+rewrite h1
+rewrite h2
+exact @Eq.refl.{1} Prop q

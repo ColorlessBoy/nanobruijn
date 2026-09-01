@@ -1303,21 +1303,22 @@ class TestWorldContent:
         from py_nanobruijn.teaching.game import GameLoader
         paths = sorted(glob.glob(os.path.join(
             os.path.dirname(__file__), "worlds", "*.game")))
-        assert len(paths) == 7
+        assert len(paths) == 8
         ids = []
         for p in paths:
             g = GameLoader().load(p)
             ids.append(g.world_id)
-            assert len(g.levels) == (6 if g.world_id == "Hard" else 5)
+            assert len(g.levels) == (6 if g.world_id == "Hard" else
+                                  7 if g.world_id == "Eq" else 5)
             assert all(lv.goal and lv.solution for lv in g.levels)
-        assert sorted(ids) == ["And", "Combo", "Exists", "Hard", "Iff",
+        assert sorted(ids) == ["And", "Combo", "Eq", "Exists", "Hard", "Iff",
                                "Not", "Or"]
 
 
 class TestWorldSolutions:
     """每关标准解必须真实可证（ProofState + run_tactic 逐行跑）。"""
 
-    @pytest.mark.parametrize("world", ["And", "Or", "Not", "Exists", "Iff", "Combo", "Hard"])
+    @pytest.mark.parametrize("world", ["And", "Eq", "Or", "Not", "Exists", "Iff", "Combo", "Hard"])
     def test_every_level_solution(self, world):
         import os
 

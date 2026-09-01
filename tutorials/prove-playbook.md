@@ -901,6 +901,31 @@ Combo L1 合并成 Iff，同时要求熟练 And.left/And.right 投影。
 - 对比：方向二如果先 `apply And.intro` 再分解，会陷入"兄弟洞不可见
   分支变量"的陷阱——投影是正解
 
+---
+
+# 等式世界（worlds/eq.game，7 关）——第三公里
+
+> 前置：Hard 世界。这里引入**第三公里：等式推理**——`rewrite` 是第一个
+> 非构造性 tactic（它改变目标本身）。
+
+| 关 | 命题 | 教学点 |
+|---|---|---|
+| 1 自反 | `Eq p p` | Eq.refl：任何东西等于自己 |
+| 2 对称 | `Eq p q -> Eq q p` | 第一次 rewrite（p → q 单向） |
+| 3 传递 | `Eq p q -> Eq q r -> Eq p r` | rewrite + exact 前提 |
+| 4 函数等值 | `Eq p q -> Eq (f p) (f q)` | congrArg 的原理（rewrite 进函数） |
+| 5 换源 | `Eq p q -> Eq r p -> Eq r q` | rewrite 作用在函数目标（前提类型也被替换） |
+| 6 嵌套替换 | `Eq p q -> Eq (And p p) (And q p)` | 所有出现一起换 |
+| 7 双重替换 | `Eq p q -> Eq r q -> Eq p r` | 两次 rewrite 的方向直觉（boss） |
+
+**设计意图**：等式世界的教学叙事是「rewrite 是目标编辑器」——它不构造
+证明，而是**变换目标**（教学层实现：洞目标替换 + goal_ty 同步，等价于
+Eq.rec 的自动应用）。第 5 关的关键洞察：在 `intro h2` 之前 rewrite，
+替换会波及前提的类型。
+
+**已知限制**：`h : Eq a b`（隐式 α）在内核推断中暂不支持，等式必须写
+完整形式 `@Eq.{1} Prop a b`——教学语法不变，关卡已用完整形式。
+
 ## 加关卡指南
 
 新增一关的标准流程（先设计 → 落 .game → 自动验证 → 手动通关）：
