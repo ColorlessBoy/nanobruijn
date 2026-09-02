@@ -1,4 +1,5 @@
 # 真（True）（fol 片段）
 # 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+# True 唯一的证明就是 True.intro
 axiom True : Prop
 axiom True.intro : True

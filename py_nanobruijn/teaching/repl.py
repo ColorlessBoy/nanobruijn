@@ -110,8 +110,9 @@ class Repl:
             msg = str(err)
             if self.fresh and ('unknown constant' in msg
                                or 'unknown identifier' in msg):
+                name = msg.split("'")[1] if "'" in msg else '?'
                 return self._error(
-                    f"{msg}——它还没被定义！"
+                    f"{name} 还没被定义！"
                     f"（#worlds 看世界列表，进对应世界见证它的定义）")
             return self._error(msg)
         except (ValueError, CheckTimeoutError) as err:
@@ -232,6 +233,10 @@ class Repl:
         stdin = stdin or sys.stdin
         stdout = stdout or sys.stdout
         print(BANNER, file=stdout)
+        if self.fresh:
+            print(self._c(
+                "本会话从空环境开始——逻辑词会在进入世界时现场定义"
+                "（定义仪式）。用 #worlds 看世界列表。", 'cyan'), file=stdout)
         print(f"已加载 {len(self.core.constants())} 个常量，输入 #help 查看帮助", file=stdout)
         session_path = self._open_session(stdout)
         while True:
@@ -312,36 +317,44 @@ class Repl:
 
     def _definition_ceremony(self, game, stdout) -> None:
         """定义仪式：按世界 using: 现场加载 fol 片段（fresh 模式真实加载，
-        全量模式只展示声明——"它们已在你的环境中"）。"""
-        from .fol import fragment_source, resolve_deps
+        全量模式显示复习表——"它们已在你的环境中"）。"""
+        from .fol import FRAGMENT_ROLES, fragment_source, resolve_deps
         using = game.game.using or []
         if not using:
             return
-        if self.fresh:
-            todo = [f for f in resolve_deps(using)
-                    if f not in self._loaded_fragments]
-        else:
-            todo = []
-        if not using or (not todo and self.fresh):
+        todo = ([f for f in resolve_deps(using)
+                 if f not in self._loaded_fragments] if self.fresh else [])
+        if not todo and self.fresh:
             return
-        title = f"📜 定义仪式：{game.game.title}"
-        print(self._c(title, 'cyan'), file=stdout)
+        print(self._c(f"📜 定义仪式：{game.game.title}", 'cyan'), file=stdout)
         for frag in resolve_deps(using):
-            already = frag in self._loaded_fragments or not self.fresh
+            if not self.fresh:
+                role = FRAGMENT_ROLES.get(frag, '')
+                print(self._c(f"  {frag} — {role}（已在环境中）", 'gray'),
+                      file=stdout)
+                continue
             src = fragment_source(frag)
             print(self._c(f"--- {frag} ---", 'gray'), file=stdout)
             for line in src.splitlines():
-                if line.startswith('#') or not line.strip():
+                if not line.strip():
                     continue
+                if line.startswith('#'):  # 教学注解：灰字保留
+                    print(self._c(f"  {line}", 'gray'), file=stdout)
+                    continue
+                if line.startswith('  :='):  # 定理证明体：跳过（签名即教学）
+                    continue
+                if line.startswith(('axiom ', 'def ', 'theorem ')):
+                    head = line.split(':')[0]
+                    if len(line) > 110:  # 长签名（消去规则等）：折叠
+                        name = head.split(' ')[1].split('{')[0]
+                        print(f"  {head}: …（完整类型用 #print {name} 查看）")
+                        continue
                 print(f"  {line}", file=stdout)
-            if not already:
-                new_names = self.core.load_fragment(frag)
-                self._loaded_fragments.add(frag)
-                print(self._c(
-                    f"  ✚ 已定义 {len(new_names)} 个常量："
-                    f"{'、'.join(new_names)}", 'green'), file=stdout)
-            else:
-                print(self._c("  （已在环境中）", 'gray'), file=stdout)
+            new_names = self.core.load_fragment(frag)
+            self._loaded_fragments.add(frag)
+            print(self._c(
+                f"  ✚ 已定义 {len(new_names)} 个常量："
+                f"{'、'.join(new_names)}", 'green'), file=stdout)
 
     def _game_tactic_check(self, level, line: str) -> str | None:
         for part in line.split(';'):

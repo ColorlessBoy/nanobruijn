@@ -1,5 +1,7 @@
 # 析取（Or）家族（fol 片段）
 # 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+# 析取 Or a b：要证"either"，选一条路（Or.inl 或 Or.inr）
+# Or.rec：使用析取时两条路都要铺好——cases 的底层
 axiom Or : forall (a : Prop), forall (b : Prop), Prop
 axiom Or.inl : forall {a : Prop}, forall {b : Prop}, forall (h : a), Or a b
 axiom Or.inr : forall {a : Prop}, forall {b : Prop}, forall (h : b), Or a b

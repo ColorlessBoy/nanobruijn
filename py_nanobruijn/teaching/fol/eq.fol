@@ -1,5 +1,7 @@
 # 等式（Eq）家族（fol 片段）
 # 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+# 等式 Eq a b：rewrite 的弹药——h : a = b 时 rewrite h 换掉所有 a
+# propext：等价的命题相等（外延性公理）
 axiom Eq {u} : forall {α : Sort u}, forall (a1 : α), forall (a2 : α), Prop
 axiom Eq.refl {u} : forall {α : Sort u}, forall (a : α), @Eq.{u} α a a
 axiom Eq.rec {u, v} : forall {α : Sort u}, forall (a : α), forall {motive : forall (anon : α), Sort v}, forall (ha : motive a), forall (b : α), forall (h : @Eq.{u} α a b), motive b

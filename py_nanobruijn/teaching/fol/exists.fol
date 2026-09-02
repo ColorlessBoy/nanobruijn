@@ -1,5 +1,6 @@
 # 存在（Exists）家族（fol 片段）
 # 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+# 存在 Exists p：一个证人 w 加上 p w 的证据
 axiom Exists {u} : forall {α : Sort u}, forall (p : forall (p0 : α), Prop), Prop
 axiom Exists.intro {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall (w : α), forall (h : p w), @Exists.{u} α p
 axiom Exists.rec {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall {motive : forall (m0 : @Exists.{u} α p), Prop}, forall (case : forall (w : α), forall (h : p w), motive (@Exists.intro.{u} α p w h)), forall (t : @Exists.{u} α p), motive t

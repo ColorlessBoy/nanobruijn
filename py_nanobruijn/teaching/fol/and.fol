@@ -1,5 +1,8 @@
 # 合取（And）家族（fol 片段）
 # 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+# 合取 And a b：要证"both"，两条证据 ha、hb 缺一不可
+# And.intro：同时给出两条证据；And.left/And.right：取出一半
+# And.rec： eliminator（cases 的底层）——新手可跳过
 axiom And : forall (a : Prop), forall (b : Prop), Prop
 axiom And.intro : forall {a : Prop}, forall {b : Prop}, forall (ha : a), forall (hb : b), And a b
 axiom And.left : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), a

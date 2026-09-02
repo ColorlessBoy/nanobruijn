@@ -33,6 +33,21 @@ ALL_ORDER = ['basic', 'true', 'false', 'and', 'or', 'not',
              'iff', 'eq', 'exists', 'theorems']
 
 
+# 全量模式的复习表：片段 → 一句话角色
+FRAGMENT_ROLES = {
+    'basic': '函数组合（id / comp / flip）',
+    'true': '真——唯一.intro',
+    'false': '假——矛盾之源',
+    'and': '合取：证据成对（ha 配 hb）',
+    'or': '析取：左路或右路',
+    'not': '否定：a -> False',
+    'iff': '等价：两座桥（mp / mpr）',
+    'eq': '等式：rewrite 的弹药',
+    'exists': '存在：证人是证据',
+    'theorems': '内置定理库（#print 参考）',
+}
+
+
 def fragment_path(name: str) -> str:
     return os.path.join(_DIR, FRAGMENTS[name][0])
 

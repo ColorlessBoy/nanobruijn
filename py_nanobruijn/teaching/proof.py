@@ -246,6 +246,13 @@ class ProofState:
                 != self.core.dag.uparams[c_hv.const_levels]
                 or len(r_args) != len(c_args)):
             goal_pi = self.ctx.unfold_pi(hole.goal)
+            if r_hv.tag != 'Const':
+                # 投影类（结果头部是变量，如 And.right 的结果 b）：apply 无法
+                # 头部匹配，明确指路 exact
+                raise ValueError(
+                    f"apply {f}: {f} 的结果是投影（取出某个变量），"
+                    f"apply 无法匹配——直接 exact {f}，例如 "
+                    f"exact {f} a b h（参数按 #print {f} 的签名）")
             hint = (f"（目标还是函数类型 {self._pp(hole.goal, hole_names)}，"
                     f"先 intro 把它拆开）" if goal_pi is not None
                     else f"（目标是 {self._pp(hole.goal, hole_names)}，"
