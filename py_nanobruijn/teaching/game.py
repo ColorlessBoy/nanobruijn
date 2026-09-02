@@ -150,11 +150,18 @@ class GameSession:
         """#game <世界> <关卡号>：重玩指定关卡（覆盖星级）。"""
         self._forced_level = number
 
+    def advance_after(self, number: int) -> None:
+        """直达重玩通关后顺延：下一关存在则强制进入。"""
+        if number < len(self.game.levels):
+            self._forced_level = number + 1
+
     def next_unfinished(self) -> int | None:
         forced = getattr(self, '_forced_level', None)
         if forced is not None:
             self._forced_level = None
+            self._came_from_force = True
             return forced
+        self._came_from_force = False
         for lv in self.game.levels:
             if lv.number not in self.stars:
                 return lv.number

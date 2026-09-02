@@ -234,7 +234,7 @@ class Repl:
     def run(self, stdin=None, stdout=None) -> int:
         stdin = stdin or sys.stdin
         stdout = stdout or sys.stdout
-        print(BANNER, file=stdout)
+        print(BANNER, file=stdout, flush=True)
         if self.fresh:
             print(self._c(
                 "本会话从空环境开始——逻辑词会在进入世界时现场定义"
@@ -354,6 +354,9 @@ class Repl:
                                      level=level, game=game)
             if status == "retry":
                 game.force_level(no)  # solution 后重新开始本关（可复制标准解）
+            elif status == "completed" and getattr(game, "_came_from_force", False):
+                # 直达重玩（#game <世界> <关卡>）：通关后顺延下一关，不回绕
+                game.advance_after(no)
             elif status == "abandoned":
                 return
 

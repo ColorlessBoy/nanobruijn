@@ -122,7 +122,9 @@ class LearningLog:
                 if not err:
                     continue
                 msg = err.removeprefix("error: ")
-                kind = msg.split("：")[0].split(":")[0].strip()
+                kind = msg.split("：")[0].strip()
+                if len(kind) > 40:
+                    kind = kind[:37] + "..."
                 counts[kind] = counts.get(kind, 0) + 1
         return sorted(counts.items(), key=lambda kv: -kv[1])[:5]
 
