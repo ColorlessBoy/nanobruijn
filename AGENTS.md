@@ -9,7 +9,7 @@ nanoda_lib）+ Python 移植（`py_nanobruijn/`）+ 教学 REPL（`py_nanobruijn
 
 ```bash
 # Python（唯一活跃开发目标）
-.venv/bin/python -m pytest py_nanobruijn -q   # 全量测试（当前 316 个）
+.venv/bin/python -m pytest py_nanobruijn -q   # 全量测试（当前 331 个）
 .venv/bin/ruff check py_nanobruijn            # lint（line-length 100, py310）
 
 # Rust（参考实现，非活跃）
@@ -31,7 +31,7 @@ py_nanobruijn/
   __main__.py                                       # CLI: check / inspect / repl
   teaching/                                         # 教学 REPL（见下）
     game.py                                         # GameLoader + GameSession（.game 关卡 + 星级/存档）
-  worlds/*.game                                     # 6 个闯关世界（And/Or/Not/Exists/Iff/Combo）
+  worlds/*.game                                     # 8 个闯关世界（And/Or/Not/Exists/Iff/Combo/Hard/Eq，43 关）
 ```
 
 内核约定（重要）：
@@ -78,7 +78,7 @@ py_nanobruijn/
   `solution`（显示标准解并放弃本关回主 REPL，不记星）；`abort`/`#quit` 放弃关卡
   回主 REPL
 - 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数 + 2；2★ = 1 条 hint 或步数超限；
-  1★ = ≥2 条 hint；步数只计 STEP_TACTICS（intro/apply/exact/cases）；`ban:` 字段禁用的
+  1★ = ≥2 条 hint；步数只计 STEP_TACTICS（intro/apply/exact/cases/rewrite）；`ban:` 字段禁用的
   tactic 直接拒绝并提示换路
 - 存档：`py_nanobruijn/saves/<world_id>.json`（`{"stars": {...}}`，已 gitignore）；
   `GameSession.load_progress` 启动时读取；通关条件 = 每关至少 1★（`next_unfinished`）

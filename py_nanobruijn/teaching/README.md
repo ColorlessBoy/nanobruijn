@@ -264,7 +264,7 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 
 ## 6. 闯关模式（`#game` / `#worlds`）——把证明玩成游戏
 
-在 `#prove` 的基础上，本工具内置了 **6 个闯关世界**（And/Or/Not/Exists/Iff/Combo，
+在 `#prove` 的基础上，本工具内置了 **8 个闯关世界**（And/Or/Not/Exists/Iff/Combo/Hard/Eq，
 各 5 关）。每一关就是一条待证明的命题，目标是**用最少步骤、不看提示**通关。
 
 ### 启动与导航
@@ -313,6 +313,8 @@ Or — 析取世界：选择的两条路（0/5 关）
 | `Exists` | 存在量词 | Exists.intro / Exists.rec（cases） |
 | `Iff` | 当且仅当 | Iff.intro / Iff.mp / Iff.mpr |
 | `Combo` | 综合：多概念混合证明 | 各世界武器混用（And/Or/Not/Iff） |
+| `Hard` | 挑战：第二公里（分配律/curry/映射） | 综合运用 + 投影 And.left/And.right |
+| `Eq` | 等式：第三公里 | **rewrite** / @Eq.refl / 传递对称 |
 
 ---
 

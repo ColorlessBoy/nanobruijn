@@ -3,6 +3,13 @@
 日期：2026-08-31
 状态：已批准（头脑风暴确认）
 
+> **实施后注记（superseded 偏差，均为设计迭代）**：
+> ① 星级规则改为"每条 hint 降一星 + 3★ 容错 +2 步"（学生实测反馈）；
+> ② `#game` 无参显示 usage（进度走 `#worlds`）；③ 关卡定位用 REPL 内
+> `#game <世界> <关卡号>`（spec 的 `--level` CLI 参数未实现）；
+> ④ Combo L2 升级为 Iff 全量版；⑤ 新增 Hard/Eq 世界（"公里"叙事扩展）、
+> rewrite tactic、`variant:` 字段——见 tutorials/prove-playbook.md 与 AGENTS.md。
+
 ## 1. 背景与目标
 
 当前教学 REPL 已有 `#prove` tactic 草稿模式（ProofState + intro/apply/exact/

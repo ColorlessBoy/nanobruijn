@@ -588,38 +588,6 @@ class ProofState:
                 f"{self._pp(a_d, names)} → {self._pp(b_d, names)}）")
         return out
 
-    def _replace_subexpr(self, e: ExprPtr, pat: ExprPtr, tgt: ExprPtr,
-                         depth: int = 0, tgt_abs: bool = False,
-                         pat_base: int = 0) -> ExprPtr:
-        """递归替换 e 中所有与 pat 结构相等的子项为 tgt。
-
-        depth 是当前递归深度（binder 的 body +1）。pat 位于 pat_base 层
-        深处（在 e 的视角），匹配时提升 (depth - pat_base)；tgt 同理
-        （tgt_abs 时 tgt 是绝对引用如 var 0，不提升）。
-        """
-        if depth >= pat_base and self._struct_eq(e, pat.shift_up(depth - pat_base)):
-            return tgt if tgt_abs else tgt.shift_up(depth - pat_base)
-        v = self.ctx.view_expr(e)
-        tag = v.tag
-        if tag == 'App':
-            return self.ctx.mk_app(
-                self._replace_subexpr(v.fun, pat, tgt, depth, tgt_abs, pat_base),
-                self._replace_subexpr(v.arg, pat, tgt, depth, tgt_abs, pat_base))
-        if tag == 'Pi':
-            return self.ctx.mk_pi(v.binder_name, v.binder_style,
-                                  self._replace_subexpr(v.binder_type, pat, tgt, depth, tgt_abs, pat_base),
-                                  self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
-        if tag == 'Lambda':
-            return self.ctx.mk_lambda(v.binder_name, v.binder_style,
-                                      self._replace_subexpr(v.binder_type, pat, tgt, depth, tgt_abs, pat_base),
-                                      self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
-        if tag == 'Let':
-            return self.ctx.mk_let(v.binder_name, v.binder_style,
-                                   self._replace_subexpr(v.binder_type, pat, tgt, depth, tgt_abs, pat_base),
-                                   self._replace_subexpr(v.val, pat, tgt, depth, tgt_abs, pat_base),
-                                   self._replace_subexpr(v.body, pat, tgt, depth + 1, tgt_abs, pat_base))
-        return e
-
     def _replace_subexpr_count(self, e: ExprPtr, pat: ExprPtr, tgt: ExprPtr,
                                depth: int = 0, tgt_abs: bool = False,
                                pat_base: int = 0) -> tuple[ExprPtr, int]:
@@ -646,23 +614,6 @@ class ProofState:
             bd, n3 = self._replace_subexpr_count(v.body, pat, tgt, depth + 1, tgt_abs, pat_base)
             return self.ctx.mk_let(v.binder_name, v.binder_style, bt, vl, bd), n1 + n2 + n3
         return e, 0
-
-    def _contains_var0(self, e: ExprPtr) -> bool:
-        """表达式里是否有 var 0 的出现（view 深度对齐）。"""
-        v = self.ctx.view_expr(e)
-        tag = v.tag
-        if tag == 'Var':
-            return v.dbj_idx == 0
-        if tag == 'App':
-            return self._contains_var0(v.fun) or self._contains_var0(v.arg)
-        if tag in ('Pi', 'Lambda'):
-            return (self._contains_var0(v.binder_type)
-                    or self._contains_var0(v.body))
-        if tag == 'Let':
-            return (self._contains_var0(v.binder_type)
-                    or self._contains_var0(v.val)
-                    or self._contains_var0(v.body))
-        return False
 
     def _struct_eq(self, e: ExprPtr, pat: ExprPtr) -> bool:
         """view 结构相等（view 合成 shift 后深度对齐）。"""

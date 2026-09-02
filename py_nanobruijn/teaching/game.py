@@ -117,9 +117,13 @@ class GameLoader:
                 raise ValueError(f"game: 第 {lineno} 行未知字段 {key!r}")
         if not world_id:
             raise ValueError("game: 缺少 world 字段")
-        for lv in levels:
+        for i, lv in enumerate(levels, 1):
             if not lv['goal']:
                 raise ValueError(f"game: level {lv['number']} 缺少 goal")
+            if lv['number'] != i:
+                raise ValueError(
+                    f"game: level 序号不连续（期望 {i}，实际 {lv['number']}）——"
+                    f"关卡必须从 1 开始连续编号")
         return Game(world_id, title, intro,
                     [Level(l['number'], l['name'], l['goal'], l['hints'],
                            l['solution'], l['bans'], l['variants'])
