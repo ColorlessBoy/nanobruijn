@@ -84,6 +84,8 @@ py_nanobruijn/
   1★ = ≥2 条 hint；步数只计 STEP_TACTICS（intro/apply/exact/cases/rewrite）；`ban:` 字段禁用的
   tactic 直接拒绝并提示换路
 - 存档：`py_nanobruijn/saves/<world_id>.json`（`{"stars": {...}}`，已 gitignore）；
+  学习报告 `reports/*.md`（退出时生成：星级/回放/卡点）与问题上报
+  `feedback/*.json`（同关连错 3 次交互询问，y 后可选留言）——见 teaching/reporting.py；
   `GameSession.load_progress` 启动时读取；通关条件 = 每关至少 1★（`next_unfinished`）
 - `.game` 格式（行式，`#` 注释）：`world <id>` / `title <标题>` / `intro <叙事>` /
   `level <n>` / `name <关名>` / `goal: <命题>` / `hint: <文本>`（可多个）/

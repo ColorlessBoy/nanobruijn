@@ -32,3 +32,5 @@ sessions/
 
 # game mode saves (per-world progress files)
 py_nanobruijn/saves/
+py_nanobruijn/reports/
+py_nanobruijn/feedback/

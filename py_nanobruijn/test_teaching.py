@@ -1230,6 +1230,70 @@ class TestCliGame:
         assert "合取世界" in proc.stdout
 
 
+class TestReporting:
+    """学习报告与问题上报：LearningLog 数据层。"""
+
+    def _log(self):
+        from py_nanobruijn.teaching.reporting import LearningLog
+        return LearningLog(fresh=True)
+
+    def test_level_lifecycle(self):
+        log = self._log()
+        log.start_level("And", 1, "初见合取", "forall (a : Prop), And a b")
+        log.record("intro a", None)
+        log.record("exact ha", "error: 类型不匹配")
+        log.record("exact hb", None)
+        log.hint_used()
+        log.finish_level(2)
+        assert len(log.entries) == 1
+        e = log.entries[0]
+        assert e["world"] == "And" and e["level"] == 1 and e["stars"] == 2
+        assert e["hints"] == 1
+        assert sum(1 for (_, err) in e["steps"] if err) == 1
+
+    def test_abandon_recorded(self):
+        log = self._log()
+        log.start_level("And", 2, "只取右半", "goal")
+        log.record("intro a", None)
+        log.abandon()
+        assert log.entries[0]["stars"] is None
+
+    def test_markdown_report(self, tmp_path):
+        log = self._log()
+        log.start_level("And", 1, "初见合取", "forall (a : Prop), And a b")
+        log.record("intro a", None)
+        log.record("exact ha", "error: 类型不匹配：ha : a，目标为 b")
+        log.hint_used()
+        log.finish_level(2)
+        path = log.save_report(str(tmp_path))
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        assert "学习报告" in text
+        assert "★★" in text
+        assert "exact ha" in text and "类型不匹配" in text
+        assert "卡点" in text
+
+    def test_feedback_json(self, tmp_path):
+        log = self._log()
+        log.start_level("And", 2, "只取右半", "And a b -> b")
+        log.record("intro a", None)
+        log.record("exact h", "error: unknown identifier")
+        path = log.save_feedback(str(tmp_path), "这条报错看不懂")
+        import json
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        assert data["world"] == "And" and data["level"] == 2
+        assert data["note"] == "这条报错看不懂"
+        assert "unknown identifier" in data["error"]
+
+    def test_report_path_gitignored_dir(self, tmp_path):
+        log = self._log()
+        log.start_level("And", 1, "L", "g")
+        log.finish_level(3)
+        path = log.save_report(str(tmp_path))
+        assert path.endswith(".md") and str(tmp_path) in path
+
+
 class TestGameLoader:
     """game.py：.game 纯文本解析。"""
 

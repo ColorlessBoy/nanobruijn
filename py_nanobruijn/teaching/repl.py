@@ -49,6 +49,8 @@ class Repl:
         self.saves_dir = saves_dir
         self.fresh = fresh  # --fresh：空 env 起步，世界进入时现场定义
         self._loaded_fragments: set[str] = set()
+        from .reporting import LearningLog
+        self.learning = LearningLog(fresh)
         self.pending_game = None
         self._intro_shown: set[str] = set()
 
@@ -249,9 +251,11 @@ class Repl:
                 prompt = self._c("> ", "green")
                 line = input(prompt) if stdin is sys.stdin else stdin.readline()
             except EOFError:
+                self._save_learning_report(stdout)
                 return 0
             if not line:
                 if stdin is not sys.stdin:
+                    self._save_learning_report(stdout)
                     return 0
                 continue
             self._record_session(session_path, line)
@@ -281,6 +285,42 @@ class Repl:
         print(f"会话已记录: {os.path.relpath(path, os.getcwd())}", file=stdout)
         return path
 
+    def _save_learning_report(self, stdout) -> None:
+        """会话结束：有做题记录则生成学习报告（reports/）。"""
+        if not self.learning.entries and self.learning.current is None:
+            return
+        try:
+            path = self.learning.save_report(self._data_dir("reports"))
+            print(self._c(f"学习报告已生成：{path}", 'cyan'), file=stdout)
+        except OSError:
+            pass
+
+    def _ask_report(self, stdin, stdout) -> None:
+        """连错后询问玩家是否上报问题（交互模式才调用）。"""
+        print(self._c("连续几次没通过——要上报这个问题吗？（y/n，可附一句话）",
+                      'cyan'), file=stdout)
+        try:
+            answer = stdin.readline().strip()
+        except (EOFError, OSError):
+            return
+        note = ""
+        if answer.lower().startswith("y"):
+            rest = answer[1:].strip()
+            if not rest:
+                print("一句话描述问题（可直接回车跳过）：", file=stdout)
+                try:
+                    note = stdin.readline().strip()
+                except (EOFError, OSError):
+                    note = ""
+            path = self.learning.save_feedback(
+                self._data_dir("feedback"), note)
+            print(self._c(f"反馈已保存：{path}（可发给老师或附在 issue 里）",
+                          'green'), file=stdout)
+
+    def _data_dir(self, kind: str) -> str:
+        import os
+        return os.path.join(os.path.dirname(os.path.dirname(__file__)), kind)
+
     @staticmethod
     def _record_session(path: str | None, line: str) -> None:
         if path:
@@ -308,6 +348,8 @@ class Repl:
                 print(self._error(f"关卡 goal 解析失败: {err}"), file=stdout)
                 return
             game.current_level_no = no
+            self.learning.start_level(game.game.world_id, no,
+                                      name, level.goal)
             status = self._run_proof(state, stdin, stdout, session_path,
                                      level=level, game=game)
             if status == "retry":
@@ -379,17 +421,25 @@ class Repl:
             print(state.context(), file=stdout)
         steps = 0
         hint_idx = 0
+        error_streak = 0
+        asked_report = False
         while True:
             try:
                 prompt = self._c("proof> ", "green")
                 line = input(prompt) if stdin is sys.stdin else stdin.readline()
             except EOFError:
+                if level is not None:
+                    self.learning.abandon()
                 return "abandoned" if level is not None else "completed"
             if not line:
                 if stdin is not sys.stdin:
+                    if level is not None:
+                        self.learning.abandon()
                     return "abandoned" if level is not None else "completed"
                 continue
             if line.strip() == "#quit":
+                if level is not None:
+                    self.learning.abandon()
                 return "abandoned" if level is not None else "completed"
             self._record_session(session_path, line)
             if level is not None:
@@ -398,11 +448,13 @@ class Repl:
                     if hint_idx < len(level.hints):
                         hint = level.hints[hint_idx]
                         hint_idx += 1
+                        self.learning.hint_used()
                         print(f"提示 {hint_idx}/{len(level.hints)}: {hint}", file=stdout)
                     else:
                         print("没有更多提示了——再想想，或者 solution 看标准解", file=stdout)
                     continue
                 if cmd == "solution":
+                    self.learning.abandon()
                     print("标准解：", file=stdout)
                     print("\n".join(level.solution), file=stdout)
                     print(self._c("（本关未通关——输入任意命令重新开始本关，或 #quit 回主 REPL）", "gray"), file=stdout)
@@ -414,14 +466,17 @@ class Repl:
                 is_step = line.strip().split(maxsplit=1)[0] in self.STEP_TACTICS
             else:
                 is_step = False
+            self.learning.record(line)
             try:
                 out = run_tactic(state, line)
+                error_streak = 0
             except ProofDone as done:
                 if level is not None and is_step:
                     steps += 1
                 print(done.text, file=stdout)
                 if level is not None and game is not None:
                     stars = game.complete(steps, hint_idx)
+                    self.learning.finish_level(stars)
                     print(self._c(f"过关！获得 {'★' * stars}{'☆' * (3 - stars)}", 'green'), file=stdout)
                     if level.solution:
                         print("标准解（你的路径可能不同，两种都正确）：", file=stdout)
@@ -430,9 +485,21 @@ class Repl:
                         print(self._c(f"💡 变体挑战：{variant}", 'cyan'), file=stdout)
                 return "completed"
             except AbortProof:
+                if level is not None:
+                    self.learning.abandon()
                 return "abandoned"
             except (ValueError, ParseError, CheckTimeoutError) as err:
-                print(self._error(str(err)), file=stdout)
+                msg = str(err)
+                self.learning.record_error(msg)
+                if level is not None and not is_step:
+                    pass
+                error_streak += 1
+                print(self._error(msg), file=stdout)
+                # 连错 3 次：交互模式下询问是否上报
+                if (error_streak >= 3 and not asked_report
+                        and stdin is sys.stdin and level is not None):
+                    asked_report = True
+                    self._ask_report(stdin, stdout)
                 continue
             except Exception as err:  # noqa: BLE001 - REPL 顶层兜底
                 print(self._error(f"{type(err).__name__}: {err}"), file=stdout)
