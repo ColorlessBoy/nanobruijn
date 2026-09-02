@@ -43,11 +43,12 @@ class Level:
 
 class Game:
     def __init__(self, world_id: str, title: str, intro: str,
-                 levels: list[Level]):
+                 levels: list[Level], using: list[str] | None = None):
         self.world_id = world_id
         self.title = title
         self.intro = intro
         self.levels = levels
+        self.using = using or []
 
     def level(self, number: int) -> Level:
         return self.levels[number - 1]
@@ -58,6 +59,7 @@ class GameLoader:
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
         world_id = title = intro = ""
+        using: list[str] = []
         levels: list[Level] = []
         cur: dict | None = None
         in_solution = False
@@ -93,6 +95,8 @@ class GameLoader:
                 title = val
             elif key == 'intro':
                 intro = val
+            elif key == 'using':
+                using = [x.strip() for x in val.split(',') if x.strip()]
             elif key == 'level':
                 cur = {'number': int(val), 'name': '', 'goal': '',
                        'hints': [], 'solution': [], 'bans': [], 'variants': []}
@@ -127,7 +131,7 @@ class GameLoader:
         return Game(world_id, title, intro,
                     [Level(l['number'], l['name'], l['goal'], l['hints'],
                            l['solution'], l['bans'], l['variants'])
-                     for l in levels])
+                     for l in levels], using)
 
 SAVES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "saves")
 

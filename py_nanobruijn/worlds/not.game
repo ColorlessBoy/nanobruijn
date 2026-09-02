@@ -1,6 +1,7 @@
 world Not
 title 否定世界：把不可能写出来
 intro 否定 ¬a 不是魔法，它就是 a → False：一个把 a 的证明变成荒谬的函数。这一关的世界里，你会学会用这个定义思考。
+using: not
 level 1
 name 否定的定义
 goal: forall (a : Prop), (a -> False) -> Not a

@@ -1,6 +1,7 @@
 world Iff
 title 等价世界：两个方向的约定
 intro 等价 a ↔ b 是两座桥：Iff.mp 从 a 到 b，Iff.mpr 从 b 到 a。Iff.intro 则同时铺两条路。
+using: iff
 level 1
 name 自反
 goal: forall (a : Prop), Iff a a

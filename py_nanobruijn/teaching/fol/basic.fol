@@ -1,0 +1,8 @@
+# 基础函数组合子（id / Function.comp / flip）（fol 片段）
+# 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+def id {u} : forall {α : Sort u}, forall (a : α), α
+  := fun {α : Sort u} => fun (a : α) => a
+def Function.comp {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {δ : Sort w}, forall (f : forall (f0 : β), δ), forall (g : forall (g0 : α), β), forall (x : α), δ
+  := fun {α : Sort u} => fun {β : Sort v} => fun {δ : Sort w} => fun (f : forall (f0 : β), δ) => fun (g : forall (g0 : α), β) => fun (x : α) => f (g x)
+def flip {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {φ : Sort w}, forall (f : forall (f0 : α), forall (f1 : β), φ), forall (b : β), forall (a : α), φ
+  := fun {α : Sort u} => fun {β : Sort v} => fun {φ : Sort w} => fun (f : forall (f0 : α), forall (f1 : β), φ) => fun (b : β) => fun (a : α) => f a b

@@ -1,0 +1,6 @@
+# 否定（Not）：定义在 False 之上（fol 片段）
+# 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+def Not : forall (a : Prop), Prop
+  := fun (a : Prop) => forall (n : a), False
+def absurd {v} : forall {a : Prop}, forall {b : Sort v}, forall (ha : a), forall (hn : Not a), b
+  := fun {a : Prop} => fun {b : Sort v} => fun (ha : a) => fun (hn : Not a) => @False.rec.{v} (fun (anon : False) => b) (hn ha)

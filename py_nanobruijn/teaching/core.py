@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 from ..binder_style import BinderStyle
 from ..config import Config
 from ..dag import LeanDag, TcCtx
@@ -10,8 +8,6 @@ from ..level import Level
 from ..name import Name
 from ..ptr import ExprPtr, LevelPtr, NamePtr
 from ..tc_whnf import TypeChecker
-
-DEFAULT_FOL = os.path.join(os.path.dirname(__file__), "core.fol")
 
 
 def _name(ctx: TcCtx, s: str, pfx: int = 0) -> NamePtr:
@@ -36,13 +32,15 @@ def _u(ctx: TcCtx, name: str) -> tuple[NamePtr, ExprPtr, LevelPtr]:
 
 
 class BootstrapCore:
-    """教学逻辑核心：启动时从 core.fol（fol 声明语言）现场加载全部声明。
+    """教学逻辑核心：从 fol 片段（fol 声明语言）现场加载声明。
 
     声明库是数据（教学语法字符串），运行时解析构造 Env——新增常量/定理
-    只需在 core.fol 里加一行，不碰代码。
+    只需在 teaching/fol/ 的片段文件里加一行，不碰代码。
+    make_bootstrap() 全量加载（默认）；make_fresh_core() 空 env 起步，
+    供游戏 --fresh 模式按世界渐进加载（定义仪式）。
     """
 
-    def __init__(self, config: Config | None = None, fol_path: str | None = None):
+    def __init__(self, config: Config | None = None):
         self.config = config or Config(
             nat_extension=True, string_extension=True,
             unsafe_permit_all_axioms=True, unpermitted_axiom_hard_error=False,
@@ -50,9 +48,18 @@ class BootstrapCore:
         self.dag = LeanDag.with_capacity(self.config, 0)
         self.ctx = TcCtx(self.dag)
         self.env = Env(declars={}, limit=EnvLimit("pp_unlimited"))
-        from .fol import load_fol
-        load_fol(self, fol_path or DEFAULT_FOL)
+        self.env.cutoff = 0
+
+    # ---------- 渐进加载 ----------
+
+    def load_fragment(self, name: str) -> list[str]:
+        """加载单个 fol 片段，返回新增常量名（cutoff 同步刷新）。"""
+        from .fol import fragment_path, load_fol
+        before = set(self.env.declars)
+        load_fol(self, fragment_path(name))
         self.env.cutoff = len(self.env.declars)
+        return sorted(self.name_to_string(n) for n in self.env.declars
+                      if n not in before)
 
     # ---------- 声明构造 helpers ----------
 
@@ -95,4 +102,15 @@ class BootstrapCore:
 
 
 def make_bootstrap() -> BootstrapCore:
+    """全量教学核心：按固定顺序加载全部 fol 片段（55 常量）。"""
+    from .fol import ALL_ORDER, fragment_path, load_fol
+    core = BootstrapCore()
+    for name in ALL_ORDER:
+        load_fol(core, fragment_path(name))
+    core.env.cutoff = len(core.env.declars)
+    return core
+
+
+def make_fresh_core() -> BootstrapCore:
+    """空 env 起步（--fresh 游戏模式）：常量在世界进入时现场定义。"""
     return BootstrapCore()

@@ -1,6 +1,7 @@
 world Combo
 title 综合世界：第一公里终点
 intro 前五个世界的技巧在这里汇合。每一关都是一道完整的谜题。提示会越来越稀疏——是时候自己铺路了。
+using: all
 level 1
 name 分配律反向
 goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or (And a b) (And a c) -> And a (Or b c)

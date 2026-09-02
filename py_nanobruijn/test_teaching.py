@@ -199,6 +199,49 @@ class TestCore:
             assert tc.is_def_eq(const_ty, parsed), f"semantic mismatch: {name} vs {text}"
 
 
+class TestProgressiveCore:
+    """fol 片段渐进加载：fresh 核心 + 定义仪式的数据层。"""
+
+    def test_make_bootstrap_full(self):
+        core = make_bootstrap()
+        assert len(core.constants()) == 55
+
+    def test_make_fresh_empty(self):
+        from py_nanobruijn.teaching.core import make_fresh_core
+        core = make_fresh_core()
+        assert core.constants() == []
+
+    def test_load_fragment_and(self):
+        from py_nanobruijn.teaching.core import make_fresh_core
+        core = make_fresh_core()
+        new = core.load_fragment("and")
+        assert set(new) == {"And", "And.intro", "And.left",
+                            "And.right", "And.rec"}
+        assert core.env.cutoff == len(core.env.declars)
+
+    def test_resolve_deps_order(self):
+        from py_nanobruijn.teaching.fol import resolve_deps
+        out = resolve_deps(["theorems"])
+        assert out[-1] == "theorems"
+        assert set(out) == {"basic", "true", "false", "and", "or", "not",
+                            "iff", "eq", "exists", "theorems"}
+        # not 依赖 false 在前
+        assert out.index("false") < out.index("not")
+
+    def test_fresh_plus_all_fragments_equals_bootstrap(self):
+        from py_nanobruijn.teaching.core import make_fresh_core
+        from py_nanobruijn.teaching.fol import resolve_deps
+        fresh = make_fresh_core()
+        for frag in resolve_deps(["theorems"]):
+            fresh.load_fragment(frag)
+        assert sorted(fresh.constants()) == sorted(make_bootstrap().constants())
+
+    def test_unknown_fragment(self):
+        from py_nanobruijn.teaching.fol import resolve_deps
+        with pytest.raises(ValueError, match="未知片段"):
+            resolve_deps(["bogus"])
+
+
 class TestParser:
     def test_parse_var(self):
         core = make_bootstrap()
@@ -1061,6 +1104,30 @@ class TestGameRepl:
         out = io.StringIO()
         r.run(stdin=io.StringIO("#game And 3\n#quit\n"), stdout=out)
         assert "第 3 关" in out.getvalue()
+
+    def test_game_using_parsed(self):
+        from py_nanobruijn.teaching.game import GameLoader
+        path = os.path.join(os.path.dirname(__file__), "worlds", "eq.game")
+        g = GameLoader().load(path)
+        assert g.using == ["eq", "and"]
+
+    def test_ceremony_loads_fragments(self, capsys):
+        import io
+
+        from py_nanobruijn.teaching.core import make_fresh_core
+        r = Repl(make_fresh_core(), saves_dir=tempfile.mkdtemp(), fresh=True)
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
+        text = out.getvalue()
+        assert "定义仪式" in text
+        assert "已定义 5 个常量" in text
+        assert len(r.core.constants()) == 5
+
+    def test_fresh_check_unknown_hints_worlds(self):
+        from py_nanobruijn.teaching.core import make_fresh_core
+        r = Repl(make_fresh_core(), fresh=True)
+        out = r.process_line("#check And")
+        assert "还没被定义" in out
 
     def test_game_hint_outside_level(self):
         from py_nanobruijn.teaching.repl import Repl

@@ -1,0 +1,7 @@
+# 合取（And）家族（fol 片段）
+# 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+axiom And : forall (a : Prop), forall (b : Prop), Prop
+axiom And.intro : forall {a : Prop}, forall {b : Prop}, forall (ha : a), forall (hb : b), And a b
+axiom And.left : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), a
+axiom And.right : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), b
+axiom And.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : And a b), Sort u}, forall (t : And a b), forall (case : forall (left : a), forall (right : b), motive (@And.intro a b left right)), motive t

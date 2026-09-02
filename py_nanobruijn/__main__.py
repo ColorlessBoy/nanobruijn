@@ -56,11 +56,12 @@ def _run_check(args: argparse.Namespace) -> int:
 def _run_repl(args: argparse.Namespace) -> int:
     import io
 
-    from .teaching.core import make_bootstrap
+    from .teaching.core import make_bootstrap, make_fresh_core
     from .teaching.repl import Repl
-    core = make_bootstrap()
+    fresh = args.fresh or bool(args.game)
+    core = make_fresh_core() if fresh else make_bootstrap()
     color = True if args.color else (False if args.no_color else None)
-    repl = Repl(core, timeout_secs=args.timeout, color=color)
+    repl = Repl(core, timeout_secs=args.timeout, color=color, fresh=fresh)
     if args.game:
         err = repl.start_game(args.game)
         if err:
@@ -121,7 +122,10 @@ def main(argv: list[str] | None = None) -> int:
     repl.add_argument("--script", help="non-interactive: run these lines then exit")
     repl.add_argument("--json", action="store_true",
                       help="with --script: machine-readable JSON output")
-    repl.add_argument("--game", help="enter a world on startup")
+    repl.add_argument("--game", help="enter a world on startup (implies --fresh)")
+    repl.add_argument("--fresh", action="store_true",
+                      help="start with an empty environment; constants are"
+                           " defined on world entry (definition ceremony)")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()

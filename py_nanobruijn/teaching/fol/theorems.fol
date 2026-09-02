@@ -1,52 +1,5 @@
-# core.fol —— 教学逻辑核心声明库（fol 语言）
-#
-# fol = First-Order Logic 教学声明语言
-# 语法：
-#   axiom <name> {u, v} : <type>
-#   def <name> {u} : <type> := <value>
-#   theorem <name> : <type> := <value>
-# {u, v} 声明 universe 参数；类型和值使用教学表达式语法
-# （forall/fun/@/应用/Type/Sort，见 teaching/README.md）
-
-# ---- 逻辑原语（Axiom）----
-axiom True : Prop
-axiom True.intro : True
-axiom False : Prop
-axiom False.rec {u} : forall {motive : forall (anon : False), Sort u}, forall (t : False), motive t
-axiom And : forall (a : Prop), forall (b : Prop), Prop
-axiom And.intro : forall {a : Prop}, forall {b : Prop}, forall (ha : a), forall (hb : b), And a b
-axiom And.left : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), a
-axiom And.right : forall {a : Prop}, forall {b : Prop}, forall (h : And a b), b
-axiom And.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : And a b), Sort u}, forall (t : And a b), forall (case : forall (left : a), forall (right : b), motive (@And.intro a b left right)), motive t
-axiom Or : forall (a : Prop), forall (b : Prop), Prop
-axiom Or.inl : forall {a : Prop}, forall {b : Prop}, forall (h : a), Or a b
-axiom Or.inr : forall {a : Prop}, forall {b : Prop}, forall (h : b), Or a b
-axiom Or.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : Or a b), Sort u}, forall (left : forall (l : a), motive (@Or.inl a b l)), forall (right : forall (r : b), motive (@Or.inr a b r)), forall (t : Or a b), motive t
-axiom Iff : forall (a : Prop), forall (b : Prop), Prop
-axiom Iff.intro : forall {a : Prop}, forall {b : Prop}, forall (mp : forall (mp0 : a), b), forall (mpr : forall (mpr0 : b), a), Iff a b
-axiom Iff.mp : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), forall (ha : a), b
-axiom Iff.mpr : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), forall (hb : b), a
-axiom Eq {u} : forall {α : Sort u}, forall (a1 : α), forall (a2 : α), Prop
-axiom Eq.refl {u} : forall {α : Sort u}, forall (a : α), @Eq.{u} α a a
-axiom Eq.rec {u, v} : forall {α : Sort u}, forall (a : α), forall {motive : forall (anon : α), Sort v}, forall (ha : motive a), forall (b : α), forall (h : @Eq.{u} α a b), motive b
-axiom propext : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), @Eq.{1} Prop a b
-axiom Exists {u} : forall {α : Sort u}, forall (p : forall (p0 : α), Prop), Prop
-axiom Exists.intro {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall (w : α), forall (h : p w), @Exists.{u} α p
-axiom Exists.rec {u} : forall {α : Sort u}, forall {p : forall (p0 : α), Prop}, forall {motive : forall (m0 : @Exists.{u} α p), Prop}, forall (case : forall (w : α), forall (h : p w), motive (@Exists.intro.{u} α p w h)), forall (t : @Exists.{u} α p), motive t
-
-# ---- 定义（Definition，可 δ 展开）----
-def Not : forall (a : Prop), Prop
-  := fun (a : Prop) => forall (n : a), False
-def id {u} : forall {α : Sort u}, forall (a : α), α
-  := fun {α : Sort u} => fun (a : α) => a
-def Function.comp {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {δ : Sort w}, forall (f : forall (f0 : β), δ), forall (g : forall (g0 : α), β), forall (x : α), δ
-  := fun {α : Sort u} => fun {β : Sort v} => fun {δ : Sort w} => fun (f : forall (f0 : β), δ) => fun (g : forall (g0 : α), β) => fun (x : α) => f (g x)
-def flip {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {φ : Sort w}, forall (f : forall (f0 : α), forall (f1 : β), φ), forall (b : β), forall (a : α), φ
-  := fun {α : Sort u} => fun {β : Sort v} => fun {φ : Sort w} => fun (f : forall (f0 : α), forall (f1 : β), φ) => fun (b : β) => fun (a : α) => f a b
-def absurd {v} : forall {a : Prop}, forall {b : Sort v}, forall (ha : a), forall (hn : Not a), b
-  := fun {a : Prop} => fun {b : Sort v} => fun (ha : a) => fun (hn : Not a) => @False.rec.{v} (fun (anon : False) => b) (hn ha)
-
-# ---- 定理（Theorem）----
+# 内置定理库（依赖全部连接符）（fol 片段）
+# 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
 theorem iff_of_true : forall {a : Prop}, forall {b : Prop}, forall (ha : a), forall (hb : b), Iff a b
   := fun {a : Prop} => fun {b : Prop} => fun (ha : a) => fun (hb : b) => @Iff.intro a b (fun (anon : a) => hb) (fun (anon : b) => ha)
 theorem Iff.refl : forall (a : Prop), Iff a a

@@ -1,6 +1,7 @@
 world Or
 title 析取世界：选择的两条路
 intro 析取 a ∨ b 的证明是「要么左边要么右边」：Or.inl 走左路，Or.inr 走右路。从前提里用 a ∨ b 时，必须两条路都铺好（Or.rec 的本质）。
+using: or
 level 1
 name 左路
 goal: forall (a : Prop), forall (b : Prop), a -> Or a b

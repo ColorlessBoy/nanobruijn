@@ -1,6 +1,7 @@
 world And
 title 合取世界：从构造到分解
 intro 你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
+using: and
 level 1
 name 初见合取
 goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b

@@ -1,0 +1,6 @@
+# 析取（Or）家族（fol 片段）
+# 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+axiom Or : forall (a : Prop), forall (b : Prop), Prop
+axiom Or.inl : forall {a : Prop}, forall {b : Prop}, forall (h : a), Or a b
+axiom Or.inr : forall {a : Prop}, forall {b : Prop}, forall (h : b), Or a b
+axiom Or.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : Or a b), Sort u}, forall (left : forall (l : a), motive (@Or.inl a b l)), forall (right : forall (r : b), motive (@Or.inr a b r)), forall (t : Or a b), motive t

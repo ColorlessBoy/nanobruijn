@@ -1,22 +1,75 @@
-"""fol 声明语言加载器（First-Order Logic teaching declaration language）。
-
-core.fol 是教学核心的声明库源码：启动时现场加载。语法：
-
-    axiom <name> {u, v} : <type>
-    def <name> {u} : <type> := <value>
-    theorem <name> : <type> := <value>
-
-- {u, v}：声明级 universe 参数（先插入名字，供类型/值中的 `Sort u`/`.{u}` 引用）
-- 类型和值使用教学表达式语法（teaching/parser.py 的 parse_expr）
-- `#` 注释；值写在 `:=` 后的缩进行（可多行续接）
-"""
 from __future__ import annotations
+
+"""fol 片段注册表：教学核心按片段渐进加载。
+
+每个片段是 fol 声明语言的一个 .fol 文件（声明按依赖分族）。
+- make_bootstrap() 按固定顺序加载全部片段（与原 core.fol 等价）
+- make_fresh_core() 不加载任何片段（游戏 --fresh 模式从零起步，
+  进世界时按 .game 的 using: 字段现场定义——定义仪式）
+"""
+
+import os
+
+_DIR = os.path.dirname(__file__)
+
+# 片段名 → (文件, 依赖片段列表)
+FRAGMENTS: dict[str, tuple[str, list[str]]] = {
+    'basic': ('basic.fol', []),
+    'true': ('true.fol', []),
+    'false': ('false.fol', []),
+    'and': ('and.fol', []),
+    'or': ('or.fol', []),
+    'not': ('not.fol', ['false']),
+    'iff': ('iff.fol', []),
+    'eq': ('eq.fol', ['iff']),
+    'exists': ('exists.fol', []),
+    'theorems': ('theorems.fol',
+                 ['basic', 'true', 'false', 'and', 'or', 'not',
+                  'iff', 'eq', 'exists']),
+}
+
+# make_bootstrap 全量加载顺序（与原 core.fol 等价）
+ALL_ORDER = ['basic', 'true', 'false', 'and', 'or', 'not',
+             'iff', 'eq', 'exists', 'theorems']
+
+
+def fragment_path(name: str) -> str:
+    return os.path.join(_DIR, FRAGMENTS[name][0])
+
+
+def fragment_source(name: str) -> str:
+    with open(fragment_path(name), encoding='utf-8') as f:
+        return f.read()
+
+
+def resolve_deps(names: list[str]) -> list[str]:
+    """按依赖拓扑排序展开片段列表（去重，依赖在前）。"""
+    out: list[str] = []
+
+    def add(n: str) -> None:
+        if n in out:
+            return
+        for dep in FRAGMENTS[n][1]:
+            add(dep)
+        out.append(n)
+
+    for n in names:
+        if n == 'all':
+            for x in ALL_ORDER:
+                add(x)
+        else:
+            if n not in FRAGMENTS:
+                raise ValueError(f"fol: 未知片段 {n!r}（可选：{', '.join(FRAGMENTS)}）")
+            add(n)
+    return out
+
+# ---- fol 加载器（原 teaching/fol.py）----
 
 import re
 
-from ..level import Level
-from ..ptr import NamePtr
-from .parser import parse_expr
+from ...level import Level
+from ...ptr import NamePtr
+from ..parser import parse_expr
 
 DECL_RE = re.compile(r'^(axiom|def|theorem)\s+([\w.\'-]+)(?:\s*\{([^}]*)\})?\s*:\s*(.+)$')
 

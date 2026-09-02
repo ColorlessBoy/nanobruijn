@@ -1,6 +1,7 @@
 world Hard
 title 挑战世界：第二公里
 intro 六个世界的技巧在这里合流。每关都是一道组合题，提示会很少——是时候把 And/Or/Not/Exists/Iff 当作真正的工具来用了。
+using: all
 level 1
 name 分配律正向
 goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), And a (Or b c) -> Or (And a b) (And a c)

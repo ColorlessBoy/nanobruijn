@@ -1,0 +1,6 @@
+# 等价（Iff）家族（propext 依赖 Iff）（fol 片段）
+# 等价（Iff）家族（fol 片段）
+axiom Iff : forall (a : Prop), forall (b : Prop), Prop
+axiom Iff.intro : forall {a : Prop}, forall {b : Prop}, forall (mp : forall (mp0 : a), b), forall (mpr : forall (mpr0 : b), a), Iff a b
+axiom Iff.mp : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), forall (ha : a), b
+axiom Iff.mpr : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), forall (hb : b), a

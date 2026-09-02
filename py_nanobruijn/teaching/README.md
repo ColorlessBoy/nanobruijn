@@ -279,7 +279,11 @@ Or — 析取世界：选择的两条路（0/5 关）
 你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
 ```
 
-或启动时直接进入：`python -m py_nanobruijn repl --game And`。
+或启动时直接进入：`python -m py_nanobruijn repl --game And`
+（`--game` 隐含 `--fresh`：从**空环境**开始，进入世界时现场定义该逻辑词——
+你会看到它的 fol 声明逐行展示并被真实加载，这就是"定义仪式"。`#check And`
+在进 And 世界前会提示"它还没被定义！"。默认（无 `--fresh`）则是全量环境，
+仪式只展示声明。
 
 ### 关卡内命令
 

@@ -1,0 +1,4 @@
+# 假（False）与消去（fol 片段）
+# 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
+axiom False : Prop
+axiom False.rec {u} : forall {motive : forall (anon : False), Sort u}, forall (t : False), motive t

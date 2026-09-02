@@ -51,8 +51,10 @@ py_nanobruijn/
 .venv/bin/python -m py_nanobruijn repl        # 或 py-nanobruijn repl
 ```
 
-- 内置逻辑核心（`core.py`，21 个常量）：True/False/And/Or/Iff/Eq/propext/Not/id/
-  Function.comp/flip——用 Python 构造器直接组装 `Env`，不依赖 NDJSON export
+- 内置逻辑核心（`teaching/fol/` 片段，55 个声明）：连接符家族按 fol 片段分组
+  （basic/true/false/and/or/not/iff/eq/exists + theorems），`make_bootstrap()`
+  全量加载；`make_fresh_core()` 空 env 起步（`--fresh`/`--game` 隐含），世界进入时
+  按 `.game` 的 `using:` 字段**现场定义**（定义仪式，依赖自动补齐）
 - 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ 归约）/
   `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#quit`；
   每行新 `TypeChecker`（`--timeout` 防卡死）
@@ -72,7 +74,8 @@ py_nanobruijn/
 
 ## GAME 模式（闯关世界，py_nanobruijn/teaching/game.py + worlds/）
 
-- 6 个世界：And/Or/Not/Exists/Iff/Combo（各 5 关，见 `worlds/*.game`）；
+- 8 个世界：And/Or/Not/Exists/Iff/Combo/Hard/Eq（43 关，见 `worlds/*.game`，
+  `using:` 字段声明所需 fol 片段）；
   启动：`repl --game <世界>`，或 REPL 内 `#game <世界>` / `#worlds`（列出全部与完成度）
 - 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，每条 hint 降一星）/
   `solution`（显示标准解并放弃本关回主 REPL，不记星）；`abort`/`#quit` 放弃关卡

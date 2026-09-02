@@ -41,11 +41,14 @@ class _GameSession(Exception):
 
 class Repl:
     def __init__(self, core: BootstrapCore, timeout_secs: float = 5.0,
-                 color: bool | None = None, saves_dir: str | None = None):
+                 color: bool | None = None, saves_dir: str | None = None,
+                 fresh: bool = False):
         self.core = core
         self.timeout_secs = float(timeout_secs)
         self.color = color_enabled(color)
         self.saves_dir = saves_dir
+        self.fresh = fresh  # --fresh：空 env 起步，世界进入时现场定义
+        self._loaded_fragments: set[str] = set()
         self.pending_game = None
         self._intro_shown: set[str] = set()
 
@@ -103,7 +106,15 @@ class Repl:
             tc = self.core.make_type_checker(self.timeout_secs)
             ty = tc.infer(e, 'check')
             return f"{pretty(self.core, e, self.color)} : {pretty(self.core, ty, self.color)}"
-        except (ValueError, CheckTimeoutError, ParseError) as err:
+        except ParseError as err:
+            msg = str(err)
+            if self.fresh and ('unknown constant' in msg
+                               or 'unknown identifier' in msg):
+                return self._error(
+                    f"{msg}——它还没被定义！"
+                    f"（#worlds 看世界列表，进对应世界见证它的定义）")
+            return self._error(msg)
+        except (ValueError, CheckTimeoutError) as err:
             return self._error(str(err))
         except Exception as err:  # noqa: BLE001 - REPL 顶层兜底
             return self._error(f"{type(err).__name__}: {err}")
@@ -272,6 +283,7 @@ class Repl:
                 f.write(line.rstrip("\n") + "\n")
 
     def _run_game(self, game, stdin, stdout, session_path) -> None:
+        self._definition_ceremony(game, stdout)
         if game.game.world_id not in self._intro_shown:
             print(f"{game.game.title}", file=stdout)
             print(f"{game.game.intro}", file=stdout)
@@ -297,6 +309,39 @@ class Repl:
                 game.force_level(no)  # solution 后重新开始本关（可复制标准解）
             elif status == "abandoned":
                 return
+
+    def _definition_ceremony(self, game, stdout) -> None:
+        """定义仪式：按世界 using: 现场加载 fol 片段（fresh 模式真实加载，
+        全量模式只展示声明——"它们已在你的环境中"）。"""
+        from .fol import fragment_source, resolve_deps
+        using = game.game.using or []
+        if not using:
+            return
+        if self.fresh:
+            todo = [f for f in resolve_deps(using)
+                    if f not in self._loaded_fragments]
+        else:
+            todo = []
+        if not using or (not todo and self.fresh):
+            return
+        title = f"📜 定义仪式：{game.game.title}"
+        print(self._c(title, 'cyan'), file=stdout)
+        for frag in resolve_deps(using):
+            already = frag in self._loaded_fragments or not self.fresh
+            src = fragment_source(frag)
+            print(self._c(f"--- {frag} ---", 'gray'), file=stdout)
+            for line in src.splitlines():
+                if line.startswith('#') or not line.strip():
+                    continue
+                print(f"  {line}", file=stdout)
+            if not already:
+                new_names = self.core.load_fragment(frag)
+                self._loaded_fragments.add(frag)
+                print(self._c(
+                    f"  ✚ 已定义 {len(new_names)} 个常量："
+                    f"{'、'.join(new_names)}", 'green'), file=stdout)
+            else:
+                print(self._c("  （已在环境中）", 'gray'), file=stdout)
 
     def _game_tactic_check(self, level, line: str) -> str | None:
         for part in line.split(';'):
