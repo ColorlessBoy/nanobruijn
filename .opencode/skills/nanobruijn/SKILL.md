@@ -20,8 +20,12 @@ description: "Verify Lean proofs and grade student submissions with the nanobrui
 ## 工作流
 
 1. 学生提交证明（文本）→ 包成 `#prove` + tactic 序列 → `--script --json`
-2. 读 `ok` 与 `output`：`内核检查: 通过` = 证明正确；`error:` 行 = 失败原因
-3. 反馈循环：把 error 信息转成教学提示（提示用中文，指向下一个该用的 tactic）
+2. 判读三态（output 全文在 json 里，只 grep 关键行）：
+   - `内核检查: 通过` 出现且 `ok: true` → 一次做对，肯定
+   - `内核检查: 通过` 出现但 `ok: false` → **最终正确但过程中有 error**——
+     批改时指出中间的错误行（学生已自我修正，值得肯定 + 提示）
+   - 无 `内核检查: 通过` → 未完成，找最后一条 `error:` 行转教学提示
+3. 反馈循环：把 error 信息转成中文教学提示（指出目标状态与下一步 tactic）
 4. 多轮批改：每次都是新的 `--script` 调用（无状态）
 
 ## Anti-patterns
