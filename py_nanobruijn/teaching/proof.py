@@ -415,7 +415,7 @@ class ProofState:
         分支洞逐个填充——tactic 只是编辑证明项，rec 才是本质。
         """
         hole = self._require_hole()
-        h_ty = self._lookup_ctx_type(hole, h_name)
+        h_ty = self._lookup_ctx_type(hole, h_name, "cases")
         head, args = self.ctx.unfold_apps(h_ty)
         hv = self.ctx.view_expr(head)
         if hv.tag != 'Const':
@@ -506,11 +506,12 @@ class ProofState:
                 self.subholes[hole.id], hole.id, rec)
         return self.context()
 
-    def _lookup_ctx_type(self, hole: Hole, name: str) -> ExprPtr:
+    def _lookup_ctx_type(self, hole: Hole, name: str,
+                         caller: str = "tactic") -> ExprPtr:
         for (n, _style, ty) in reversed(hole.ctx):
             if n == name:
                 return ty
-        raise ValueError(f"cases {name}: 上下文中没有变量 {name!r}")
+        raise ValueError(f"{caller} {name}: 上下文中没有变量 {name!r}")
 
     def _ctx_index(self, hole: Hole, name: str) -> int:
         """ctx 变量从内到外的 var 索引（最内层 = 0）。"""
@@ -571,9 +572,16 @@ class ProofState:
             raise ValueError(
                 f"rewrite {h_name}: 目标中没有 {self._pp(a_d, [n for (n, _, _) in hole.ctx])} 的出现"
                 f"（等式左端没在目标里出现，无需替换）")
+        # 先验 goal_ty 同步是否可行（分支洞/子目标在完整目标中深度错位，
+        # 同步会静默失效导致 done 检查失败——此时拒绝 rewrite）
+        _gt_new, gt_count = self._replace_subexpr_count(
+            self.goal_ty, old_goal, new_goal, 0, False, len(hole.ctx))
+        if gt_count == 0:
+            raise ValueError(
+                f"rewrite {h_name}: 当前目标在分支内（cases/apply 子目标），"
+                f"rewrite 暂不支持——请先完成分支返回主目标，或换用 exact")
         hole.goal = new_goal
-        self.goal_ty = self._replace_subexpr(self.goal_ty, old_goal, new_goal,
-                                             0, False, len(hole.ctx))
+        self.goal_ty = _gt_new
         names = [n for (n, _, _) in hole.ctx]
         out = self.context()
         out += (f"\n（rewrite 已替换 {count} 处："

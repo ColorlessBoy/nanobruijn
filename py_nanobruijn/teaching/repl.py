@@ -41,10 +41,11 @@ class _GameSession(Exception):
 
 class Repl:
     def __init__(self, core: BootstrapCore, timeout_secs: float = 5.0,
-                 color: bool | None = None):
+                 color: bool | None = None, saves_dir: str | None = None):
         self.core = core
         self.timeout_secs = float(timeout_secs)
         self.color = color_enabled(color)
+        self.saves_dir = saves_dir
         self.pending_game = None
         self._intro_shown: set[str] = set()
 
@@ -167,7 +168,7 @@ class Repl:
         for path in sorted(glob.glob(os.path.join(
                 os.path.dirname(os.path.dirname(__file__)), "worlds", "*.game"))):
             game = GameLoader().load(path)
-            prog = GameSession(game)
+            prog = GameSession(game, saves_dir=self.saves_dir)
             prog.load_progress()
             stars = "".join(str(prog.stars.get(lv.number, "-"))
                             for lv in game.levels)
@@ -203,7 +204,7 @@ class Repl:
                              "worlds", "*.game")))
             return f"未知世界 {world_id!r}（可选：{', '.join(known)}）"
         game = GameLoader().load(path)
-        session = GameSession(game)
+        session = GameSession(game, saves_dir=self.saves_dir)
         session.load_progress()
         if level_no is not None:
             if not 1 <= level_no <= len(game.levels):
@@ -298,10 +299,11 @@ class Repl:
                 return
 
     def _game_tactic_check(self, level, line: str) -> str | None:
-        head = line.strip().split(maxsplit=1)[0].rstrip(';')
-        if head in level.bans:
-            return (f"本关禁用 {head}——这关故意不给你这条捷径，"
-                    f"换一条路想想（线索看 hint，hint 会扣星）")
+        for part in line.split(';'):
+            head = part.strip().split(maxsplit=1)[0]
+            if head in level.bans:
+                return (f"本关禁用 {head}——这关故意不给你这条捷径，"
+                        f"换一条路想想（线索看 hint，hint 会扣星）")
         return None
 
     def _run_proof(self, state: ProofState, stdin, stdout,

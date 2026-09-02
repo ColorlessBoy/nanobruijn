@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from typing import ClassVar
 
 import pytest
@@ -786,7 +787,8 @@ class TestProof:
 
 class TestRepl:
     def make_repl(self):
-        return Repl(make_bootstrap())
+        import tempfile
+        return Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
 
     def test_check_expr(self):
         r = self.make_repl()
@@ -997,21 +999,23 @@ class TestGameRepl:
     """REPL 游戏模式集成。"""
 
     def make_repl(self):
+        import tempfile
+
         from py_nanobruijn.teaching.game import GameLoader, GameSession
         worlds_dir = os.path.join(os.path.dirname(__file__), "worlds")
         path = os.path.join(worlds_dir, "and.game")
         game = GameLoader().load(path)
-        repl = Repl(make_bootstrap())
-        repl.pending_game = GameSession(game, saves_dir=None)
+        repl = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        repl.pending_game = GameSession(game, saves_dir=repl.saves_dir)
         return repl
 
     def test_worlds_lists(self):
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = r.process_line("#worlds")
         assert "And" in out and "Combo" in out and len(out.splitlines()) >= 6
 
     def test_game_unknown_world(self):
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = r.process_line("#game Bogus")
         assert "未知世界" in out
 
@@ -1037,7 +1041,7 @@ class TestGameRepl:
     def test_run_game_quit_terminates(self):
         import io
         import re
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = io.StringIO()
         rc = r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
         assert rc == 0
@@ -1045,7 +1049,7 @@ class TestGameRepl:
 
     def test_game_reenter_no_intro_repeat(self):
         import io
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = io.StringIO()
         r.run(stdin=io.StringIO("#game And\n#quit\n#game And\n#quit\n"), stdout=out)
         # 世界 intro 只显示一次（重进不重复）
@@ -1053,14 +1057,14 @@ class TestGameRepl:
 
     def test_game_replay_level(self):
         import io
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = io.StringIO()
         r.run(stdin=io.StringIO("#game And 3\n#quit\n"), stdout=out)
         assert "第 3 关" in out.getvalue()
 
     def test_game_hint_outside_level(self):
         from py_nanobruijn.teaching.repl import Repl
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = r.process_line("hint")
         assert "只在关卡内可用" in out
         out2 = r.process_line("solution")
@@ -1071,7 +1075,7 @@ class TestGameRepl:
         from py_nanobruijn.teaching.repl import Repl
         g = Game("X", "t", "i", [Level(1, "L", "forall (a : Prop), a -> a",
                                       [], ["intro a"], ["exact"])])
-        r = Repl(make_bootstrap())
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = r._game_tactic_check(g.level(1), "exact a")
         assert "禁用" in out
         assert r._game_tactic_check(g.level(1), "intro a") is None

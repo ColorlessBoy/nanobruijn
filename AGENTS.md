@@ -77,7 +77,7 @@ py_nanobruijn/
 - 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，每条 hint 降一星）/
   `solution`（显示标准解并放弃本关回主 REPL，不记星）；`abort`/`#quit` 放弃关卡
   回主 REPL
-- 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数；2★ = 1 条 hint 或步数超限；
+- 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数 + 2；2★ = 1 条 hint 或步数超限；
   1★ = ≥2 条 hint；步数只计 STEP_TACTICS（intro/apply/exact/cases）；`ban:` 字段禁用的
   tactic 直接拒绝并提示换路
 - 存档：`py_nanobruijn/saves/<world_id>.json`（`{"stars": {...}}`，已 gitignore）；

@@ -14,7 +14,7 @@ description: "Verify Lean proofs and grade student submissions with the nanobrui
 | 验证表达式的类型 | `py-nanobruijn repl --script "#check <expr>"` |
 | 批改学生证明（#prove 草稿） | `--script` 传 `#prove <命题>` + 每行一个 tactic + `done` |
 | 查常量/定理 | `--script "#print <name>"`（axiom/def/theorem 及其值） |
-| 游戏关卡可解性 | `--script` 传该关标准解（或 `#game <世界>` 交互） |
+| 游戏关卡可解性 | `--script` 先 `#game <世界> <关卡号>`（定位到具体关）再传该关标准解——注意会写入 `py_nanobruijn/saves/`（有状态），想干净验证先删对应存档 |
 | 机器可读输出 | 加 `--json`（{"ok": bool, "output": str}），错误时返回码非 0 |
 
 ## 工作流

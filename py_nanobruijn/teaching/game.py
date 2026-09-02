@@ -178,6 +178,11 @@ class GameSession:
         path = os.path.join(self.saves_dir, f"{self.game.world_id}.json")
         if not os.path.exists(path):
             return
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        self.stars = {int(k): v for k, v in data.get("stars", {}).items()}
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            stars = data.get("stars", {})
+            self.stars = {int(k): v for k, v in stars.items()
+                          if isinstance(v, int) and 1 <= v <= 3}
+        except (ValueError, TypeError, OSError):
+            self.stars = {}  # 损坏存档：重置为空进度（教学工具宽容处理）
