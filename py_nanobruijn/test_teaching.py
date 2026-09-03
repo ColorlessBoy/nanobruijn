@@ -181,6 +181,32 @@ class TestCore:
         assert tc.def_eq(parse_expr(core, "add (succ zero) two"),
                          parse_expr(core, "three")), "后继规则归约"
 
+    def test_nat_world_levels_replay(self):
+        """nat.game 全部关卡：标准解经内核检查通过（含 iota 归约与归纳）。"""
+        from .teaching.game import GameLoader, GameSession
+        from .teaching.proof import ProofState
+        core = make_bootstrap()
+        game = GameLoader().load("py_nanobruijn/worlds/nat.game")
+        GameSession(game, saves_dir=None)
+        assert len(game.levels) == 5
+        for lv in game.levels:
+            goal = parse_expr(core, lv.goal)
+            st = ProofState(core, goal, 0.0, False)
+            for line in lv.solution:
+                s = line.strip()
+                if not s or s.startswith('#'):
+                    continue
+                if s == "done":
+                    break
+                if s.startswith("intro "):
+                    st.intro(s[6:].strip())
+                elif s.startswith("exact "):
+                    st.exact(s[6:].strip())
+                else:
+                    raise RuntimeError(f"未知 tactic: {s}")
+            out = st.done()
+            assert "内核检查: 通过" in out, f"L{lv.number} 未通过"
+
     def test_true_intro_type_is_true(self):
         # True.intro 的类型必须是 True（常量），不是 Prop（Sort 0）
         core = make_bootstrap()
@@ -626,6 +652,18 @@ class TestReduce:
         steps = reduce_steps(tc, e)
         assert [s.kind for s in steps] == ["beta"]
         assert pretty(core, steps[-1].after) == "True.intro"
+
+    def test_reduce_iota_steps(self):
+        """#reduce add two two：delta → iota → 参数下降，完整链到 four。"""
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        e = parse_expr(core, "add two two")
+        steps = reduce_steps(tc, e)
+        assert steps, "应有归约步"
+        assert any(s.kind == "iota" for s in steps), "应出现 iota 步"
+        final = steps[-1].after
+        four = parse_expr(core, "four")
+        assert tc.def_eq(final, four), "归约终点应是 four"
 
     def test_delta_reduction_steps(self):
         core = make_bootstrap()
@@ -1608,7 +1646,7 @@ class TestGameSession:
 
 
 class TestWorldContent:
-    """加载全部 6 个世界，结构合法。"""
+    """加载全部 9 个世界，结构合法。"""
 
     def test_load_all_worlds(self):
         import glob
@@ -1617,7 +1655,7 @@ class TestWorldContent:
         from py_nanobruijn.teaching.game import GameLoader
         paths = sorted(glob.glob(os.path.join(
             os.path.dirname(__file__), "worlds", "*.game")))
-        assert len(paths) == 8
+        assert len(paths) == 9
         ids = []
         for p in paths:
             g = GameLoader().load(p)
@@ -1626,13 +1664,13 @@ class TestWorldContent:
                                   7 if g.world_id == "Eq" else 5)
             assert all(lv.goal and lv.solution for lv in g.levels)
         assert sorted(ids) == ["And", "Combo", "Eq", "Exists", "Hard", "Iff",
-                               "Not", "Or"]
+                               "Nat", "Not", "Or"]
 
 
 class TestWorldSolutions:
     """每关标准解必须真实可证（ProofState + run_tactic 逐行跑）。"""
 
-    @pytest.mark.parametrize("world", ["And", "Eq", "Or", "Not", "Exists", "Iff", "Combo", "Hard"])
+    @pytest.mark.parametrize("world", ["And", "Eq", "Or", "Not", "Exists", "Iff", "Combo", "Hard", "Nat"])
     def test_every_level_solution(self, world):
         import os
 

@@ -6,3 +6,8 @@ axiom Eq {u} : forall {α : Sort u}, forall (a1 : α), forall (a2 : α), Prop
 axiom Eq.refl {u} : forall {α : Sort u}, forall (a : α), @Eq.{u} α a a
 axiom Eq.rec {u, v} : forall {α : Sort u}, forall (a : α), forall {motive : forall (anon : α), Sort v}, forall (ha : motive a), forall (b : α), forall (h : @Eq.{u} α a b), motive b
 axiom propext : forall {a : Prop}, forall {b : Prop}, forall (h : Iff a b), @Eq.{1} Prop a b
+
+# 同调（congruence）：等式两边套同一个函数。
+# 归纳证明里把 ih : a = b 提升为 f a = f b 的标准工具（Eq.rec 的直接应用）。
+def congrArg {u, v} : forall {α : Sort u}, forall {β : Sort v}, forall (f : forall (x : α), β), forall {a : α}, forall {b : α}, forall (h : @Eq.{u} α a b), @Eq.{v} β (f a) (f b)
+  := fun {α : Sort u} => fun {β : Sort v} => fun (f : forall (x : α), β) => fun {a : α} => fun {b : α} => fun (h : @Eq.{u} α a b) => @Eq.rec.{u, v} α a (fun (x : α) => fun (_ : @Eq.{u} α a x) => @Eq.{v} β (f a) (f x)) (@Eq.refl.{v} β (f a)) b h

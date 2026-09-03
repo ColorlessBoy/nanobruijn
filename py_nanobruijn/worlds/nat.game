@@ -1,0 +1,57 @@
+world Nat
+title 自然数：第一次看见内核计算
+intro 你已经用过好几章消除规则：Or.rec、And.rec、Exists.rec——它们都是
+intro axiom，只是"规则的名字"。内核从不执行它们：命题逻辑里一切皆 Prop，
+intro 证明无关性让同命题的证明自动相等，根本不需要计算。
+intro Nat 不一样：它的全部意义就在于计算。#reduce add two two 必须真的
+intro 算出 four——内核按 major 前提的构造子分派消除规则，这一步叫 iota
+intro 归约，是本章的主角。没有 iota，Nat.rec 永远卡住，2+2 只是"一个表达式"。
+intro 口诀：归纳搭骨架（Nat.rec 定 motive），计算填血肉（iota 让分支只需 Eq.refl）。
+level 1
+name 构造：零与后继
+goal: @Eq.{1} Nat (succ zero) (succ zero)
+hint: @Eq.refl.{1} Nat (succ zero)——Eq.refl 证明"同一个东西等于自己"
+solution:
+exact @Eq.refl.{1} Nat (succ zero)
+---
+level 2
+name 零是右单位（内核替你算）
+goal: forall (m : Nat), @Eq.{1} Nat (add zero m) m
+hint: 先在主 REPL 试 #reduce add zero m，亲眼看 iota 把它算成 m
+hint: 所以 @Eq.refl.{1} Nat m 就够：两边经计算是同一个东西
+solution:
+intro m
+exact @Eq.refl.{1} Nat m
+---
+level 3
+name 计算演示：2 + 2 = 4
+goal: @Eq.{1} Nat (add two two) four
+hint: 本章招牌关。先 #reduce add two two 看完整归约链（注意 [iota] 步）
+hint: 算到底就是 four，Eq.refl 收工
+solution:
+exact @Eq.refl.{1} Nat four
+---
+level 4
+name 后继交换
+goal: forall (n : Nat), forall (m : Nat), @Eq.{1} Nat (add (succ n) m) (succ (add n m))
+hint: add 在第一个参数上递归：add (succ n) m 被 iota 算成 succ (add n m)
+hint: 两边算完同形，Eq.refl
+solution:
+intro n
+intro m
+exact @Eq.refl.{1} Nat (succ (add n m))
+---
+level 5
+name 第一个归纳证明
+goal: forall (n : Nat), @Eq.{1} Nat (add n zero) n
+hint: 这次 n 是变量，iota 在 add n zero 上卡住——必须真的用归纳
+hint: @Nat.rec.{0} (fun (k : Nat) => @Eq.{1} Nat (add k zero) k) <zero 情形> <succ 情形> n
+hint: （.{0}：motive 返回 Eq，是 Prop；若 motive 返回 Nat 这种 Type 就用 .{1}）
+hint: zero 情形：@Eq.refl.{1} Nat zero（iota 把 add zero zero 算平）
+hint: succ 情形用 congrArg 把 ih 提升：@congrArg.{1, 1} Nat Nat succ (add k zero) k ih
+hint: 它给出 Eq (succ (add k zero)) (succ k)，而 add (succ k) zero 被 iota 算成
+hint: succ (add k zero)——正好接上目标
+solution:
+intro n
+exact @Nat.rec.{0} (fun (k : Nat) => @Eq.{1} Nat (add k zero) k) (@Eq.refl.{1} Nat zero) (fun (k : Nat) => fun (ih : @Eq.{1} Nat (add k zero) k) => @congrArg.{1, 1} Nat Nat succ (add k zero) k ih) n
+---
