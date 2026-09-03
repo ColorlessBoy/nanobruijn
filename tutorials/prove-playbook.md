@@ -4,7 +4,7 @@
 > 先在这里设计，再落成 .game 文件，最后用 REPL 验证。
 > 配套工具：py-nanobruijn repl 的 #game 模式（关卡闯关）。
 >
-> 6 个世界 30 关，全部标准解与 `worlds/*.game` 逐字一致，由
+> 9 个世界 48 关，全部标准解与 `worlds/*.game` 逐字一致，由
 > `TestWorldSolutions` 持续验证；本文档任何改动都必须同步 .game（反之亦然）。
 
 ---
@@ -55,10 +55,13 @@ tactic 后观察三件事：
 | **第 1 节** | λ 与类型——认识证明的语言 | Not（前 2 关）+ Iff（前 3 关） | 读懂 `fun`/`∀`/`->`，手写简单证明 |
 | **第 2 节** | recursor——遇见结构 | And + Or + Exists | 用 `cases` 分解结构 |
 | **第 3 节** | 独立证明——终点 | Not/Iff 后段 + Combo | 独立完成组合证明 |
+| **第 4 节** | 计算与归纳——遇见真的 | Nat | 读懂 iota 归约，完成第一个归纳证明 |
 
 **路线图**：每节的世界按难度递增；第 2 节依赖第 1 节的 `apply`/`exact`；
-第 3 节会用到前两节的所有技巧（含 `cases h as a b` 自定义名）。每节的检验
-标准：对应世界全部 3★ 通关（每节末尾的"自己试试"见各世界章节的进阶练习）。
+第 3 节会用到前两节的所有技巧（含 `cases h as a b` 自定义名）；第 4 节
+进入 Nat 世界——第一次看见内核**执行**消除规则（iota 归约），并完成
+第一个真正的归纳证明。每节的检验标准：对应世界全部 3★ 通关（每节末尾
+的"自己试试"见各世界章节的进阶练习）。
 
 ---
 
@@ -720,6 +723,26 @@ exact hnb (Iff.mp a b h ha)
 
 ---
 
+## Eq 世界（worlds/eq.game，7 关）——第二公里
+
+> **教学叙事**：rewrite 是「目标编辑器」——它不构造证明，而是**变换目标**
+> （教学层实现：洞目标替换 + goal_ty 同步，等价于 Eq.rec 的自动应用）。
+> 等式必须写完整形式 `@Eq.{1} Prop a b`（隐式 α 在内核推断中暂不支持，
+> 关卡已用完整形式）。
+
+| 关 | 名称 | 命题 | 设计意图 |
+|---|---|---|---|
+| 1 | 自反 | `@Eq.{1} Prop p p` | Eq.refl + 宇宙标注 `.{1}` 照抄即可 |
+| 2 | 对称 | `p = q -> q = p` | rewrite 换向（Eq.symm 原理） |
+| 3 | 传递 | `p = q -> q = r -> p = r` | 两次 rewrite 串联 |
+| 4 | 函数的等值 | `p = q -> f p = f q` | congrArg 的原理（rewrite 后 f 不动） |
+| 5 | 换源 | `p = q -> r = p -> r = q` | 多前提 rewrite 的顺序 |
+| 6 | 嵌套替换 | `p = q -> And p p = And q p` | rewrite 波及嵌套位置 |
+| 7 | 双重替换 | `p = q -> r = q -> p = r` | 反向 rewrite（换掉 q） |
+
+标准解与 hints 见 `.game` 文件（由 `TestWorldSolutions[Nat/Eq]` 持续验证）；
+本节为紧凑版——完整的逐关设计文档风格同 And/Or 章，补写时以 .game 为准。
+
 ## Combo 世界（worlds/combo.game，5 关）
 
 > **intro**（.game 原文）：前五个世界的技巧在这里汇合。每一关都是一道完整的
@@ -925,6 +948,132 @@ Eq.rec 的自动应用）。第 5 关的关键洞察：在 `intro h2` 之前 rew
 
 **已知限制**：`h : Eq a b`（隐式 α）在内核推断中暂不支持，等式必须写
 完整形式 `@Eq.{1} Prop a b`——教学语法不变，关卡已用完整形式。
+
+## Nat 世界（worlds/nat.game，5 关）——第三公里：计算
+
+> **intro**（.game 原文）：你已经用过好几章消除规则：Or.rec、And.rec、
+> Exists.rec——它们都是 axiom，只是"规则的名字"。内核从不执行它们：命题
+> 逻辑里一切皆 Prop，证明无关性让同命题的证明自动相等，根本不需要计算。
+> Nat 不一样：它的全部意义就在于计算。`#reduce add two two` 必须真的算出
+> four——内核按 major 前提的构造子分派消除规则，这一步叫 iota 归约。
+
+### 为什么 Or.rec 不用算，而 Nat.rec 必须算？（学习者必读）
+
+这是本章最重要的概念问题，几乎每个学生都会疑惑：
+
+- **命题逻辑世界**（And/Or/Not/...）：一切皆 `Prop`。`done` 的内核检查靠
+  **证明无关性**——同一命题的任意两个证明自动相等。所以 `Or.rec` 作为
+  axiom（只是"规则的名字"）就够了，内核从头到尾不需要"执行"任何东西。
+- **Nat 世界**：`Nat : Type`，它的元素是**数据**。`#reduce add two two`
+  要真的得出 `four`，内核必须执行"看 major 前提是哪个构造子 → 选对应
+  规则 → 代入"——这就是 **iota 归约**。没有它，`Nat.rec` 永远卡住，
+  2+2 只是"一个表达式"，永远算不出 4。
+
+亲眼看一看（主 REPL）：
+
+```text
+#reduce add two two
+#reduce add zero m
+```
+
+标着 `[iota]` 的步就是内核在执行消除规则——按 zero/succ 分派。
+（`[delta]` 是定义展开，`[beta]` 是 λ 应用。）
+
+### 装载语法与宇宙标注
+
+nat 片段是第一个用 fol `inductive` 块装载的片段：
+
+```text
+inductive Nat : Type
+ctor zero : Nat
+ctor succ (n : Nat) : Nat
+rec Nat.rec {u} : forall {motive : forall (n : Nat), Sort u}, ...
+```
+
+注意宇宙实例化的选择（hint 里会教）：
+
+- motive 返回 **Prop**（如 `fun k => @Eq.{1} Nat (add k zero) k`）→
+  `@Nat.rec.{0}`
+- motive 返回 **Type**（如 `fun k => Nat`，`add` 的写法）→ `@Nat.rec.{1}`
+
+### 关卡总表
+
+| 关 | 名称 | 命题 | 设计意图 | ban | 标准解见 |
+|---|---|---|---|---|---|
+| 1 | 构造：零与后继 | `@Eq.{1} Nat (succ zero) (succ zero)` | Eq.refl 热身（照抄 eq 世界的宇宙标注） | — | Nat-1 |
+| 2 | 零是右单位 | `forall (m : Nat), @Eq.{1} Nat (add zero m) m` | iota 把 `add zero m` 算成 m——内核替你算 | — | Nat-2 |
+| 3 | 计算演示：2 + 2 = 4 | `@Eq.{1} Nat (add two two) four` | 招牌关：delta+iota 完整计算链 | — | Nat-3 |
+| 4 | 后继交换 | `forall (n m : Nat), @Eq.{1} Nat (add (succ n) m) (succ (add n m))` | iota 对 succ major 的分派 | — | Nat-4 |
+| 5 | 第一个归纳证明 | `forall (n : Nat), @Eq.{1} Nat (add n zero) n` | 显式 Nat.rec + congrArg：真正的归纳 | — | Nat-5 |
+
+### Nat-1 构造：零与后继
+
+- **命题**：`@Eq.{1} Nat (succ zero) (succ zero)`
+- **设计意图**：最小热身——把 eq 世界的 `@Eq.refl.{1}` 用到新类型上。
+- **标准解**（1 步，3★ 上限）：
+
+```text
+exact @Eq.refl.{1} Nat (succ zero)
+```
+
+### Nat-2 零是右单位（内核替你算）
+
+- **命题**：`forall (m : Nat), @Eq.{1} Nat (add zero m) m`
+- **设计意图**：`add zero m` 经 iota（major = zero → mz = m）算成 `m`——
+  让学生在 hint 里先 `#reduce add zero m` 亲眼看见，再体会"计算过的等式
+  只需 Eq.refl"。
+- **hints 设计**（2 条）：先 #reduce 亲眼看 iota；然后 @Eq.refl.{1} Nat m。
+- **标准解**（2 步，3★ 上限）：
+
+```text
+intro m
+exact @Eq.refl.{1} Nat m
+```
+
+### Nat-3 计算演示：2 + 2 = 4
+
+- **命题**：`@Eq.{1} Nat (add two two) four`
+- **设计意图**：招牌关。`add two two` 走 delta（展开 add）→ iota（major
+  = two = succ one → succ 规则，递归调用继续）→ …… 归约链完整展开为
+  four。hint 引导先跑 `#reduce add two two` 看整条链。
+- **标准解**（1 步，3★ 上限）：
+
+```text
+exact @Eq.refl.{1} Nat four
+```
+
+### Nat-4 后继交换
+
+- **命题**：`forall (n : Nat), forall (m : Nat), @Eq.{1} Nat (add (succ n) m) (succ (add n m))`
+- **设计意图**：对 succ major 的 iota 分派——`add (succ n) m` 算成
+  `succ (add n m)`，与目标右侧同形。
+- **标准解**（3 步，3★ 上限）：
+
+```text
+intro n
+intro m
+exact @Eq.refl.{1} Nat (succ (add n m))
+```
+
+### Nat-5 第一个归纳证明
+
+- **命题**：`forall (n : Nat), @Eq.{1} Nat (add n zero) n`
+- **设计意图**：n 是变量，iota 在 `add n zero` 上**卡住**——L2-L4 的
+  "计算自动成立"失效，必须真的归纳。motive = `fun k => @Eq.{1} Nat
+  (add k zero) k`；zero 情形 iota 算平（Eq.refl）；succ 情形需要
+  **congrArg** 把 `ih : add k zero = k` 提升为 `succ (add k zero) = succ k`
+  （等式工具的第一次实战）。
+- **hints 设计**（5 条，逐条递进）：卡住的现象 → Nat.rec 骨架 → zero
+  情形 → congrArg 提升 → iota 接上目标。
+- **标准解**（2 步，3★ 上限）：
+
+```text
+intro n
+exact @Nat.rec.{0} (fun (k : Nat) => @Eq.{1} Nat (add k zero) k) (@Eq.refl.{1} Nat zero) (fun (k : Nat) => fun (ih : @Eq.{1} Nat (add k zero) k) => @congrArg.{1, 1} Nat Nat succ (add k zero) k ih) n
+```
+
+> 注意 `@Nat.rec.{0}`：motive 返回 Eq（Prop），用 `.{0}`；若 motive 返回
+> Nat 这种 Type 就用 `.{1}`（对比 `add` 的定义）。
 
 ## 加关卡指南
 

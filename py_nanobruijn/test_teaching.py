@@ -1290,8 +1290,8 @@ class TestGameRepl:
         r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
         text = out.getvalue()
         assert "定义仪式" in text
-        assert "已定义 5 个常量" in text
-        assert len(r.core.constants()) == 5
+        assert "已定义 5 个常量" in text  # and 片段本身 5 个
+        assert len(r.core.constants()) == 9  # 仪式按 using 补齐 not/false（L5 goal 需要 Not）
 
     def test_fresh_check_unknown_hints_worlds(self):
         from py_nanobruijn.teaching.core import make_fresh_core
@@ -1665,6 +1665,31 @@ class TestWorldContent:
             assert all(lv.goal and lv.solution for lv in g.levels)
         assert sorted(ids) == ["And", "Combo", "Eq", "Exists", "Hard", "Iff",
                                "Nat", "Not", "Or"]
+
+
+    def test_fresh_mode_goals_parse_with_using_fragments(self):
+        """fresh 模式回归：每个世界的 goal 只靠 using: 声明的片段必须可解析。
+
+        复刻 repl 定义仪式的装载方式（resolve_deps + load_fragment），
+        防止 using 字段漏依赖导致 --game 进入世界后 goal 解析失败。"""
+        import glob
+        import os
+
+        from py_nanobruijn.teaching.fol import resolve_deps
+        from py_nanobruijn.teaching.game import GameLoader
+        for path in sorted(glob.glob(os.path.join(
+                os.path.dirname(__file__), "worlds", "*.game"))):
+            game = GameLoader().load(path)
+            fresh = make_fresh_core()
+            for frag in resolve_deps(game.using):
+                fresh.load_fragment(frag)
+            for lv in game.levels:
+                try:
+                    parse_expr(fresh, lv.goal)
+                except Exception as err:
+                    raise AssertionError(
+                        f"{game.world_id} L{lv.number} goal 在 fresh 模式下无法解析"
+                        f"（using={game.using}）：{err}") from None
 
 
 class TestWorldSolutions:

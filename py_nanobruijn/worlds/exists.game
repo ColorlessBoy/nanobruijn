@@ -1,7 +1,7 @@
 world Exists
 title 存在世界：给出证据
 intro 存在命题 ∃x, p x 的证明是一个「证人」：x 以及 p x 的证明。反向使用（从 ∃x, p x 里取证人）则是 cases 的领地。
-using: exists
+using: exists, true, false
 level 1
 name 平凡的存在
 goal: @Exists.{1} Prop (fun (x : Prop) => x) -> True

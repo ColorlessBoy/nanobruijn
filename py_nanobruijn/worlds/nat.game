@@ -1,5 +1,6 @@
 world Nat
 title 自然数：第一次看见内核计算
+using: nat, eq
 intro 你已经用过好几章消除规则：Or.rec、And.rec、Exists.rec——它们都是
 intro axiom，只是"规则的名字"。内核从不执行它们：命题逻辑里一切皆 Prop，
 intro 证明无关性让同命题的证明自动相等，根本不需要计算。
