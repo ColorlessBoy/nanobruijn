@@ -35,6 +35,7 @@ FRAGMENTS: dict[str, tuple[str, list[str]]] = {
     'iff': ('iff.fol', []),
     'eq': ('eq.fol', ['iff']),
     'exists': ('exists.fol', []),
+    'nat': ('nat.fol', []),
     'theorems': ('theorems.fol',
                  ['basic', 'true', 'false', 'and', 'or', 'not',
                   'iff', 'eq', 'exists']),
@@ -42,7 +43,7 @@ FRAGMENTS: dict[str, tuple[str, list[str]]] = {
 
 # make_bootstrap 全量加载顺序（与原 core.fol 等价）
 ALL_ORDER = ['basic', 'true', 'false', 'and', 'or', 'not',
-             'iff', 'eq', 'exists', 'theorems']
+             'iff', 'eq', 'exists', 'nat', 'theorems']
 
 
 # 全量模式的复习表：片段 → 一句话角色

@@ -170,6 +170,17 @@ class TestCore:
         assert tc.def_eq(tc.whnf(e), core.ctx.mk_const(core.name_to_ptr("zero"),
                                                        core.dag.insert_uparams(())))
 
+    def test_nat_fragment_computes(self):
+        """nat 片段：add two two ≡ four（delta + iota 端到端）。"""
+        core = make_bootstrap()
+        tc = core.make_type_checker()
+        assert tc.def_eq(parse_expr(core, "add two two"),
+                         parse_expr(core, "four")), "iota 应算出 2+2=4"
+        assert tc.def_eq(parse_expr(core, "add zero (succ zero)"),
+                         parse_expr(core, "one")), "零规则归约"
+        assert tc.def_eq(parse_expr(core, "add (succ zero) two"),
+                         parse_expr(core, "three")), "后继规则归约"
+
     def test_true_intro_type_is_true(self):
         # True.intro 的类型必须是 True（常量），不是 Prop（Sort 0）
         core = make_bootstrap()
@@ -324,7 +335,8 @@ class TestProgressiveCore:
 
     def test_make_bootstrap_full(self):
         core = make_bootstrap()
-        assert len(core.constants()) == 55
+        # 55（fol 逻辑核心）+ 9（nat：Nat/zero/succ/Nat.rec/one/two/three/four/add）
+        assert len(core.constants()) == 64
 
     def test_make_fresh_empty(self):
         from py_nanobruijn.teaching.core import make_fresh_core
@@ -352,7 +364,7 @@ class TestProgressiveCore:
         from py_nanobruijn.teaching.core import make_fresh_core
         from py_nanobruijn.teaching.fol import resolve_deps
         fresh = make_fresh_core()
-        for frag in resolve_deps(["theorems"]):
+        for frag in resolve_deps(["all"]):
             fresh.load_fragment(frag)
         assert sorted(fresh.constants()) == sorted(make_bootstrap().constants())
 

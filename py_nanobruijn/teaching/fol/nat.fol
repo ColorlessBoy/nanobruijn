@@ -1,0 +1,23 @@
+# 自然数：第一个"会算"的归纳类型。
+# 在这里内核第一次执行 iota 归约——按 major 前提的构造子分派消除规则。
+# （为什么 Or.rec 不用算而 Nat.rec 必须算？见 worlds/nat.game 开场叙事。）
+inductive Nat : Type
+ctor zero : Nat
+ctor succ (n : Nat) : Nat
+rec Nat.rec {u} : forall {motive : forall (n : Nat), Sort u}, forall (mz : motive zero), forall (ms : forall (n : Nat), forall (ih : motive n), motive (succ n)), forall (t : Nat), motive t
+
+# 计数常量：succ 链定义（顺便复习 delta 归约）
+def one : Nat
+  := succ zero
+def two : Nat
+  := succ one
+def three : Nat
+  := succ two
+def four : Nat
+  := succ three
+
+# 加法：在第一个参数上递归。motive 是常值函数——结果永远是 Nat。
+# zero 情形：mz = m（0 + m = m）
+# succ 情形：ms k ih = succ ih（(succ k) + m = succ (k + m)）
+def add : forall (n : Nat), forall (m : Nat), Nat
+  := fun (n : Nat) => fun (m : Nat) => @Nat.rec.{1} (fun (k : Nat) => Nat) m (fun (k : Nat) => fun (ih : Nat) => succ ih) n

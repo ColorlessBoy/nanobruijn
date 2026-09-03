@@ -80,9 +80,10 @@ def def_eq_inner(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
         return True
 
     # Lazy delta step
-    delta_result = self.lazy_delta_step(x_n, y_n)
+    delta_result, x_d, y_d = self.lazy_delta_step(x_n, y_n)
     if delta_result is not None:
         return delta_result
+    x_n, y_n = x_d, y_d  # 用 delta 展开后的项继续（Rust Exhausted 语义）
 
     # Structural comparison
     if self.def_eq_const(x_n, y_n) or self.def_eq_local(x_n, y_n) or self.def_eq_proj(x_n, y_n):
@@ -409,43 +410,45 @@ def try_eq_const_app(self: TypeChecker, x: ExprPtr, x_defname: NamePtr, x_hint, 
     return None
 
 
-def lazy_delta_step(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool | None:
+def lazy_delta_step(self, x, y):
+    """lazy delta：逐侧展开 Definition，直到两侧都无 def 可展。
+
+    返回 (result, x, y)。result 非 None 时是判定结论；None 时 x/y 是
+    delta 展开后的项——镜像 Rust 的 Exhausted(x, y)，调用方必须改用
+    返回的 x/y 继续结构比较（否则展开结果被丢弃，delta/iota 链在
+    def_eq_app 的 spine 长度比较处断裂）。
+    """
     for _ in range(16):
         r1 = self.get_applied_def(x)
         r2 = self.get_applied_def(y)
         if r1 is None and r2 is None:
-            return None
+            return None, x, y
         if r1 is not None and r2 is None:
             x = self.delta(x)
         elif r1 is None and r2 is not None:
             y = self.delta(y)
-        elif r1 is not None and r2 is not None:
+        else:
             (x_name, x_hint) = r1
             (y_name, y_hint) = r2
             # Compare reducibility hints
             if isinstance(x_hint, Regular) and isinstance(y_hint, Regular):
                 if x_hint.n > y_hint.n:
                     y = self.delta(y)
-                    quick = self.def_eq_quick_check(x, y)
-                    if quick is not None:
-                        return quick
-                    continue
                 elif y_hint.n > x_hint.n:
                     x = self.delta(x)
-                    quick = self.def_eq_quick_check(x, y)
-                    if quick is not None:
-                        return quick
-                    continue
-            # Same name and both Regular
-            result = self.try_eq_const_app(x, x_name, x_hint, y, y_name, y_hint)
-            if result is not None:
-                return result
-            x = self.delta(x)
-            y = self.delta(y)
+                else:
+                    result = self.try_eq_const_app(x, x_name, x_hint, y, y_name, y_hint)
+                    if result is not None:
+                        return result, x, y
+                    x = self.delta(x)
+                    y = self.delta(y)
+            else:
+                x = self.delta(x)
+                y = self.delta(y)
         quick = self.def_eq_quick_check(x, y)
         if quick is not None:
-            return quick
-    return None
+            return quick, x, y
+    return None, x, y
 
 
 # ============================================================
