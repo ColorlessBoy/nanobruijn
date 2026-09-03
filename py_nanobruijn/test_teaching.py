@@ -50,6 +50,89 @@ class TestCore:
         for name in core.constants():
             assert core.name_to_string(core.name_to_ptr(name)) == name
 
+    def test_or_rec_motive_prop_only(self):
+        # Or.rec 的消除目标必须与真实 Lean 一致：Or 有两个 ctor，不满足
+        # subsingleton 消除条件，motive 只能是 Prop。Sort motive 必须被拒——
+        # 否则 proof irrelevance + 大消除的组合是已知的不一致风险。
+        core = make_bootstrap()
+        good = parse_expr(
+            core,
+            "@Or.rec True True (fun (x : Or True True) => True) "
+            "(fun (h : True) => True.intro) (fun (h : True) => True.intro) "
+            "(@Or.inl True True True.intro)")
+        tc = core.make_type_checker()
+        tc.infer(good, 'check')  # Prop motive：合法，不抛
+        tc2 = core.make_type_checker()
+        bad = parse_expr(
+            core,
+            "@Or.rec True True (fun (x : Or True True) => Type) "
+            "(fun (h : True) => Type) (fun (h : True) => Type) "
+            "(@Or.inl True True True.intro)")
+        with pytest.raises(ValueError):
+            tc2.infer(bad, 'check')  # Sort motive：必须拒绝（infer_only 不查参数匹配）
+
+    def test_kernel_semantic_battery(self):
+        """内核判定逻辑的语义对拍：每个用例先 parse 再走 #check 同款路径。
+
+        ACCEPT = 必须通过（含证明无关性、遮蔽 binder 等历史 bug 区）；
+        REJECT = 必须拒绝（错分支、错宇宙、变量捕获、过度无关性等）。
+        """
+        core = make_bootstrap()
+        accept = [
+            # 遮蔽 binder：内层 a 遮蔽外层，h : 内层 a
+            ("(fun (a : Prop) => fun (a : Prop) => fun (h : a) => h) |-> "
+             "∀ (a : Prop), ∀ (a : Prop), a -> a"),
+            # Or.rec 应用 + motive 实例化（消除规则的正常用法；无关性边界
+            # 由 test_tc_defeq.py 的 proof_irrel 单元测试覆盖）
+            ("(fun (h : Or True True) => @Or.rec True True (fun (x : Or True True) => True) "
+             "(fun (x : True) => True.intro) (fun (x : True) => True.intro) h) |-> "
+             "∀ (h : Or True True), True"),
+            # 多层深度下的 motive 实例化（cases 的底层路径）
+            ("(fun (a : Prop) => fun (b : Prop) => fun (c : Prop) => fun (h : Or a b) => "
+             "fun (hc : c) => @Or.rec a b (fun (x : Or a b) => c) (fun (ha : a) => hc) "
+             "(fun (hb : b) => hc) h) |-> "
+             "∀ (a : Prop), ∀ (b : Prop), ∀ (c : Prop), Or a b -> c -> c"),
+        ]
+        reject = [
+            # True.intro 不是 Or True True 的证明
+            ("True.intro |-> Or True True"),
+            # Or.inl 造出的类型与目标不一致（False ≠ True）
+            ("@Or.inl True True True.intro |-> Or True False"),
+            # Prop : Prop（宇宙层级禁止）
+            ("Prop |-> Prop"),
+            # 变量错位：h : b 不能当 a 的证明（深度 bug 类）
+            ("(fun (a : Prop) => fun (b : Prop) => fun (h : b) => h) |-> "
+             "∀ (a : Prop), ∀ (b : Prop), b -> a"),
+            # Or.rec 分支类型与 motive 分支不匹配（返回的是命题不是证明）
+            ("(fun (h : Or True True) => @Or.rec True True (fun (x : Or True True) => True) "
+             "(fun (x : True) => True) (fun (x : True) => True.intro) h) |-> "
+             "∀ (h : Or True True), True"),
+            # 证明无关性不能跨越不同的命题（True ≠ False）
+            ("(fun (h : True) => True.intro) |-> ∀ (h : False), True"),
+            # 证明无关性不能跨越参数不同的同型（Or True True ≠ Or True False）
+            ("(fun (h : Or True True) => True.intro) |-> ∀ (h : Or True False), True"),
+            # 变量捕获：内层 a 遮蔽后，外层 f : a -> a 不再匹配内层 a
+            ("(fun (a : Prop) => fun (f : a -> a) => fun (a : Prop) => f) |-> "
+             "∀ (a : Prop), (a -> a) -> ∀ (a : Prop), a -> a"),
+            # 自应用：x : Prop 不是函数
+            ("(fun (x : Prop) => x x) |-> ∀ (x : Prop), Prop"),
+        ]
+        for src in accept:
+            tc = core.make_type_checker()
+            term_src, ty_src = src.split(" |-> ")
+            e = parse_expr(core, term_src)
+            expected = parse_expr(core, ty_src)
+            inferred = tc.infer(e, 'check')
+            tc.assert_def_eq(inferred, expected)
+        for src in reject:
+            tc = core.make_type_checker()
+            term_src, ty_src = src.split(" |-> ")
+            e = parse_expr(core, term_src)
+            expected = parse_expr(core, ty_src)
+            with pytest.raises(ValueError):
+                tc.infer(e, 'check')
+                tc.assert_def_eq(tc.infer(e, 'infer_only'), expected)
+
     def test_true_intro_type_is_true(self):
         # True.intro 的类型必须是 True（常量），不是 Prop（Sort 0）
         core = make_bootstrap()

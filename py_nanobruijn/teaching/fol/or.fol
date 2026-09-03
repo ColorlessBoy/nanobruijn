@@ -5,4 +5,6 @@
 axiom Or : forall (a : Prop), forall (b : Prop), Prop
 axiom Or.inl : forall {a : Prop}, forall {b : Prop}, forall (h : a), Or a b
 axiom Or.inr : forall {a : Prop}, forall {b : Prop}, forall (h : b), Or a b
-axiom Or.rec {u} : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : Or a b), Sort u}, forall (left : forall (l : a), motive (@Or.inl a b l)), forall (right : forall (r : b), motive (@Or.inr a b r)), forall (t : Or a b), motive t
+# 消除目标只能是 Prop：Or 有两个 ctor，不满足 subsingleton 消除条件
+# （与真实 Lean 的 Or.rec 一致；Sort motive + proof irrelevance 是已知不一致组合）
+axiom Or.rec : forall {a : Prop}, forall {b : Prop}, forall {motive : forall (anon : Or a b), Prop}, forall (left : forall (l : a), motive (@Or.inl a b l)), forall (right : forall (r : b), motive (@Or.inr a b r)), forall (t : Or a b), motive t

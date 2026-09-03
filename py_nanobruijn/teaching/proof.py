@@ -277,10 +277,10 @@ class ProofState:
             name, style, bt = chain[j]
             if style == BinderStyle.IMPLICIT:
                 # 隐式参数是模式变量：值取自目标对应位置的子项。
-                # 仅自动填充 SIMPLE 类型（Prop/Sort/变量）——复合类型（如
-                # motive : And a b -> Sort u）在 open 上下文经内核 inst 路径
-                # 是已知缺陷（test_imp_swap_known_kernel_issue），教学层不
-                # 走那条路，提示改用 @Const 显式传参。
+                # 仅自动填充 SIMPLE 类型（Prop/Sort/变量）；复合类型（如
+                # motive : And a b -> Sort u）的自动填充需要把值实例化进
+                # 更深的 open 上下文，教学模式不支持——提示改用 @Const
+                # 显式传参（对初学者也更贴近 Lean 的显式书写）。
                 bt_v = self.ctx.view_expr(bt)
                 if bt_v.tag == 'Pi':
                     raise ValueError(
@@ -330,12 +330,14 @@ class ProofState:
         确定的参数（隐式参数 + 出现在结果类型里的显式参数）替换为对应值，
         得到新洞的目标。
 
-        不用内核 inst/inst_beta：
-        1. inst_beta 只替换「最内层连续 binder 块」，无法跳过夹在中间的 DEFAULT
-           binder（如 And.intro 的 hb : b 在 [a, b, ha] 作用域里是 var1，而 var0
-           是 DEFAULT 的 ha）——位置语义对不上；
-        2. 嵌套 Pi 经 inst_beta/inst 是已知内核缺陷路径
-           （test_imp_swap_known_kernel_issue）。
+        不用内核 inst/inst_beta 的原因（API 形状，非缺陷）：
+        1. inst_beta 是 beta 应用语义——只替换最内层连续 n 个 binder，
+           无法跳过夹在中间的 DEFAULT binder（如 And.intro 的 hb : b 在
+           [a, b, ha] 作用域里是 var1，而 var0 是 DEFAULT 的 ha）；
+        2. 本处需要按「链位置 → de Bruijn 索引」的一次性多索引同时替换，
+           且各值处于各自正确的深度。
+        内核 inst 本身在嵌套 Pi 下的单索引替换语义已由
+        test_tc_context.py::test_inst_nested_pi_* 验证正确。
         这里用 view + mk_* 手工按 de Bruijn 索引替换，只依赖安全的构造原语。
         """
         return self._subst_chain(bt, k, values, f)
@@ -474,7 +476,7 @@ class ProofState:
             right_id = self._new_hole(
                 list(hole.ctx) + [(n2, BinderStyle.DEFAULT, b.shift_up(1 + h_idx))],
                 c_goal.shift_up(1), after=left_id)
-            rec = self._rec_app(self.core.name_to_ptr("Or.rec"), (0,),
+            rec = self._rec_app(self.core.name_to_ptr("Or.rec"), (),
                                 [a.shift_up(1 + h_idx), b.shift_up(1 + h_idx), motive,
                                  IntroNode(n1, BinderStyle.DEFAULT,
                                            a.shift_up(1 + h_idx), HoleNode(left_id)),
