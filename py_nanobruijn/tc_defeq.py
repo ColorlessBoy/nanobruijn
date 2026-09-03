@@ -475,8 +475,15 @@ def try_eta_expansion_aux(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:
 # ============================================================
 
 def is_proof(self: TypeChecker, e: ExprPtr):
+    """(e 是证明, e 的命题)——镜像 Rust ``is_proof``。
+
+    bool 分量取自 ``is_proposition(infd)[0]``（infd 的类型是 Sort 0），
+    但返回的类型必须是 ``infd`` 本身（e 的命题）。此前误返回
+    ``is_proposition(infd)`` 的第二个分量（= infer(infd) = Sort 0），
+    使 proof_irrel_eq 退化为「任意两个证明都相等」。
+    """
     infd = self.infer(e, 'infer_only')
-    return self.is_proposition(infd)
+    return self.is_proposition(infd)[0], infd
 
 
 def proof_irrel_eq(self: TypeChecker, x: ExprPtr, y: ExprPtr) -> bool:

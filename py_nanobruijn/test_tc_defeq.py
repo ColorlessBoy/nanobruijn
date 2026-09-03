@@ -280,6 +280,81 @@ def test_defeq_eta():
 
 
 # ============================================================
+# Proof irrelevance 边界
+# ============================================================
+
+
+def _make_or_env():
+    """axiom 化的 Or 家族 + True/False，返回 (ctx, env, names dict)。"""
+    ctx = make_ctx()
+    prop = ctx.mk_sort(0)
+    up = ctx.dag.insert_uparams(())
+    anon = ctx.dag.insert_name(Name.anon())
+
+    def axiom(s, ty):
+        n = insert_name(ctx, s)
+        return n, Axiom(info=DeclarInfo(name=n, uparams=up, ty=ty.core),
+                        is_unsafe=False)
+
+    declars = {}
+    names = {}
+
+    def decl(s, ty):
+        n, d = axiom(s, ty)
+        declars[n] = d
+        names[s] = n
+
+    decl("True", prop)
+    decl("False", prop)
+    decl("Or", ctx.mk_pi(anon, BinderStyle.DEFAULT, prop,
+                         ctx.mk_pi(anon, BinderStyle.DEFAULT, prop, prop)))
+    true_c = ctx.mk_const(names["True"], up)
+    decl("True.intro", true_c)
+    for s, field in [("Or.inl", ctx.mk_var(1)), ("Or.inr", ctx.mk_var(0))]:
+        arrow = ctx.mk_pi(anon, BinderStyle.DEFAULT, field,
+                          ctx.mk_app(ctx.mk_app(ctx.mk_const(names["Or"], up),
+                                                ctx.mk_var(2)), ctx.mk_var(1)))
+        ty = ctx.mk_pi(anon, BinderStyle.DEFAULT, prop,
+                       ctx.mk_pi(anon, BinderStyle.DEFAULT, prop, arrow))
+        decl(s, ty)
+    return ctx, Env(declars=declars, limit=EnvLimit("pp_unlimited")), names
+
+
+def _or_proof(ctx, names, ctor, a, b, intro):
+    up = ctx.dag.insert_uparams(())
+    c = ctx.mk_const(names[ctor], up)
+    return ctx.mk_app(ctx.mk_app(ctx.mk_app(c, a), b), intro)
+
+
+def test_proof_irrel_same_prop():
+    """同一命题（Or True True）的两个不同构造证明 def_eq。"""
+    ctx, env, names = _make_or_env()
+    tc = TypeChecker(ctx, env)
+    up = ctx.dag.insert_uparams(())
+    true_c = ctx.mk_const(names["True"], up)
+    intro = ctx.mk_const(names["True.intro"], up)
+    p1 = _or_proof(ctx, names, "Or.inl", true_c, true_c, intro)
+    p2 = _or_proof(ctx, names, "Or.inr", true_c, true_c, intro)
+    assert tc.def_eq(p1, p2), "proof irrelevance: inl/intro 与 inr/intro 应 def_eq"
+
+
+def test_proof_irrel_requires_same_prop():
+    """证明无关性不能跨命题：Or True True 的证明 ≠ Or True False 的证明。"""
+    ctx, env, names = _make_or_env()
+    tc = TypeChecker(ctx, env)
+    up = ctx.dag.insert_uparams(())
+    true_c = ctx.mk_const(names["True"], up)
+    false_c = ctx.mk_const(names["False"], up)
+    intro = ctx.mk_const(names["True.intro"], up)
+    p1 = _or_proof(ctx, names, "Or.inl", true_c, true_c, intro)
+    p2 = _or_proof(ctx, names, "Or.inl", true_c, false_c, intro)
+    assert not tc.def_eq(p1, p2), "不同命题的证明不得 def_eq"
+    # 命题之间也不是证明：True ≠ False（结构性）
+    assert not tc.def_eq(true_c, false_c), "命题 True 与 False 不 def_eq"
+
+
+
+# ============================================================
 # NatLit
 # ============================================================
 

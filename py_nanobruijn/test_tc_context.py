@@ -413,6 +413,88 @@ def test_inst_beta_no_args():
 
 
 # ============================================================
+# inst under nested Pi（锁定替换语义；proof.py 曾因怀疑此处缺陷手工绕开）
+# ============================================================
+
+def _const(ctx, s):
+    n = insert_name(ctx, s)
+    return ctx.mk_const(n, ctx.dag.insert_uparams(()))
+
+
+def test_inst_nested_pi_mid_var():
+    """跨嵌套 Pi 替换非最内层 loose var。
+
+    e 处于深度 2 帧（index 0 = 内层 loose var，index 1 = 外层）；
+    body 帧 [y=0, x=1, 外0=2, 外1=3]：e 帧 index 1 对应 body 的 Var3。
+    """
+    ctx = make_ctx()
+    g, OUTER = _const(ctx, "g"), _const(ctx, "P")
+    prop = ctx.mk_sort(0)
+    anon = ctx.dag.insert_name(Name.anon())
+    # body: g Var3 Var2 —— Var3 = e帧 index1，Var2 = e帧 index0
+    body = ctx.mk_app(ctx.mk_app(g, ctx.mk_var(3)), ctx.mk_var(2))
+    e = ctx.mk_pi(anon, BinderStyle.DEFAULT, prop,
+                  ctx.mk_pi(anon, BinderStyle.DEFAULT, prop, body))
+    r = ctx.inst(e, 1, OUTER)
+    v = ctx.view_expr(r)
+    assert v.tag == 'Pi'
+    v_body = ctx.view_expr(v.children[3])
+    assert v_body.tag == 'Pi'
+    spine = ctx.view_expr(v_body.children[3])
+    assert spine.tag == 'App'
+    inner = ctx.view_expr(spine.fun)
+    arg_keep = ctx.view_expr(spine.arg)
+    # index1(Var3) 被替换为 OUTER；index0(Var2) 保持为 Var
+    assert inner.tag == 'App'
+    assert ctx.view_expr(inner.arg).tag == 'Const'
+    assert arg_keep.tag == 'Var' and arg_keep.dbj_idx == 2
+
+
+def test_inst_nested_pi_outer_var():
+    """替换最外层 loose var（P）：Var3 被换，Var2(Q) 不动。"""
+    ctx = make_ctx()
+    g, P = _const(ctx, "g"), _const(ctx, "P")
+    prop = ctx.mk_sort(0)
+    anon = ctx.dag.insert_name(Name.anon())
+    body = ctx.mk_app(ctx.mk_app(g, ctx.mk_var(3)), ctx.mk_var(2))
+    e = ctx.mk_pi(anon, BinderStyle.DEFAULT, prop,
+                  ctx.mk_pi(anon, BinderStyle.DEFAULT, prop, body))
+    r = ctx.inst(e, 0, P)
+    v = ctx.view_expr(r)
+    v_body = ctx.view_expr(v.children[3])
+    spine = ctx.view_expr(v_body.children[3])
+    inner = ctx.view_expr(spine.fun)
+    arg_replaced = ctx.view_expr(spine.arg)
+    # index0(Var2) 被替换为 P；index1(Var3) 保持为 Var
+    assert arg_replaced.tag == 'Const'
+    assert inner.tag == 'App'
+    assert ctx.view_expr(inner.arg).tag == 'Var' and ctx.view_expr(inner.arg).dbj_idx == 3
+
+
+def test_inst_nested_pi_deeper_binder():
+    """var 隔两层 binder 被替换；内层绑定变量（Var1=y）不受影响。"""
+    ctx = make_ctx()
+    Q = _const(ctx, "Q")
+    prop = ctx.mk_sort(0)
+    anon = ctx.dag.insert_name(Name.anon())
+    # body2 帧 [z=0, y=1, x=2, Q=3, P=4]：Var4=Q, Var1=y（绑定变量）
+    body2 = ctx.mk_pi(anon, BinderStyle.DEFAULT, prop,
+                      ctx.mk_app(ctx.mk_var(4), ctx.mk_var(1)))
+    e2 = ctx.mk_pi(anon, BinderStyle.DEFAULT, prop,
+                   ctx.mk_pi(anon, BinderStyle.DEFAULT, prop, body2))
+    r = ctx.inst(e2, 1, Q)
+    v = ctx.view_expr(r)
+    v1 = ctx.view_expr(v.children[3])
+    v2 = ctx.view_expr(v1.children[3])
+    app = ctx.view_expr(v2.children[3])
+    assert app.tag == 'App'
+    fun = ctx.view_expr(app.fun)
+    arg = ctx.view_expr(app.arg)
+    assert fun.tag == 'Const'
+    assert arg.tag == 'Var' and arg.dbj_idx == 1
+
+
+# ============================================================
 # inst_forall_params tests
 # ============================================================
 
