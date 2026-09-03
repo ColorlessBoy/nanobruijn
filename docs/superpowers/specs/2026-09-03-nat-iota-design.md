@@ -110,8 +110,10 @@ reduce_steps 重构为显式镜像 whnf 分派：
 4. **后继交换**：`∀ (n m : Nat), Eq Nat (add (succ n) m) (succ (add n m))` —
    仍是 refl，因为 iota 会算
 5. **第一个归纳证明**：`∀ (n : Nat), Eq Nat (add n zero) n` — n 是变量时 iota 卡住，
-   必须用 `@Nat.rec`（显式 motive/mz/ms）做归纳；两块砖都是 Eq.refl——
-   "归纳搭骨架，计算填血肉"是本章的点题
+   必须用 `@Nat.rec`（显式 motive/mz/ms）做归纳。zero 情形是 Eq.refl（iota 算平）；
+   succ 情形需 congrArg 把 `ih : add k zero = k` 提升为 `succ (add k zero) = succ k`
+   （等式工具：eq.fol 新增 congrArg，经 Eq.rec 定义，装载即内核检查）——
+   "归纳搭骨架，计算填血肉，congrArg 搬运等式"是本章的点题
 
 hint 中明确写"@Nat.rec 的 motive 决定你要证什么"。
 
