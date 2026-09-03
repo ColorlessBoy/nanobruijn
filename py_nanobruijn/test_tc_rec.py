@@ -183,6 +183,19 @@ def test_reduce_rec_ignores_ctor_and_mismatched_rule():
     tc = TypeChecker(ctx, env)
     one = ctx.mk_app(names["succ"], names["zero"])
     assert tc.reduce_rec(ptrs["zero"], ctx.dag.insert_uparams(()), [one]) is None
-    # succ 规则在手动构造的分派下不响应 zero major（走 zero 规则才对）——
-    # 这里验证 ctor 头直接返回 None
+    # ctor 常量不是 recursor：直接返回 None
     assert tc.reduce_rec(ptrs["succ"], ctx.dag.insert_uparams(()), [names["zero"]]) is None
+
+
+def test_whnf_computes_rec_chain():
+    """whnf 端到端：Nat.rec motive mz ms (succ zero) 经 iota 归约后
+    与 ms zero (Nat.rec motive mz ms zero) 判等——内核真正在算。"""
+    ctx, env, names, ptrs = _make_nat_env()
+    tc = TypeChecker(ctx, env)
+    one = ctx.mk_app(names["succ"], names["zero"])
+    lhs = ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(names["Nat.rec"], names["motive"]),
+                                           names["mz"]), names["ms"]), one)
+    rec_zero = ctx.mk_app(ctx.mk_app(ctx.mk_app(ctx.mk_app(names["Nat.rec"], names["motive"]),
+                                                names["mz"]), names["ms"]), names["zero"])
+    rhs = ctx.mk_app(ctx.mk_app(names["ms"], names["zero"]), rec_zero)
+    assert tc.def_eq(lhs, rhs), "whnf 应经 iota 让 rec(succ zero) ≡ ms zero (rec ... zero)"

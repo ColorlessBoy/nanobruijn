@@ -299,6 +299,12 @@ class TypeChecker(InferenceMixin, DefEqMixin):
                 break
 
             elif tag == 'Const':
+                reduced = self.reduce_rec(expr.children[0], expr.children[1], args)
+                if reduced is not None:
+                    if not cheap_proj:
+                        cache_entries.append(cur)
+                    cur = reduced
+                    continue
                 cache_entries.append(cur)
                 result = self.ctx.foldl_apps(e_fun, args)
                 break
@@ -345,6 +351,8 @@ class TypeChecker(InferenceMixin, DefEqMixin):
         最内层）；本方法只负责 subst levels + foldl_apps 造 App 链，β 归约由
         whnf 主循环的下一轮迭代完成。
         """
+        if not args:
+            return None  # major 位至少要 1 个参数；无参常量直接短路（热路径护栏）
         rec = self.env.get_recursor(const_name)
         if rec is None or not rec.rules:
             return None
