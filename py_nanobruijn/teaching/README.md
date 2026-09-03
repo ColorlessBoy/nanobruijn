@@ -363,7 +363,7 @@ Nand : ∀ (a : Prop), ∀ (b : Prop), Prop
 
 ---
 
-## 8. 内置内容（39 个常量）
+## 8. 内置内容（64 个常量）
 
 ### 逻辑原语（Axiom，不可 δ 展开）
 
@@ -404,9 +404,42 @@ Nand : ∀ (a : Prop), ∀ (b : Prop), Prop
 | `or_comm` | `Iff (Or a b) (Or b a)` | Or.rec 双方向 |
 | `Eq.symm` | `Eq α a b -> Eq α b a` | Eq.rec 用法 |
 | `Eq.trans` | `Eq α a b -> Eq α b c -> Eq α a c` | 传递性 |
-| `imp.swap` | `Iff (a -> b -> c) (b -> a -> c)` | flip（⚠️ 已知内核问题，见 FAQ） |
+| `imp.swap` | `Iff (a -> b -> c) (b -> a -> c)` | flip |
+| `congrArg` | `f a = f b`（来自 `a = b`） | 等式两边套同一个函数（Eq.rec 应用） |
 
 `#print` 任何一个定理都能看到完整证明项——建议和 `#prove` 输出的项对比阅读。
+
+### Nat：第一个"会算"的归纳类型（nat 片段）
+
+| 常量 | 说明 |
+|---|---|
+| `Nat` / `zero` / `succ` | 真归纳类型（内核 `check_inductive_declaration` 全流程检查） |
+| `Nat.rec` | 递归器，规则由装载器综合——**会被 iota 归约真正执行** |
+| `one` / `two` / `three` / `four` | succ 链定义（`#reduce` 可展开） |
+| `add` | 在第一个参数上递归的加法 |
+
+**为什么 Or.rec 不用算，而 Nat.rec 必须算？**
+
+之前的连接符（Or.rec 等）都是 axiom——只是"规则的名字"。命题逻辑里一切
+都是 Prop，`done` 的内核检查靠**证明无关性**（同命题的证明自动相等）短路，
+从头到尾不需要"执行"任何东西。
+
+Nat 的意义就在于计算。`#reduce add two two` 要真的得出 `four`，内核必须
+执行"看 major 前提是哪个构造子 → 选对应规则 → 代入"这一步——这就是
+**iota 归约**。没有它，`Nat.rec` 永远卡住，2+2 只是"一个表达式"。
+
+试着跑：
+
+```
+#reduce add two two
+#reduce add zero m
+```
+
+注意标着 `[iota]` 的步——那就是内核在执行消除规则。然后去 Nat 世界
+（`#game Nat`）把 2+2=4 和第一个归纳证明亲自打出来。
+
+（inductive 块的 fol 语法限制：无参数、无索引、Type 排序——参数化/Prop
+排序归纳需要 elim-level 检查，暂不支持。）
 
 ---
 
@@ -420,7 +453,7 @@ Nand : ∀ (a : Prop), ∀ (b : Prop), Prop
 | `id` 显示 `∀ {α : Prop}` | universe 默认 0；`id.{u}` 看多态 |
 | `id.{u} True` 类型错误 | Sort u ≠ Prop——内核不做 universe 推断，这正是显式 universe 的语义 |
 | `#prove` 里 `apply And.rec` 报头部不匹配 | 递归器结果头是 `motive t`（变量），模式匹配只支持常量头；v1 限制 |
-| `imp.swap` 的 `#print` 显示奇怪 | 已知内核 inst 缺陷（教学场景触发），修复中；其余 13 个定理正常 |
+
 | 想用 recursor 做归纳 | v1 的 `apply` 不支持；可手写 `@And.rec ...`（见 `#print and_comm` 的证明项） |
 
 ---

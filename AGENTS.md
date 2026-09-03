@@ -31,7 +31,7 @@ py_nanobruijn/
   __main__.py                                       # CLI: check / inspect / repl
   teaching/                                         # 教学 REPL（见下）
     game.py                                         # GameLoader + GameSession（.game 关卡 + 星级/存档）
-  worlds/*.game                                     # 8 个闯关世界（And/Or/Not/Exists/Iff/Combo/Hard/Eq，43 关）
+  worlds/*.game                                     # 9 个闯关世界（And/Or/Not/Exists/Iff/Combo/Hard/Eq/Nat，48 关）
 ```
 
 内核约定（重要）：
@@ -51,11 +51,11 @@ py_nanobruijn/
 .venv/bin/python -m py_nanobruijn repl        # 或 py-nanobruijn repl
 ```
 
-- 内置逻辑核心（`teaching/fol/` 片段，55 个声明）：连接符家族按 fol 片段分组
-  （basic/true/false/and/or/not/iff/eq/exists + theorems），`make_bootstrap()`
+- 内置逻辑核心（`teaching/fol/` 片段，64 个声明）：连接符家族按 fol 片段分组（nat 片段含真归纳类型 Nat + add，可 iota 计算）
+  （basic/true/false/and/or/not/iff/eq/exists/nat + theorems），`make_bootstrap()`
   全量加载；`make_fresh_core()` 空 env 起步（`--fresh`/`--game` 隐含），世界进入时
   按 `.game` 的 `using:` 字段**现场定义**（定义仪式，依赖自动补齐）
-- 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ 归约）/
+- 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ/ι 归约，[iota] 步为 recursor 消除计算）/
   `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#quit`；
   每行新 `TypeChecker`（`--timeout` 防卡死）
 - CLI：`repl --script "<多行文本，以真实换行分隔>"` 非交互执行（EOF 自动退出）；
@@ -72,9 +72,16 @@ py_nanobruijn/
   `Function.comp.{u, v, w}` 显式实例化；数量不符或无 uparams 的常量带 `.{...}` 报 ParseError；
   `id.{u} True` 会类型错误（内核无 elaboration，Sort u ≠ Prop 即正确语义）
 
+- iota 归约（`tc_whnf.reduce_rec`，挂 whnf Const 分支）：仅对带 rules 的
+  RecursorDecl 生效，axiom 形状的 rec（fol 的 Or.rec 等）永不归约；
+  rule.val 约定：λ 链绑定 [params, motive, minors, ctor 字段]（字段最内层）
+- fol 装载语言支持 `inductive` 块（inductive/ctor/rec 行）：rec 规则由装载器
+  综合为 λ 链；v1 限制——无参数、无索引、Type 排序、字段类型不含括号；
+  参数化/Prop 排序归纳需要 elim-level 检查，暂不支持
+
 ## GAME 模式（闯关世界，py_nanobruijn/teaching/game.py + worlds/）
 
-- 8 个世界：And/Or/Not/Exists/Iff/Combo/Hard/Eq（43 关，见 `worlds/*.game`，
+- 9 个世界：And/Or/Not/Exists/Iff/Combo/Hard/Eq/Nat（48 关，见 `worlds/*.game`，
   `using:` 字段声明所需 fol 片段）；
   启动：`repl --game <世界>`，或 REPL 内 `#game <世界>` / `#worlds`（列出全部与完成度）
 - 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，每条 hint 降一星）/
