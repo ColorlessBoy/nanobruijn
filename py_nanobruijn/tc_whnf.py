@@ -334,3 +334,33 @@ class TypeChecker(InferenceMixin, DefEqMixin):
         if i < len(args):
             return args[i]
         return None
+
+    def reduce_rec(self, const_name: NamePtr, const_levels: LevelsPtr, args: list) -> ExprPtr | None:
+        """iota：按 major 前提的构造子分派 rec 规则（镜像 Rust reduce_rec）。
+
+        仅对带规则的 RecursorDecl 生效——axiom 形状的 rec（如 fol 的 Or.rec）
+        永不归约。v1 不含 K-target / NatLit / eta-struct 分支。
+
+        rule.val 约定：λ 链绑定 [params, motive, minors..., ctor 字段...]（字段
+        最内层）；本方法只负责 subst levels + foldl_apps 造 App 链，β 归约由
+        whnf 主循环的下一轮迭代完成。
+        """
+        rec = self.env.get_recursor(const_name)
+        if rec is None or not rec.rules:
+            return None
+        if len(args) <= rec.major_idx():
+            return None
+        major = self.whnf(args[rec.major_idx()])
+        major_ctor, major_args = self.ctx.unfold_apps(major)
+        major_head = self.ctx.dag.get_expr(major_ctor.core)
+        if major_head.tag != 'Const':
+            return None
+        rule = next((r for r in rec.rules if r.ctor_name == major_head.children[0]), None)
+        if rule is None:
+            return None
+        extra = len(major_args) - rule.ctor_telescope_size_wo_params
+        prefix = rec.num_params + rec.num_motives + rec.num_minors
+        r = self.ctx.subst_expr_levels(rule.val, rec.info.uparams, const_levels)
+        r = self.ctx.foldl_apps(r, args[:prefix])
+        r = self.ctx.foldl_apps(r, major_args[extra:])
+        return self.ctx.foldl_apps(r, args[rec.major_idx() + 1:])
