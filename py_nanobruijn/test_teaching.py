@@ -491,7 +491,7 @@ class TestParser:
         v = core.ctx.view_expr(e)
         levels = core.dag.uparams[v.const_levels]
         assert len(levels) == 3
-        assert all(core.dag.get_level(l).tag == 'Param' for l in levels)
+        assert all(core.dag.get_level(lv).tag == 'Param' for lv in levels)
 
     def test_parse_universe_wrong_count(self):
         core = make_bootstrap()
