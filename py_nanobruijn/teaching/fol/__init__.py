@@ -93,6 +93,13 @@ def load_fol(core, path: str) -> None:
     """从 .fol 文件加载全部声明到 core.env（现场解析，失败带行号报错）。"""
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
+    load_fol_lines(core, lines)
+
+
+def load_fol_lines(core, lines: list[str]) -> None:
+    """从行列表加载 fol 声明（#def 命令与文件加载共用）。
+
+    加载后刷新 env.cutoff（新声明视为"已确立"，可被内核查询）。"""
 
     decls: list[dict] = []
     cur: dict | None = None
@@ -117,6 +124,7 @@ def load_fol(core, path: str) -> None:
 
     for d in decls:
         _build_decl(core, d)
+    core.env.cutoff = len(core.env.declars)
 
 
 def _build_decl(core, d: dict) -> None:

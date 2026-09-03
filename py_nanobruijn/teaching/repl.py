@@ -17,7 +17,7 @@ from .tactics import AbortProof, ProofDone, run_tactic
 BANNER = (
     "py-nanobruijn teaching REPL\n"
     "输入表达式查看类型（等价 #check），或使用命令："
-    "#check/#reduce/#print/#prove/#env/#help/#quit\n"
+    "#check/#reduce/#print/#def/#prove/#env/#help/#quit\n"
     "语法：fun (x : A) => e、forall (x : A), e、A -> B、@Const、Type、Prop\n"
     "提示：∀ 可写 forall，→ 可写 ->（纯键盘友好）"
 )
@@ -88,6 +88,8 @@ class Repl:
             return "\n".join(self.core.constants())
         if cmd == "print":
             return self._print_const(rest)
+        if cmd == "def":
+            return self._def_declare(rest)
         if cmd == "reduce":
             return self._run_reduce(rest)
         if cmd == "check":
@@ -164,6 +166,31 @@ class Repl:
         elif isinstance(decl, Axiom):
             lines.append(f"  {self._c('(axiom)', 'gray')}")
         return "\n".join(lines)
+
+    def _def_declare(self, text: str) -> str:
+        """#def <fol 声明>：学生亲手定义（axiom/def/theorem，多行 := 续行）。"""
+        from .fol import load_fol_lines
+        text = text.strip()
+        if not text:
+            return ("usage: #def axiom Nand : Prop -> Prop -> Prop\n"
+                    "       #def定理名 : 类型\n       := 值（多行可继续输）")
+        lines = [text]
+        before = set(self.core.env.declars)
+        try:
+            load_fol_lines(self.core, lines)
+        except (ValueError, ParseError) as err:
+            return self._error(str(err))
+        except Exception as err:  # noqa: BLE001
+            return self._error(f"{type(err).__name__}: {err}")
+        new = sorted(self.core.name_to_string(n) for n in self.core.env.declars
+                     if n not in before)
+        if not new:
+            return self._error("#def: 没有产生新声明（重复定义？）")
+        kind = ('公理' if lines[0].startswith('axiom')
+                else '定理' if lines[0].startswith('theorem') else '定义')
+        out = self._c(f"✚ {kind}已加入环境：{'、'.join(new)}", 'green')
+        out += "\n现在可以 #check 它、在 #prove 里使用它。"
+        return out
 
     def _prove(self, text: str) -> str:
         text = text.strip()

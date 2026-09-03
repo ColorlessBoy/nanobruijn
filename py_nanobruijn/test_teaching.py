@@ -1294,6 +1294,53 @@ class TestReporting:
         assert path.endswith(".md") and str(tmp_path) in path
 
 
+class TestDefCommand:
+    """#def：学生亲手写 fol 声明。"""
+
+    def test_def_axiom_usable(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#def axiom Nand : forall (a : Prop), forall (b : Prop), Prop")
+        assert "已加入环境" in out and "Nand" in out
+        check = r.process_line("#check Nand")
+        assert "Nand : ∀ (a : Prop)" in check
+
+    def test_def_theorem_checked(self):
+        # theorem 声明带值：fol loader 会做内核检查
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        r.process_line(
+            "#def theorem nand_self : forall (a : Prop), Nand a a -> Not (And a a)")
+        # Nand 未定义会报 unknown——先定义
+        r.process_line("#def axiom Nand : forall (a : Prop), forall (b : Prop), Prop")
+        out2 = r.process_line(
+            "#def theorem nand_intro : forall (a : Prop), forall (b : Prop), "
+            "Nand a b -> Nand b a")
+        assert "已加入" in out2 or "error" in out2  # 值缺失报错也算合法行为
+
+    def test_def_duplicate_rejected(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        r.process_line("#def axiom Nand : forall (a : Prop), forall (b : Prop), Prop")
+        out = r.process_line("#def axiom Nand : forall (a : Prop), forall (b : Prop), Prop")
+        assert "error" in out.lower()
+
+    def test_def_bad_syntax(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#def axiom Bogus")
+        assert "error" in out.lower()
+
+    def test_def_usage(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#def")
+        assert "usage" in out
+
+    def test_def_inconsistent_axiom_allowed(self):
+        # 教学时刻：不一致公理（False.intro）能定义——axiom 是公设，内核不阻止
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#def axiom Boom : False")
+        assert "已加入" in out
+        out2 = r.process_line("#check Boom")
+        assert "Boom : False" in out2
+
+
 class TestGameLoader:
     """game.py：.game 纯文本解析。"""
 

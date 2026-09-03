@@ -9,7 +9,7 @@ nanoda_lib）+ Python 移植（`py_nanobruijn/`）+ 教学 REPL（`py_nanobruijn
 
 ```bash
 # Python（唯一活跃开发目标）
-.venv/bin/python -m pytest py_nanobruijn -q   # 全量测试（当前 331 个）
+.venv/bin/python -m pytest py_nanobruijn -q   # 全量测试（当前 345 个）
 .venv/bin/ruff check py_nanobruijn            # lint（line-length 100, py310）
 
 # Rust（参考实现，非活跃）

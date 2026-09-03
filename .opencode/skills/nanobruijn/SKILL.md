@@ -16,6 +16,7 @@ description: "Verify Lean proofs and grade student submissions with the nanobrui
 | 查常量/定理 | `--script "#print <name>"`（axiom/def/theorem 及其值） |
 | 游戏关卡可解性 | `--script` 先 `#game <世界> <关卡号>`（定位到具体关）再传该关标准解——注意会写入 `py_nanobruijn/saves/`（有状态），想干净验证先删对应存档 |
 | 机器可读输出 | 加 `--json`（{"ok": bool, "output": str}），错误时返回码非 0 |
+| 空环境体验 | `--fresh`（`--game` 隐含）：从零开始，进世界时"定义仪式"现场加载 fol 片段 |
 
 ## 工作流
 
@@ -27,6 +28,8 @@ description: "Verify Lean proofs and grade student submissions with the nanobrui
    - 无 `内核检查: 通过` → 未完成，找最后一条 `error:` 行转教学提示
 3. 反馈循环：把 error 信息转成中文教学提示（指出目标状态与下一步 tactic）
 4. 多轮批改：每次都是新的 `--script` 调用（无状态）
+5. 学习产物：退出自动生成 `py_nanobruijn/reports/*.md`（学习报告）；同关连错 3 次
+   会交互询问上报（`feedback/*.json`）——`--script` 模式不询问但错误仍入报告
 
 ## Anti-patterns
 

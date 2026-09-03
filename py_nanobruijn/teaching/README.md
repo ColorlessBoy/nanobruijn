@@ -299,6 +299,23 @@ Or — 析取世界：选择的两条路（0/5 关）
 部分关卡有 `ban:` 字段（如 And 世界 L2 禁用 `cases`）——被禁用的 tactic 会直接
 拒绝并提示换路（提示会指向本关设计的那条路线）。
 
+### 亲手定义：#def 命令
+
+想自己创造连接符？`#def` 直接把 fol 声明写进环境：
+
+```
+> #def axiom Nand : forall (a : Prop), forall (b : Prop), Prop
+✚ 公理已加入环境：Nand
+现在可以 #check 它、在 #prove 里使用它。
+> #check Nand
+Nand : ∀ (a : Prop), ∀ (b : Prop), Prop
+```
+
+- `axiom`（公设）/`def`（定义，带 `:= 值`）/`theorem`（定理，内核会检查值）
+- ** axiom 是公设，内核不阻止不一致**——试试 `#def axiom Boom : False`，
+  你就获得了"证明一切"的能力（这正是为什么数学里 axiom 要谨慎）
+- 定义失败会带教学提示；重复定义被拒绝
+
 ### 星级与存档
 
 - **3★**：没用 hint 且步数 ≤ 标准解行数 + 2（容错两步入 3★）；**2★**：用了 1 条 hint 或步数超限；**1★**：用了 ≥2 条 hint
