@@ -18,7 +18,11 @@ class LearningLog:
         self.fresh = fresh
         self.entries: list[dict] = []
         self.current: dict | None = None
+        self.definitions: list[tuple[str, str]] = []  # (名字, 类别)
         self._t0 = time.time()
+
+    def add_definition(self, name: str, kind: str) -> None:
+        self.definitions.append((name, kind))
 
     # ---------- 采集（repl 接线） ----------
 
@@ -69,6 +73,11 @@ class LearningLog:
 
     def to_markdown(self) -> str:
         lines = ["# nanobruijn 学习报告", ""]
+        if self.definitions:
+            lines.append("## 你的定义")
+            for (name, kind) in self.definitions:
+                lines.append(f"- {kind} `{name}`")
+            lines.append("")
         mode = "fresh（从空环境开始，现场定义）" if self.fresh else "全量环境"
         lines.append(f"- 时间：{time.strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"- 模式：{mode}")

@@ -174,12 +174,18 @@ class Repl:
         if not text:
             return ("usage: #def axiom Nand : Prop -> Prop -> Prop\n"
                     "       #def定理名 : 类型\n       := 值（多行可继续输）")
-        lines = [text]
+        # 单行含 := 值：拆成 声明行 + ":= 值" 两行（与 fol 文件续行一致）
+        if ':=' in text and not text.lstrip().startswith(':='):
+            decl, val = text.split(':=', 1)
+            lines = [decl.strip(), ':= ' + val.strip()]
+        else:
+            lines = [text]
         before = set(self.core.env.declars)
         try:
             load_fol_lines(self.core, lines)
         except (ValueError, ParseError) as err:
-            return self._error(str(err))
+            msg = str(err).removeprefix('fol: ')
+            return self._error(f"#def 声明无法解析：{msg}")
         except Exception as err:  # noqa: BLE001
             return self._error(f"{type(err).__name__}: {err}")
         new = sorted(self.core.name_to_string(n) for n in self.core.env.declars
@@ -188,7 +194,14 @@ class Repl:
             return self._error("#def: 没有产生新声明（重复定义？）")
         kind = ('公理' if lines[0].startswith('axiom')
                 else '定理' if lines[0].startswith('theorem') else '定义')
+        self.learning.add_definition(new[0], kind)
         out = self._c(f"✚ {kind}已加入环境：{'、'.join(new)}", 'green')
+        # 教学彩蛋：类型恰为 False 的公理会引爆一致性
+        if lines[0].startswith('axiom') and ': False' in lines[0]:
+            out += ("\n" + self._c(
+                "⚠️ 注意：这个公理让 False 有了证明——从现在起你可以"
+                "『证明』一切（爆炸原理）。试试 #prove forall (a : Prop), a",
+                'yellow'))
         out += "\n现在可以 #check 它、在 #prove 里使用它。"
         return out
 
