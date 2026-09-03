@@ -91,6 +91,9 @@ def _core_has_const(dag, core, names):
     return False
 
 
+core_has_const = _core_has_const  # 公开别名：teaching 装载器复用
+
+
 def _computed_is_recursive(dag, ind_data, declars):
     """Recompute is_recursive by walking the constructor telescopes.
 

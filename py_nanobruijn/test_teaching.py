@@ -9,7 +9,8 @@ import pytest
 from .binder_style import BinderStyle
 from .errors import ParseError
 from .ptr import ExprPtr
-from .teaching.core import make_bootstrap
+from .teaching.core import make_bootstrap, make_fresh_core
+from .teaching.fol import load_fol_lines
 from .teaching.parser import parse_expr
 from .teaching.pretty import pretty
 from .teaching.proof import ProofState
@@ -132,6 +133,42 @@ class TestCore:
             with pytest.raises(ValueError):
                 tc.infer(e, 'check')
                 tc.assert_def_eq(tc.infer(e, 'infer_only'), expected)
+
+    def test_fol_inductive_block(self):
+        """fol inductive 块：Nat 归纳装载 + 规则综合 + 内核检查通过。"""
+        core = make_fresh_core()
+        lines = [
+            "inductive Nat : Type",
+            "ctor zero : Nat",
+            "ctor succ (n : Nat) : Nat",
+            "rec Nat.rec {u} : forall {motive : forall (n : Nat), Sort u}, "
+            "forall (mz : motive zero), "
+            "forall (ms : forall (n : Nat), forall (ih : motive n), motive (succ n)), "
+            "forall (t : Nat), motive t",
+        ]
+        load_fol_lines(core, lines)
+        for s in ("Nat", "zero", "succ", "Nat.rec"):
+            assert core.name_to_ptr(s) in core.env.declars
+        from .env import InductiveDecl, RecursorDecl
+        ind = core.env.declars[core.name_to_ptr("Nat")]
+        assert isinstance(ind, InductiveDecl) and ind.inductives[0].is_rec
+        rec = core.env.declars[core.name_to_ptr("Nat.rec")]
+        assert isinstance(rec, RecursorDecl)
+        assert len(rec.data.rules) == 2
+        # 规则综合：succ 规则的 rhs 内含递归调用（提到 Nat.rec），zero 规则不含
+        from .inductive import core_has_const
+        rules = {r.ctor_name: r for r in rec.data.rules}
+        succ_rule = rules[core.name_to_ptr("succ")]
+        zero_rule = rules[core.name_to_ptr("zero")]
+        assert core_has_const(core.dag, succ_rule.val, {core.name_to_ptr("Nat.rec")})
+        assert not core_has_const(core.dag, zero_rule.val, {core.name_to_ptr("Nat.rec")})
+        # iota 端到端：rec motive mz ms zero ≡ mz（经 whnf）
+        tc = core.make_type_checker()
+        e = parse_expr(core, "@Nat.rec.{1} (fun (k : Nat) => Nat) zero "
+                             "(fun (k : Nat) => fun (ih : Nat) => succ ih) zero")
+        assert tc.infer(e, 'infer_only') is not None
+        assert tc.def_eq(tc.whnf(e), core.ctx.mk_const(core.name_to_ptr("zero"),
+                                                       core.dag.insert_uparams(())))
 
     def test_true_intro_type_is_true(self):
         # True.intro 的类型必须是 True（常量），不是 Prop（Sort 0）
