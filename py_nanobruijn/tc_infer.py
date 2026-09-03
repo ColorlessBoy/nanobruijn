@@ -199,9 +199,9 @@ def _infer_proj(self: TypeChecker, ty_name: NamePtr, idx: int, structure: ExprPt
     if unfolded is None:
         raise ValueError("infer_proj: could not unfold structure type")
     _, struct_ty_name, struct_ty_levels, struct_ty_args = unfolded
-    ind_data = self.env.get_inductive(struct_ty_name)
+    ind_data = self.env.get_structure(struct_ty_name, True)
     if ind_data is None:
-        raise ValueError(f"infer_proj: not an inductive type: {struct_ty_name}")
+        raise ValueError(f"infer_proj: not a structure type: {struct_ty_name}")
     ctor_name = ind_data.all_ctor_names[0]
     ctor = self.env.get_constructor(ctor_name)
     if ctor is None:

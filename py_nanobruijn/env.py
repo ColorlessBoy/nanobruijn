@@ -231,11 +231,21 @@ class Env:
             return d.data
         return None
 
-    def can_be_struct(self, name: NamePtr) -> bool:
+    def get_structure(self, name: NamePtr, rec_ok: bool) -> InductiveData | None:
+        """Retrieve the inductive declaration associated with `name` if it has
+        the characteristics required of a structure: (1) only one constructor,
+        (2) no indices, and (3) unless `rec_ok`, not recursive.
+
+        Mirrors Rust ``Env::get_structure`` (upstream nanoda PR #22).
+        """
         ind = self.get_inductive(name)
         if ind is not None:
-            return (not ind.is_rec) and len(ind.all_ctor_names) == 1 and ind.num_indices == 0
-        return False
+            if len(ind.all_ctor_names) == 1 and ind.num_indices == 0 and (rec_ok or not ind.is_rec):
+                return ind
+        return None
+
+    def can_be_struct(self, name: NamePtr) -> bool:
+        return self.get_structure(name, False) is not None
 
     def get_declar_val(self, name: NamePtr) -> tuple[LevelsPtr, CorePtr] | None:
         d = self.get_declar(name)
