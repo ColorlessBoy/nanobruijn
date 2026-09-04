@@ -56,6 +56,7 @@ py_nanobruijn/
   全量加载；`make_fresh_core()` 空 env 起步（`--fresh`/`--game` 隐含），世界进入时
   按 `.game` 的 `using:` 字段**现场定义**（定义仪式，依赖自动补齐）
 - 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ/ι 归约，[iota] 步为 recursor 消除计算）/
+  `#pp on|off`（显示模式：exact=内核精确 ↔ readable=Lean 风格——隐式隐藏/中缀记号/⟨⟩；纯显示层变换，输入不变）/
   `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#quit`；
   每行新 `TypeChecker`（`--timeout` 防卡死）
 - CLI：`repl --script "<多行文本，以真实换行分隔>"` 非交互执行（EOF 自动退出）；

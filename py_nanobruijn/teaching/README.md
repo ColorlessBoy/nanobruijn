@@ -173,6 +173,34 @@ and_comm : ∀ {a : Prop}, ∀ {b : Prop}, Iff And a b And b a
 
 常量列表 / 帮助 / 退出。
 
+### `#pp on` / `#pp off` —— 显示模式切换
+
+输入永远是纯 λ 表达式（不变）；切换的是**显示**：
+
+| 模式 | 效果 | 例 |
+|---|---|---|
+| `exact`（默认） | 内核精确：`@Const`、宇宙标注、完整参数 | `@Or.inl True True True.intro` |
+| `readable` | Lean 4 风格：隐式参数与宇宙隐藏、中缀记号、`⟨…⟩` | `Or.inl True.intro`，`@Eq.{1} Nat a b` 显示为 `a = b` |
+
+readable 模式的变换：`=`/`∧`/`∨`/`↔`（Eq/And/Or/Iff 满参应用）、`¬`（Not）、
+结构构造子显示为匿名构造子 `⟨…⟩`（And.intro/Iff.intro/Exists.intro，隐式参数
+自动隐藏）、投影 `h.1`/`h.2`、宇宙标注隐藏。
+
+```
+> #pp on
+pp 模式：readable（Lean 风格：……）
+> @Eq.{1} Nat (succ zero) (succ zero)
+(succ zero) = (succ zero) : Prop
+> #pp off
+pp 模式：exact（内核精确：……）
+> @Eq.{1} Nat (succ zero) (succ zero)
+@Eq.{1} Nat (succ zero) (succ zero) : Prop
+```
+
+随时可切回 exact 看项的"真身"——这是理解 `@Const` 与宇宙参数的最佳学习工具：
+readable 是糖，exact 是糖拆开后的样子。`#reduce` 的归约链、`#prove` 的目标、
+`#print` 的证明项全部跟随当前模式。
+
 ### `#prove <类型>`
 
 进入**tactic 草稿模式**（下节详解）。

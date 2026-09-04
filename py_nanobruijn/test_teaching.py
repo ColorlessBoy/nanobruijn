@@ -591,6 +591,51 @@ class TestPretty:
         e = parse_expr(core, "@And.intro True True")
         assert pretty(core, e) == "@And.intro True True"
 
+    def test_pp_readable_hides_implicits(self):
+        core = make_bootstrap()
+        core.pp_readable = True
+        e = parse_expr(core, "fun (h : True) => @Or.inl True True h")
+        assert pretty(core, e) == "fun (h : True) => Or.inl h"
+
+    def test_pp_readable_eq_infix_hides_universe(self):
+        core = make_bootstrap()
+        core.pp_readable = True
+        e = parse_expr(core, "fun (p : Prop) => @Eq.{1} Prop p p")
+        assert pretty(core, e) == "fun (p : Prop) => p = p"
+
+    def test_pp_readable_infix_and_or_iff_not(self):
+        core = make_bootstrap()
+        core.pp_readable = True
+        for sym, ctor in (("∧", "@And a b"), ("∨", "@Or a b"), ("↔", "@Iff a b")):
+            e = parse_expr(core, f"fun (a : Prop) => fun (b : Prop) => {ctor}")
+            assert pretty(core, e) == f"fun (a : Prop) => fun (b : Prop) => a {sym} b", sym
+        e = parse_expr(core, "fun (a : Prop) => Not a")
+        assert pretty(core, e) == "fun (a : Prop) => ¬a"
+
+    def test_pp_readable_structure_ctor_brackets(self):
+        core = make_bootstrap()
+        core.pp_readable = True
+        e = parse_expr(core, "fun (ha : True) => fun (hb : True) => @And.intro True True ha hb")
+        assert pretty(core, e) == "fun (ha : True) => fun (hb : True) => ⟨ha, hb⟩"
+        e2 = parse_expr(core, "fun (w : Nat) => fun (h : @Eq.{1} Nat w w) => "
+                              "@Exists.intro Nat (fun (x : Nat) => @Eq.{1} Nat x x) w h")
+        assert pretty(core, e2) == "fun (w : Nat) => fun (h : w = w) => ⟨w, h⟩"
+
+    def test_pp_readable_partial_app_not_infix(self):
+        """隐式隐藏后不足两个显式参数：不渲染中缀，退回普通应用形式。"""
+        core = make_bootstrap()
+        core.pp_readable = True
+        e = parse_expr(core, "fun (p : Prop) => @Eq.{1} Prop p")
+        assert pretty(core, e) == "fun (p : Prop) => Eq p"
+
+    def test_pp_readable_off_unchanged(self):
+        """默认（off）保持内核精确模式——回归守护。"""
+        core = make_bootstrap()
+        e = parse_expr(core, "fun (h : True) => @Or.inl True True h")
+        assert pretty(core, e) == "fun (h : True) => @Or.inl True True h"
+        e2 = parse_expr(core, "fun (p : Prop) => @Eq.{1} Prop p p")
+        assert pretty(core, e2) == "fun (p : Prop) => @Eq.{1} Prop p p"
+
     def test_pretty_nat_lit(self):
         core = make_bootstrap()
         e = parse_expr(core, "42")
@@ -1013,6 +1058,23 @@ class TestRepl:
         r = self.make_repl()
         out = r.process_line("#check @And True True")
         assert ": Prop" in out
+
+    def test_pp_toggle_command(self):
+        """#pp on/off：显示在 Lean 可读与内核精确之间切换（输入侧不变）。"""
+        r = self.make_repl()
+        out = r.process_line("#pp")
+        assert "exact" in out
+        out = r.process_line("#pp on")
+        assert "readable" in out
+        out = r.process_line("@Or.inl True True True.intro")
+        assert "Or.inl True.intro" in out and "@Or.inl" not in out
+        out = r.process_line("#pp off")
+        assert "exact" in out
+        out = r.process_line("@Or.inl True True True.intro")
+        assert "@Or.inl" in out
+        # 状态在 #pp 无参时可见
+        out = r.process_line("#pp")
+        assert "exact" in out
 
     def test_reduce(self):
         r = self.make_repl()

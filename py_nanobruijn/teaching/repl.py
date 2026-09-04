@@ -17,7 +17,7 @@ from .tactics import AbortProof, ProofDone, run_tactic
 BANNER = (
     "py-nanobruijn teaching REPL\n"
     "输入表达式查看类型（等价 #check），或使用命令："
-    "#check/#reduce/#print/#def/#prove/#env/#help/#quit\n"
+    "#check/#reduce/#print/#def/#prove/#env/#pp/#help/#quit\n"
     "语法：fun (x : A) => e、forall (x : A), e、A -> B、@Const、Type、Prop\n"
     "提示：∀ 可写 forall，→ 可写 ->（纯键盘友好）"
 )
@@ -98,9 +98,23 @@ class Repl:
             return self._prove(rest)
         if cmd == "worlds":
             return self._worlds()
+        if cmd == "pp":
+            return self._pp_mode(rest)
         if cmd == "game":
             return self._game(rest)
         return f"unknown command #{cmd} (try #help)"
+
+    def _pp_mode(self, text: str) -> str:
+        """#pp：显示模式切换。on = Lean 可读（隐式隐藏/记号/⟨⟩），off = 内核精确。"""
+        t = text.strip().lower()
+        if t == "on":
+            self.core.pp_readable = True
+            return "pp 模式：readable（Lean 风格：隐式参数隐藏、= ∧ ∨ ↔ ¬、⟨…⟩；#pp off 切回）"
+        if t == "off":
+            self.core.pp_readable = False
+            return "pp 模式：exact（内核精确：@Const/宇宙标注/完整参数）"
+        cur = "readable" if getattr(self.core, "pp_readable", False) else "exact"
+        return f"pp 模式：{cur}（用法：#pp on | #pp off）"
 
     def _check(self, text: str) -> str:
         try:

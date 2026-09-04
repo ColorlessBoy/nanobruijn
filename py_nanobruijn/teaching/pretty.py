@@ -10,11 +10,18 @@ def pretty(core: BootstrapCore, e: ExprPtr, color: bool = False) -> str:
     return _Pretty(core, color)._pp(e, ())
 
 
+# readable 模式的记号表（Lean 4 delaborator 风格；仅显示层，内核零改动）
+INFIX_OPS = {"Eq": "=", "And": "∧", "Or": "∨", "Iff": "↔"}
+PREFIX_OPS = {"Not": "¬"}
+ATOM_TAGS = ('Var', 'Const', 'NatLit', 'StringLit')
+
+
 class _Pretty:
     def __init__(self, core: BootstrapCore, color: bool = False):
         self.core = core
         self.ctx = core.ctx
         self.color = color
+        self.readable = bool(getattr(core, "pp_readable", False))
 
     def _c(self, text: str, color: str) -> str:
         if not self.color:
@@ -33,6 +40,10 @@ class _Pretty:
             return self._c(self._pp_sort(v.level), "cyan")
         if tag == 'Const':
             return self._pp_const(v)
+        if tag == 'App' and self.readable:
+            rendered = self._pp_app_readable(e, names)
+            if rendered is not None:
+                return rendered
         if tag == 'App':
             fun_v = self.ctx.view_expr(v.fun)
             if fun_v.tag == 'Const' and self._const_is_implicit_first(fun_v):
@@ -55,6 +66,11 @@ class _Pretty:
             n = self.ctx.name_to_string(v.binder_name)
             return f"let {n} := {self._pp(v.val, names)}; {self._pp(v.body, names + (n,))}"
         if tag == 'Proj':
+            if self.readable:
+                struct = self._pp(v.structure, names)
+                if self.ctx.view_expr(v.structure).tag not in ATOM_TAGS + ('Proj',):
+                    struct = f"({struct})"
+                return f"{struct}.{v.proj_idx + 1}"
             return f"{self.ctx.name_to_string(v.ty_name)}.{v.proj_idx} {self._pp(v.structure, names)}"
         if tag == 'StringLit':
             return f'"{self.ctx.dag.strings[v.string_ptr]}"'
@@ -64,9 +80,11 @@ class _Pretty:
 
     def _pp_const(self, v, prefix: str = "") -> str:
         name = self.ctx.name_to_string(v.name)
+        if self.readable and not prefix:
+            return self._c(name, "yellow")  # 隐藏宇宙标注
         levels = self.core.dag.uparams[v.const_levels]
-        if any(not self.core.dag.get_level(l).is_zero() for l in levels):
-            parts = ", ".join(self._pp_level(l) for l in levels)
+        if any(not self.core.dag.get_level(lv).is_zero() for lv in levels):
+            parts = ", ".join(self._pp_level(lv) for lv in levels)
             return self._c(f"{prefix}{name}.{{{parts}}}", "yellow")
         return self._c(f"{prefix}{name}", "yellow")
 
@@ -101,6 +119,58 @@ class _Pretty:
         if cur.tag == 'Param':
             return f"Type {self.ctx.name_to_string(cur.param_name)}+{n}"
         return f"Type <{lv.tag}>"
+
+    # ---------- readable 模式 ----------
+
+    def _pp_app_readable(self, e: ExprPtr, names: tuple[str, ...]) -> str | None:
+        """Lean 4 风格：按头常量的望远镜风格切分参数，隐藏隐式参数与宇宙，
+        命中记号表时渲染中缀/前缀/⟨⟩。非 const 头返回 None 走精确路径。"""
+        fun, args = self.ctx.unfold_apps(e)
+        fv = self.ctx.view_expr(fun)
+        if fv.tag != 'Const':
+            return None
+        decl = self.core.env.get_declar(fv.name)
+        if decl is None:
+            return None
+        styles = self._telescope_styles(decl.info.ty)
+        shown = [a for i, a in enumerate(args)
+                 if not (i < len(styles) and styles[i] == BinderStyle.IMPLICIT)]
+        name = self.ctx.name_to_string(fv.name)
+        if name in INFIX_OPS and len(shown) == 2:
+            return (f"{self._operand(shown[0], names)} {INFIX_OPS[name]} "
+                    f"{self._operand(shown[1], names)}")
+        if name in PREFIX_OPS and len(shown) == 1:
+            return PREFIX_OPS[name] + self._operand(shown[0], names)
+        if self._is_structure_ctor(name) and shown:
+            inner = ", ".join(self._operand(a, names) for a in shown)
+            return f"⟨{inner}⟩"
+        return " ".join([name] + [self._operand(a, names) for a in shown])
+
+    def _telescope_styles(self, ty_core) -> list:
+        styles = []
+        cur = ExprPtr.closed(ty_core)
+        while True:
+            v = self.ctx.view_expr(cur)
+            if v.tag != 'Pi':
+                break
+            styles.append(v.binder_style)
+            cur = v.children[3]
+        return styles
+
+    def _is_structure_ctor(self, name: str) -> bool:
+        # 真 ctor：单构造子归纳类型；fol 的 axiom 化构造子（And.intro 等）
+        # 没有 ConstructorData，用名字表兜底
+        c = self.core.env.get_constructor(name)
+        if c is not None:
+            ind = self.core.env.get_inductive(c.inductive_name)
+            return ind is not None and len(ind.all_ctor_names) == 1
+        return name in ("And.intro", "Iff.intro", "Exists.intro")
+
+    def _operand(self, e: ExprPtr, names: tuple[str, ...]) -> str:
+        s = self._pp(e, names)
+        if self.ctx.view_expr(e).tag in ATOM_TAGS + ('Proj',):
+            return s
+        return f"({s})"
 
     def _const_is_implicit_first(self, v) -> bool:
         info = self.core.env.get_declar(v.name).info
