@@ -1,6 +1,16 @@
 world Combo
 title 综合世界：第一公里终点
 intro 前五个世界的技巧在这里汇合。每一关都是一道完整的谜题。提示会越来越稀疏——是时候自己铺路了。
+requires: Nat
+lesson: 从这里起没有新概念，只有更深的组合。套路先拆外层：目标是函数类型就 intro，目标头部是复合命题（And/Or/Iff）就 apply 对应的构造器，然后再处理内层。
+lesson: 分配律与 De Morgan 律是本世界的主题——命题逻辑的"乘法分配律"。Or (And a b) (And a c) -> And a (Or b c) 的双向版本你在 And/Or 世界都摸过零件，现在把它们接起来。
+lesson: 卡住时先画目标树：apply 会把目标分裂成几支？cases 会拆出哪些证据？纸上的两分钟常常省掉屏幕上的二十分钟。
+example: forall (a : Prop), forall (b : Prop), And (a -> b) a -> b
+intro a
+intro b
+intro h
+cases h as fab ha
+exact fab ha
 using: all
 level 1
 name 分配律反向

@@ -96,7 +96,7 @@ class ProofState:
     def _require_hole(self) -> Hole:
         hole = self._current_hole()
         if hole is None:
-            raise ValueError("当前没有未完成的目标（全部已填充，运行 done 结束证明）")
+            raise ValueError("当前没有未完成的目标（全部已填充）")
         return hole
 
     def _tree_contains(self, node: _Node, hole_id: int) -> bool:
@@ -151,11 +151,15 @@ class ProofState:
         ty_v = self.ctx.view_expr(ExprPtr.closed(info.ty))
         return ty_v.tag == 'Pi' and ty_v.binder_style == BinderStyle.IMPLICIT
 
+    def is_complete(self) -> bool:
+        """所有洞都已填充（tactic 收工会自动触发内核检查）。"""
+        return self._current_hole() is None
+
     def context(self) -> str:
         hole = self._current_hole()
         if hole is None:
             term = self._render(self.subholes[0], (), -1)
-            return f"所有目标已完成，请运行 done\n当前项: {term}"
+            return f"所有目标已完成\n当前项: {term}"
         names: list[str] = []
         ctx_lines = []
         for (name, _style, ty) in hole.ctx:
@@ -164,7 +168,26 @@ class ProofState:
         ctx_str = "（空）" if not ctx_lines else ", ".join(ctx_lines)
         goal = self._pp(hole.goal, names)
         term = self._render(self.subholes[0], (), hole.id)
-        return f"上下文: {ctx_str}\n目标: {goal}\n当前项: {term}"
+        return f"上下文: {ctx_str}\n目标: ? : {goal}\n当前项: {term}"
+
+    def context_structured(self) -> dict:
+        """context() 的结构化版本：前端直接渲染，无需解析文本。
+
+        context = [[name, type_str], ...]（外层 → 内层）；
+        goal = 裸类型字符串（"? : " 前缀由前端按待填洞语义渲染）。
+        """
+        hole = self._current_hole()
+        if hole is None:
+            return {"context": [], "goal": "",
+                    "term": self._render(self.subholes[0], (), -1)}
+        entries = []
+        names: list[str] = []
+        for (name, _style, ty) in hole.ctx:
+            entries.append([name, self._pp(ty, names)])
+            names.append(name)
+        return {"context": entries,
+                "goal": self._pp(hole.goal, names),
+                "term": self._render(self.subholes[0], (), hole.id)}
 
     # ---------- intro ----------
 

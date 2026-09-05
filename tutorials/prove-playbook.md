@@ -4,8 +4,11 @@
 > 先在这里设计，再落成 .game 文件，最后用 REPL 验证。
 > 配套工具：py-nanobruijn repl 的 #game 模式（关卡闯关）。
 >
-> 9 个世界 48 关，全部标准解与 `worlds/*.game` 逐字一致，由
+> 11 个世界 61 关，全部标准解与 `worlds/*.game` 逐字一致，由
 > `TestWorldSolutions` 持续验证；本文档任何改动都必须同步 .game（反之亦然）。
+> 课堂文本（`lesson:`）与演示关（`example:`）活在 .game 里；设计意图是
+> 本文档新增的元信息。世界顺序由 `requires:` 拓扑排序决定：
+> Basic → TrueFalse → And → Or → Not → Exists → Iff → Eq → Nat → Combo → Hard。
 
 ---
 
@@ -15,23 +18,32 @@
 
 | 命令 | 作用 |
 |---|---|
-| `#worlds` | 列出全部世界与你的进度，如 `And — 合取世界：从构造到分解（3/5 关）` |
+| `#game`（无参数） | 按课程顺序列出全部世界与进度，如 `③ And — 合取世界：从构造到分解（3/5 关，星级 333--）` |
 | `#game <世界>` | 进入世界（如 `#game And`；世界名不区分大小写，对应 `worlds/<world>.game`） |
+| `#game <世界> <关卡号>` | 直达重玩指定关卡 |
+| `#game <世界> replay` | 从第 1 关重打整个世界（含课堂与演示），历史最佳星标保留 |
+| `#lesson` / `#example` | 重看当前世界的课堂段落 / 重放演示关 |
 | `hint` | 关卡内逐条显示分层提示（`提示 1/2`、`提示 2/2`……每条 hint 降一星） |
 | `solution` | 显示标准解并退出本关回主 REPL（本关未通关、不计星；下次 `#game` 从同关继续） |
-| `#quit` / `abort` | 中途退出当前证明 |
+| `exit` | 关卡/证明内：放弃回主 REPL；主 REPL：退出程序（`#exit` 同义） |
+| `#saves` | 列出全部存档档位（关数/星数/当前标记） |
 
-**进入世界后**，自动从第一个未完成关卡开始，顺序解锁（第 N 关需要第 N-1 关已
-通关）。每关打印关卡名、命题与上下文，`proof>` 提示符下输入 tactic——
-`intro`/`apply`/`exact`/`cases`（计入步数）、`done`（合成 + 内核检查）。每行
-tactic 后观察三件事：
+**启动即续玩**：交互启动会按存档档位自动进入第一个进行中的世界
+（`欢迎回来——续玩：X 世界`）；`--new` 新开一局（旧档保留），
+`--save <名字>` 使用命名档位。`--script`/`--json` 通道不自动续玩。
+
+**进入世界后**，首次会依次经过：定义仪式（fol 声明现场加载）→ 课堂
+（`lesson:` 段落，交互回车翻页）→ 演示关（`example:` 脚本逐步自动执行）→
+第 1 关；有存档或本会话已展示过则直接续关。每关打印关卡名、命题与上下文，
+`proof>` 提示符下输入 tactic——`intro`/`apply`/`exact`/`cases`（计入步数）、
+最后一个 tactic 填完即自动收工（合成 + 内核检查，无需 done）。每行 tactic 后观察三件事：
 
 1. **上下文**——手头有哪些"已知为真"的东西
 2. **目标**——还差什么证明
 3. **当前项**——证明 lambda 长什么样了（这是最关键的：tactic 在"编辑"这个 lambda）
 
-关卡引擎就是 `#prove` 内核：每关 goal 是一个命题，`done` 合成完整 lambda 后
-过内核检查才算过关。每关有**星级**（1-3★）：
+关卡引擎就是 `#prove` 内核：每关 goal 是一个命题，最后一个 tactic 填完后
+自动合成完整 lambda 并过内核检查，才算过关。每关有**星级**（1-3★）：
 
 - 3★：没用 hint 且步数 ≤ 标准解步数 + 2（标准解越短，3★ 越难）
 - 2★：用了 1 条 hint，或步数超限（每条 hint 降一星）
@@ -40,41 +52,270 @@ tactic 后观察三件事：
 过关时打印你的星级和标准解（"你的路径可能不同，两种都正确"）；关卡可能带
 **ban**（禁用 tactic，如 `ban: cases`），输入被禁用 tactic 会提示换一条路。
 
-**存档**：星数持久化到 `py_nanobruijn/saves/<World>.json`（如
-`saves/And.json`），重启 REPL 进度仍在；`#worlds` 显示的进度就来自存档。
-世界通关时显示 `🎉 世界通关！全部关卡完成。`
+**存档**：进度存入 `py_nanobruijn/saves/<档位>/<World>.json`（如
+`saves/default/And.json`），档位像 sessions/ 一样按次累积、可管理
+（`#saves` 查看）；`#game` 无参数显示的进度就来自当前档位。世界通关时显示
+`🎉 世界通关！`与"下一站"提示（requires 拓扑序）。
 
 ---
 
 ## 学习路径（第一公里）
 
-这是一条从零开始的完整路径，分三节，每节大约一小时：
+这是一条从零开始的完整路径，分四节，每节大约一小时：
 
 | 节 | 主题 | 世界 | 学完后你能 |
 |---|---|---|---|
-| **第 1 节** | λ 与类型——认识证明的语言 | Not（前 2 关）+ Iff（前 3 关） | 读懂 `fun`/`∀`/`->`，手写简单证明 |
-| **第 2 节** | recursor——遇见结构 | And + Or + Exists | 用 `cases` 分解结构 |
-| **第 3 节** | 独立证明——终点 | Not/Iff 后段 + Combo | 独立完成组合证明 |
-| **第 4 节** | 计算与归纳——遇见真的 | Nat | 读懂 iota 归约，完成第一个归纳证明 |
+| **第 1 节** | λ 与类型——认识证明的语言 | Basic + TrueFalse | 读懂 `fun`/`∀`/`->`/`Prop`，手写恒等与组合证明；见识爆炸原理 |
+| **第 2 节** | 连接词——结构与分解 | And + Or + Not | 用 `cases` 分解结构，用 De Morgan 往返构造与否定 |
+| **第 3 节** | 量词与等价——个体登场 | Exists + Iff + Eq | 取证人与给证人；铺双桥；用 rewrite 搬运等式 |
+| **第 4 节** | 计算与归纳——遇见真的 | Nat + Combo + Hard | 读懂 iota 归约，完成第一个归纳证明；综合所有武器毕业 |
 
-**路线图**：每节的世界按难度递增；第 2 节依赖第 1 节的 `apply`/`exact`；
-第 3 节会用到前两节的所有技巧（含 `cases h as a b` 自定义名）；第 4 节
-进入 Nat 世界——第一次看见内核**执行**消除规则（iota 归约），并完成
-第一个真正的归纳证明。每节的检验标准：对应世界全部 3★ 通关（每节末尾
+**路线图**：世界顺序 = 概念依赖链（`requires:` 单向）——Basic 教"一切皆
+函数"这个内核本体论；TrueFalse 给出最平凡命题与矛盾（Not 的地基）；And/Or
+是构造器与消去器的镜像；Not 只依赖 False 但 De Morgan 需要 Or；Exists 是
+第一个带个体域的量词；Iff 是蕴含的合取；Eq 的 fol 片段硬依赖 iff（propext）；
+Nat 全部用 Eq 表述。每节的检验标准：对应世界全部 3★ 通关（每节末尾
 的"自己试试"见各世界章节的进阶练习）。
 
 ---
 
 # 世界设计（与 worlds/*.game 对照）
 
-> 以下六章 = 六个世界文件。每章先给关卡总表（关号/名称/命题/设计意图/ban），
-> 再逐关给出 hints 设计、标准解与 ban 理由——所有 goal/hint/solution 与
-> `.game` 文件逐字一致。设计意图是本文档新增的元信息（.game 无此字段）。
+> 以下十一章 = 十一个世界文件，按 requires 拓扑序排列。每章先给关卡总表
+> （关号/名称/命题/设计意图/ban），再逐关给出 hints 设计、标准解与 ban 理由
+> ——所有 goal/hint/solution 与 `.game` 文件逐字一致。设计意图是本文档新增
+> 的元信息；课堂文本（`lesson:`）与演示关（`example:`）见 .game 文件。
+
+## Basic 世界（worlds/basic.game，6 关）——一切皆函数
+
+> **intro**（.game 原文）：这里没有逻辑连接词，只有最赤裸的内核事实：命题是
+> 类型，证明是项，推理是函数应用。后面的所有世界都站在这块地基上。
+
+| 关 | 名称 | 命题 | 设计意图 | ban | 标准解见 |
+|---|---|---|---|---|---|
+| 1 | 恒等 | `forall (h : a), a`（全程带名 ∀ 链） | 证明 = 项：参数原样返回 | — | Basic-1 |
+| 2 | 函数应用 | `(a -> b) -> a -> b` | apply 的本体 = 函数作用 | — | Basic-2 |
+| 3 | 第一个投影 | `a -> b -> a` | 多 binder 选择 | — | Basic-3 |
+| 4 | 第二个投影 | `a -> b -> b` | 与上关只差一个字母 | — | Basic-4 |
+| 5 | 复合 | `(b -> c) -> (a -> b) -> a -> c` | Function.comp 手工版 | — | Basic-5 |
+| 6 | 换位 | `(a -> b -> c) -> b -> a -> c` | flip 手工版：参数顺序意识 | — | Basic-6 |
+
+**教学法要点**：本世界承载第 1 节"λ 与类型"的开场——原剧本 1（恒等）在此
+正式落地为 Basic-1；剧本 2（蕴含传递 = `Function.comp` 手写版）的教学点前移
+到 Basic-5；剧本 3（flip 参数顺序）的"谁在外谁在内"意识在 Basic-6 建立，
+Not-4 的嵌套应用会用到。`lesson:` 七段、每段只引入一个概念，严守"用了才
+定义"的纪律：①表达式与机器（fun/=>/应用，配可跑的例子）→ ②类型 = 标签、
+`A -> B` 读法 → ③应用/多输入机器/forall 起名 → ④命题 = 可判断真假的句子、
+Prop = 命题那类、证据约定 → ⑤证明 = 写机器（`fun (h : a) => h` 即
+"如果 a 则 a"）→ ⑥tactic 辅助笔与"当前项"的洞 → ⑦basic 三台现成机器
+（宇宙参数 {u}/.{1} 只教"照抄"策略，不解释含义——层级概念远后方讲）。
+不预设编程背景：不用"柯里化/β 归约/Π 类型"等术语，先比喻后记号，第 ⑤ 段
+直接回扣第 1 关的目标。记法决策：本世界 goal 全程用带名字的 ∀ 链
+（forall (a : Prop), forall (h : a), a），不用 ∀/-> 混写——第一关就要让学生
+看清"每段箭头是什么、返回什么"；∀ 与 -> 的等价在 lesson ③ 讲透（forall
+就是"给这一段起个名字"）。
+
+### Basic-1 恒等
+
+- **命题**：`forall (a : Prop), forall (h : a), a`
+- **设计意图**：整个体系的第 0 个证明，也是记法第一课：goal 全程带名 ∀ 链，
+  读作"任取命题 a，给它一份证据 h，还回 a"。`a` 是命题（`a : Prop`），`h : a`
+  是证据，恒等就是证据原样返回。lesson ② 用本关命题讲 ∀ 与 -> 的等价
+  （`∀ (a : Prop), a -> a` ≡ `(a : Prop) -> (h : a) -> a`；返回位置写结果的
+  类型，不是新 binder）。`lesson:` 里埋了 `@id.{1} a h` 的一步变体——id 就是
+  证据层面的恒等函数。
+- **hints 设计**（2 条）：
+  1. 目标是两层 ∀：intro a 引入命题 a，再 intro h 引入它的证据
+  2. 现在目标就是 h 自己的类型：exact h
+- **标准解**（3 步，3★ 上限）：
+
+```text
+intro a
+intro h
+exact h
+```
+
+- **变体挑战**：重打本关一步到位 `exact fun (a : Prop) => fun (h : a) => h`——对照"当前项"，这就是 tactic 一步步拼出来的那台机器
+
+### Basic-2 函数应用
+
+- **命题**：`forall (a : Prop), forall (b : Prop), forall (fab : a -> b), forall (ha : a), b`
+- **设计意图**：`apply fab` 的本体是函数作用——`fab : a -> b` 把目标 b 变成
+  a。tactic 层的 `apply` 只接受常量，所以标准解用 `exact fab ha` 合成应用
+  （这是全游戏通用的手法，第一关就教会）。
+- **hints 设计**（2 条）：
+  1. 一路 intro 拆开：命题 a、命题 b、函数 fab : a -> b、证据 ha : a
+  2. 目标是 b：fab 是从 a 的证据到 b 的证据的函数——exact fab ha
+- **标准解**（5 步，3★ 上限）：
+
+```text
+intro a
+intro b
+intro fab
+intro ha
+exact fab ha
+```
+
+- **变体挑战**：证明 `(a -> b -> c) -> a -> b -> c`（吃两份证据的机器）
+
+### Basic-3 / Basic-4 投影对
+
+- **命题**：`a -> b -> a` 与 `a -> b -> b`
+- **设计意图**：多 binder 下的"选哪条证据"——And.left/And.right 的纯函数
+  前身。两关只差一个字母，刻意成对。
+- **标准解**（5 步，3★ 上限）：
+
+```text
+intro a
+intro b
+intro ha
+intro hb
+exact ha        # Basic-3；Basic-4 为 exact hb
+```
+
+- **变体挑战**（Basic-4）：`a -> a -> a`（两次都取第一个）
+
+### Basic-5 复合
+
+- **命题**：`forall (a : Prop), forall (b : Prop), forall (c : Prop), forall (f : b -> c), forall (g : a -> b), forall (x : a), c`
+- **设计意图**：`Function.comp` 的手工版——链式合成一次写出：`exact f (g x)`。
+  教"证据的流水线"：c 从 f 来、b 从 g 来、a 就是 x。
+- **hints 设计**（2 条）：
+  1. intro 四连：f : b -> c、g : a -> b、x : a。目标是 c
+  2. c 从 f 来、b 从 g 来、a 就是 x——把链子一次接起来：exact f (g x)
+- **标准解**（6 步，3★ 上限）：
+
+```text
+intro a
+intro b
+intro c
+intro f
+intro g
+intro x
+exact f (g x)
+```
+
+- **变体挑战**：重打本关一步写出整台机器：`exact fun (a : Prop) => fun (b : Prop) => fun (c : Prop) => fun (f : b -> c) => fun (g : a -> b) => fun (x : a) => f (g x)`
+
+### Basic-6 换位
+
+- **命题**：`forall (a : Prop), forall (b : Prop), forall (c : Prop), forall (f : a -> b -> c), forall (hb : b), forall (ha : a), c`
+- **设计意图**：`flip` 手工版：多参数函数的参数顺序可以镜像。`exact f ha hb`
+  一次喂齐两份证据——参数顺序意识从这里建立（Not-4 的嵌套应用是它的回响）。
+- **hints 设计**（2 条）：
+  1. intro 拆开后手里有 f : a -> b -> c、hb : b、ha : a，目标是 c
+  2. f 要吃两份证据：a 的和 b 的——exact f ha hb 一次喂齐
+- **标准解**（7 步，3★ 上限）：
+
+```text
+intro a
+intro b
+intro c
+intro f
+intro hb
+intro ha
+exact f ha hb
+```
+
+- **变体挑战**：一步写出 `exact fun (a : Prop) => fun (b : Prop) => fun (c : Prop) => fun (f : a -> b -> c) => fun (hb : b) => fun (ha : a) => f ha hb`
+
+---
+
+## TrueFalse 世界（worlds/truefalse.game，5 关）——最平凡命题与矛盾
+
+> **intro**（.game 原文）：True 有一个证据，False 一个也没有。两个极端放在
+> 一起，你会第一次见到"爆炸原理"——从矛盾可以推出一切。
+
+| 关 | 名称 | 命题 | 设计意图 | ban | 标准解见 |
+|---|---|---|---|---|---|
+| 1 | 最平凡的证明 | `True` | True.intro：唯一构造子 | — | TF-1 |
+| 2 | 假可以推真 | `False -> True` | 前提无关性 | — | TF-2 |
+| 3 | 真在手中 | `(True -> False) -> False` | 反向用函数前提 | — | TF-3 |
+| 4 | 爆炸原理 | `False -> a` | False.rec：ex falso | — | TF-4 |
+| 5 | 矛盾无害 | `a -> False -> a` | 已有证据时矛盾是摆设 | — | TF-5 |
+
+**教学法要点**：True/False 是 Not 世界的地基（`Not a = a -> False`）。爆炸
+原理（TF-4）是全游戏最"违反直觉"的一课——矛盾推出一切在逻辑上不是 bug；
+`lesson:` 讲明动机，not 片段的 `absurd` 就是它的封装。TF-3 教"反向用函数
+前提"（apply f 后目标变成 True）——`apply 只接受常量`的第一次显式提醒在
+Not-5 会再次出现。
+
+### TF-1 / TF-2
+
+- **命题**：`True` 与 `False -> True`
+- **设计意图**：热身成对——True 的证据随手可得且与前提无关。TF-2 刻意让
+  hf 用不上：**能用多简单的证明就用多简单**（Exists-5 的教学点在此预演）。
+- **标准解**：
+
+```text
+exact True.intro          # TF-1
+
+intro hf                  # TF-2
+exact True.intro
+```
+
+### TF-3 真在手中
+
+- **命题**：`(True -> False) -> False`
+- **设计意图**：目标是 False——没有证据可 exact，只能动用函数前提：`apply f`
+  把目标变成 True，然后 `exact True.intro`。"apply 常量、exact 合成"的分界
+  本关见分晓：f 是上下文变量，`exact f True.intro` 才是正解（hint 明示）。
+- **hints 设计**（2 条）：
+  1. intro f 引入 f : True -> False，目标是 False
+  2. False 没有证据可 exact——只能动用 f : True -> False：exact f True.intro
+- **标准解**（2 步，3★ 上限）：
+
+```text
+intro f
+exact f True.intro
+```
+
+- **变体挑战**：`(True -> False) -> True -> False`（把 True.intro 留到最后一刻）
+
+### TF-4 爆炸原理
+
+- **命题**：`forall (a : Prop), False -> a`
+- **设计意图**：全游戏最重要的概念关之一。目标是任意命题 a——没有证据可用，
+  唯一出路 `False.rec`：motive = `fun (x : False) => a` 对任何"False 的证据"
+  返回 a。宇宙标注 `.{0}` 照抄即可（lesson 里说明动机，not 片段的 absurd
+  是它的封装）。
+- **hints 设计**（3 条）：
+  1. intro a、intro hf 后目标是任意命题 a——没有证据可用
+  2. 唯一的出路是 False.rec：exact @False.rec.{0} (fun (x : False) => a) hf
+  3. (fun (x : False) => a) 是动机函数：对任何 False 的"证据"都返回 a。.{0} 是宇宙参数，照抄即可
+- **标准解**（3 步，3★ 上限）：
+
+```text
+intro a
+intro hf
+exact @False.rec.{0} (fun (x : False) => a) hf
+```
+
+- **变体挑战**：换个方向：`forall (a : Prop), (a -> False) -> a -> False`（矛盾对撞）
+
+### TF-5 矛盾无害
+
+- **命题**：`forall (a : Prop), a -> False -> a`
+- **设计意图**：爆炸原理的反面提醒——手里已有证据 ha 时，hf 根本不用。
+  与 TF-4 成对：矛盾能救你没证据的场，但救不了你已经有的。
+- **标准解**（4 步，3★ 上限）：
+
+```text
+intro a
+intro ha
+intro hf
+exact ha
+```
+
+- **变体挑战**：`a -> (False -> a)` 的柯里化版本——结构完全相同
+
+---
 
 ## And 世界（worlds/and.game，5 关）
 
-> **intro**（.game 原文）：你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的
-> 所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
+> 前置：TrueFalse 世界。**intro**（.game 原文）：你面前是合取的世界。目标是
+> 以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它
+> （And.right / And.left，以及 cases）。
 
 | 关 | 名称 | 命题 | 设计意图 | ban | 标准解见 |
 |---|---|---|---|---|---|
@@ -82,7 +323,7 @@ tactic 后观察三件事：
 | 2 | 只取右半 | `And a b -> b` | 投影 And.right（禁 cases 逼投影） | cases | And-2 |
 | 3 | 结合律 | `And (And a b) c -> And a (And b c)` | 嵌套 cases + 自定义名 | — | And-3 |
 | 4 | 交换律 | `And a b -> And b a` | and_comm：第一个 rec 证明 | — | And-4 |
-| 5 | 矛盾：不可兼得 | `Not a -> Not (And a b)` | cases + 矛盾（hna ha : False） | — | And-5 |
+| 5 | 推广到一半 | `(a -> b) -> And a c -> And b c` | cases + 函数应用合成（世界纯 And 收尾） | — | And-5 |
 
 **教学法要点（原 #prove 剧本对应）**：本世界承载第 2 节"recursor——遇见结构"
 的开场。剧本 5（合取构造）的教学点并入 And-1；剧本 7（and_comm，第一个 rec
@@ -716,9 +957,8 @@ exact hnb (Iff.mp a b h ha)
 | `apply f` | `@f ... _ ?n` |
 | `cases h` | `@And.rec a b (fun _ => ?goal) _ h`（rec 骨架） |
 | `exact e` | `e` |
-| `done` | 合成 + 内核检查 |
 
-**记住**：`done` 之后显示的完整 lambda 项，就是证明本身。tactic 只是写它的
+**记住**：收工后显示的完整 lambda 项，就是证明本身。tactic 只是写它的
 工具——用 `#print` 查看任何内置定理，你会看到同样的 lambda 语言。
 
 ---
@@ -961,7 +1201,7 @@ Eq.rec 的自动应用）。第 5 关的关键洞察：在 `intro h2` 之前 rew
 
 这是本章最重要的概念问题，几乎每个学生都会疑惑：
 
-- **命题逻辑世界**（And/Or/Not/...）：一切皆 `Prop`。`done` 的内核检查靠
+- **命题逻辑世界**（And/Or/Not/...）：一切皆 `Prop`。收工时的内核检查靠
   **证明无关性**——同一命题的任意两个证明自动相等。所以 `Or.rec` 作为
   axiom（只是"规则的名字"）就够了，内核从头到尾不需要"执行"任何东西。
 - **Nat 世界**：`Nat : Type`，它的元素是**数据**。`#reduce add two two`
@@ -1081,7 +1321,7 @@ exact @Nat.rec.{0} (fun (k : Nat) => @Eq.{1} Nat (add k zero) k) (@Eq.refl.{1} N
 
 1. **在本文档设计**：在对应世界章节写关卡小节——goal（教学语法写的命题）、
    设计意图、分层 hints（2-3 条，逐条递进）、ban（可选，必须是内核已知
-   tactic：intro/apply/exact/cases/done/abort/context/help）、标准解草稿。
+   tactic：intro/apply/exact/cases/rewrite/exit/context/help）、标准解草稿。
    标准解草稿先在 REPL 的 `#prove` 模式跑通（`py-nanobruijn repl` →
    `#prove <goal>`），确认它能过内核检查再抄进来。
 2. **落成 .game**：追加到 `py_nanobruijn/worlds/<world>.game`。格式见

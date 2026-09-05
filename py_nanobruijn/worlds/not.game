@@ -1,7 +1,17 @@
+# 否定世界：把不可能写出来
 world Not
 title 否定世界：把不可能写出来
-intro 否定 ¬a 不是魔法，它就是 a → False：一个把 a 的证明变成荒谬的函数。这一关的世界里，你会学会用这个定义思考。
-using: not, or
+intro 否定 ¬a 不是魔法，它就是 a → False：一个把 a 的证明变成荒谬的函数。这一关的世界里，你会学会用这个定义思考，并把 De Morgan 律收到囊中。
+requires: Or
+lesson: Not a 的定义就是 a -> False（#print Not 看看）。所以每个"目标是 Not a"都可以 intro 展开；每个 h : Not a 都能当函数 h ha 用——喂它一个 ha : a，吐出 False。
+lesson: False 在 TrueFalse 世界见过：没有证据，且能爆炸出一切。否定证明的套路因此固定：intro 拆目标 → 想办法凑出 False → 爆炸或直接交给 h。
+lesson: De Morgan 律说否定能穿过合取与析取：Not (And a b) ≈ Not a 或 Not b；Not (Or a b) 等价于 Not a 且 Not b。本世界的后三关就是它们的手写版——注意 Or 世界学过的构造器在这里是制造矛盾的材料。
+example: forall (a : Prop), a -> Not (Not a)
+intro a
+intro ha
+intro h
+exact h ha
+using: not, or, and
 level 1
 name 否定的定义
 goal: forall (a : Prop), (a -> False) -> Not a
@@ -51,6 +61,37 @@ intro hna
 exact hnb (hab hna)
 ---
 level 5
+name 合取的否定：不可兼得
+goal: forall (a : Prop), forall (b : Prop), Not a -> Not (And a b)
+hint: 目标 Not (And a b) 也是函数类型：intro h
+hint: 引入 h : And a b 后目标是 False —— cases h 分解出 ha : a，矛盾出现
+hint: 用 hna ha 得到 False，exact 收工
+solution:
+intro a
+intro b
+intro hna
+intro h
+cases h as ha hb
+exact hna ha
+variant: 证 Not (Or a b) -> Not b（对称版本，只需改一条路）
+---
+level 6
+name 析取逼出右路
+goal: forall (a : Prop), forall (b : Prop), Or a b -> Not a -> b
+hint: intro 拆到 h : Or a b 与 hna : Not a——目标是 b
+hint: cases h 分出 ha : a 与 hb : b 两路
+hint: 左路 ha : a 与 hna : Not a 矛盾——@False.rec 消去（motive := fun _ => b）把 False 爆炸成 b；右路直接 exact hb
+solution:
+intro a
+intro b
+intro h
+intro hna
+cases h as ha hb
+exact @False.rec.{0} (fun (anon : False) => b) (hna ha)
+exact hb
+variant: 证 Or a b -> Not b -> a（镜像版）
+---
+level 7
 name 析取的否定：拆开它
 goal: forall (a : Prop), forall (b : Prop), Not (Or a b) -> Not a
 ban: cases

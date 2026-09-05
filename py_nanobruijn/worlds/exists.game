@@ -1,6 +1,15 @@
 world Exists
 title 存在世界：给出证据
 intro 存在命题 ∃x, p x 的证明是一个「证人」：x 以及 p x 的证明。反向使用（从 ∃x, p x 里取证人）则是 cases 的领地。
+requires: Not
+lesson: @Exists.{1} α p 的证据是一对：证人 w : α 加上 p w 的证明。"存在一个满足 p 的东西"在内核里就是"你能拿出那个东西"。
+lesson: 构造用 Exists.intro：先给证人，再给 p w 的证明。消费用 cases：拆出证人 w 与 h : p w——这就是"从存在命题里取证人"。
+lesson: α 是个体域——量词里的 x 取自哪一类东西。本世界 α 取 Prop 本身：量词遍历所有命题。forall (x : Prop), p x 是它的镜像——全称命题就是一台"对每个 x 都能给出 p x 的证据"的机器。
+example: forall (p : Prop -> Prop), forall (a : Prop), forall (ha : p a), @Exists.{1} Prop p
+intro p
+intro a
+intro ha
+exact @Exists.intro.{1} Prop p a ha
 using: exists, true, false
 level 1
 name 平凡的存在

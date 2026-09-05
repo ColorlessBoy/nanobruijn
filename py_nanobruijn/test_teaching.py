@@ -746,7 +746,7 @@ class TestProof:
         st = self.make_state("∀ (a : Prop), a -> a")
         out = st.intro("a")
         assert "上下文: a : Prop" in out
-        assert "目标: a -> a" in out
+        assert "目标: ? : a -> a" in out
         assert "当前项: fun (a : Prop) => _" in out
 
     def test_intro_requires_pi(self):
@@ -763,7 +763,7 @@ class TestProof:
         st = self.make_state("∀ (a : Prop), ∀ (b : Prop), And a b")
         out = st.intro("a b")
         assert "上下文: a : Prop, b : Prop" in out
-        assert "目标: And a b" in out
+        assert "目标: ? : And a b" in out
         assert "fun (a : Prop) => fun (b : Prop) => _" in out
 
     def test_apply_and_intro(self):
@@ -775,11 +775,11 @@ class TestProof:
         st.intro("hb")
         out = st.apply("And.intro")
         # 两个新目标：a（当前，显示 _）与 b（显示 ?2）
-        assert "目标: a" in out
+        assert "目标: ? : a" in out
         assert "@And.intro a b _ ?2" in out
         # 填完第一个目标后，当前目标变为 b
         st.exact("ha")
-        assert "目标: b" in st.context()
+        assert "目标: ? : b" in st.context()
         assert "?2" not in st.context()
         st.exact("hb")
         assert "所有目标已完成" in st.context()
@@ -823,7 +823,7 @@ class TestProof:
         st.intro("a")
         st.intro("b")
         out = st.apply("Iff.intro")
-        assert "目标: ∀ (mp0 : a), b" in out
+        assert "目标: ? : ∀ (mp0 : a), b" in out
 
     def test_apply_eq_refl_pattern_default(self):
         # Eq.refl 的显式参数 a : α 出现在结果 Eq α a a 里 → 由目标对齐确定，无新目标
@@ -907,7 +907,7 @@ class TestProof:
         st.intro("a b x")
         out = st.cases("x")
         assert "上下文: a : Prop, b : Prop, x : And a b, ha : a, hb : b" in out
-        assert "目标: And b a" in out
+        assert "目标: ? : And b a" in out
         assert "@And.rec a b" in out  # rec 骨架
 
     def test_cases_or_two_branches(self):
@@ -956,10 +956,9 @@ class TestProof:
             "∀ (p : Prop), ∀ (q : Prop), ∀ (h : @Eq.{1} Prop p q), q -> p")
         st.intro("p q h hq")
         out = run_tactic(st, "rewrite h")
-        assert "目标: q" in out
-        run_tactic(st, "exact hq")
+        assert "目标: ? : q" in out
         with pytest.raises(ProofDone):
-            run_tactic(st, "done")
+            run_tactic(st, "exact hq")
 
     def test_rewrite_pi_inside(self):
         # 替换发生在函数类型内部（binder 深度同步）
@@ -968,11 +967,10 @@ class TestProof:
             "∀ (p : Prop), ∀ (q : Prop), ∀ (h : @Eq.{1} Prop p q), p -> p")
         st.intro("p q h")
         run_tactic(st, "rewrite h")
-        assert "目标: q -> q" in st.context()
+        assert "目标: ? : q -> q" in st.context()
         st.intro("hp")
-        run_tactic(st, "exact hp")
         with pytest.raises(ProofDone):
-            run_tactic(st, "done")
+            run_tactic(st, "exact hp")
 
     def test_rewrite_no_match(self):
         from .teaching.tactics import run_tactic
@@ -1000,9 +998,8 @@ class TestProof:
         run_tactic(st, "rewrite h")
         st.intro("hp")
         st.intro("hx")
-        run_tactic(st, "exact hp")
         with pytest.raises(ProofDone):
-            run_tactic(st, "done")
+            run_tactic(st, "exact hp")
 
     def test_cases_and_comm_full(self):
         """闭环：and_comm 用 cases 全程证明。"""
@@ -1155,16 +1152,18 @@ class TestRepl:
         assert "不支持" in out
         assert "AssertionError" not in out
 
-    def test_quit(self):
+    def test_exit_command(self):
         r = self.make_repl()
         with pytest.raises(EOFError):
-            r.process_line("#quit")
+            r.process_line("exit")
+        with pytest.raises(EOFError):
+            r.process_line("#exit")
 
     def test_run_loop(self):
         import io
         r = self.make_repl()
         buf = io.StringIO()
-        code = r.run(stdin=io.StringIO("#env\n#quit\n"), stdout=buf)
+        code = r.run(stdin=io.StringIO("#env\nexit\n"), stdout=buf)
         assert code == 0
         assert "And" in buf.getvalue()
 
@@ -1174,7 +1173,7 @@ class TestRepl:
         import os
         r = self.make_repl()
         buf = io.StringIO()
-        r.run(stdin=io.StringIO("#env\n#prove forall (a : Prop), forall (ha : a), a\nintro a\nintro ha\nexact ha\ndone\n#quit\n"), stdout=buf)
+        r.run(stdin=io.StringIO("#env\n#prove forall (a : Prop), forall (ha : a), a\nintro a\nintro ha\nexact ha\nexit\n"), stdout=buf)
         assert "会话已记录" in buf.getvalue()
         session_dir = os.path.join(os.path.dirname(__file__), "sessions")
         files = sorted(glob.glob(os.path.join(session_dir, "*.repl")))
@@ -1192,15 +1191,15 @@ class TestRepl:
         script = (
             "#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (ha : a), ∀ (hb : b), And a b\n"
             "intro a\nintro b\nintro ha\nintro hb\n"
-            "apply And.intro\nexact ha\nexact hb\ndone\n"
-            "#env\n#quit\n"
+            "apply And.intro\nexact ha\nexact hb\n"
+            "#env\nexit\n"
         )
         code = r.run(stdin=io.StringIO(script), stdout=buf)
         assert code == 0
         out = buf.getvalue()
         assert "证明: ∀ (a : Prop), ∀ (b : Prop)" in out
         assert "上下文: a : Prop, b : Prop, ha : a, hb : b" in out
-        assert "目标: a" in out
+        assert "目标: ? : a" in out
         assert "@And.intro a b _ ?2" in out
         assert "完整证明项:" in out
         assert "fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a b ha hb" in out
@@ -1215,8 +1214,8 @@ class TestRepl:
         script = (
             "#prove ∀ (a : Prop), ∀ (b : Prop), ∀ (f : a -> b), ∀ (hb : Not b), Not a\n"
             "intro a\nintro b\nintro f\nintro hb\nintro ha\n"
-            "exact hb (f ha)\ndone\n"
-            "#quit\n"
+            "exact hb (f ha)\n"
+            "exit\n"
         )
         code = r.run(stdin=io.StringIO(script), stdout=buf)
         assert code == 0
@@ -1224,26 +1223,26 @@ class TestRepl:
         assert "内核检查: 通过" in out
         assert "fun (a : Prop) => fun (b : Prop) => fun (f : a -> b) => fun (hb : Not b) => fun (ha : a) => hb (f ha)" in out
 
-    def test_prove_abort_returns_to_main_loop(self):
+    def test_prove_exit_returns_to_main_loop(self):
         import io
         r = self.make_repl()
         buf = io.StringIO()
         script = (
             "#prove ∀ (a : Prop), a -> a\n"
-            "intro a\nabort\n"
-            "#env\n#quit\n"
+            "intro a\nexit\n"
+            "#env\nexit\n"
         )
         code = r.run(stdin=io.StringIO(script), stdout=buf)
         assert code == 0
         out = buf.getvalue()
         assert "上下文: a : Prop" in out
-        assert "And" in out  # abort 后回到主循环
+        assert "And" in out  # exit 后回到主循环
 
     def test_prove_bad_type(self):
         import io
         r = self.make_repl()
         buf = io.StringIO()
-        code = r.run(stdin=io.StringIO("#prove NoSuchConst\n#quit\n"), stdout=buf)
+        code = r.run(stdin=io.StringIO("#prove NoSuchConst\nexit\n"), stdout=buf)
         assert code == 0
         out = buf.getvalue()
         assert "error" in out.lower()
@@ -1254,12 +1253,12 @@ class TestRepl:
         import io
         r = self.make_repl()
         buf = io.StringIO()
-        script = "#prove Prop\nintro a\nabort\n#quit\n"
+        script = "#prove Prop\nintro a\nexit\nexit\n"
         code = r.run(stdin=io.StringIO(script), stdout=buf)
         assert code == 0
         out = buf.getvalue()
         assert "证明: Prop" in out
-        assert "intro: 目标不是函数类型" in out  # 报错后仍留在证明模式（abort 正常退出）
+        assert "intro: 目标不是函数类型" in out  # 报错后仍留在证明模式（exit 正常退出）
 
     def test_color_output(self):
         r = Repl(make_bootstrap(), color=True)
@@ -1286,7 +1285,7 @@ class TestGameRepl:
 
     def test_worlds_lists(self):
         r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
-        out = r.process_line("#worlds")
+        out = r.process_line("#game")
         assert "And" in out and "Combo" in out and len(out.splitlines()) >= 6
 
     def test_game_unknown_world(self):
@@ -1313,12 +1312,12 @@ class TestGameRepl:
         level = session.game.level(1)
         assert level.hints[0] == "目标是函数类型（∀/->）时先 intro 拆开：intro a、intro b、intro ha、intro hb"
 
-    def test_run_game_quit_terminates(self):
+    def test_run_game_exit_terminates(self):
         import io
         import re
         r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = io.StringIO()
-        rc = r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
+        rc = r.run(stdin=io.StringIO("#game And\nexit\n"), stdout=out)
         assert rc == 0
         assert len(re.findall(r"^第 \d+ 关", out.getvalue(), re.MULTILINE)) == 1
 
@@ -1326,7 +1325,7 @@ class TestGameRepl:
         import io
         r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = io.StringIO()
-        r.run(stdin=io.StringIO("#game And\n#quit\n#game And\n#quit\n"), stdout=out)
+        r.run(stdin=io.StringIO("#game And\nexit\n#game And\nexit\n"), stdout=out)
         # 世界 intro 只显示一次（重进不重复）
         assert out.getvalue().count("你面前是合取的世界") == 1
 
@@ -1334,7 +1333,7 @@ class TestGameRepl:
         import io
         r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = io.StringIO()
-        r.run(stdin=io.StringIO("#game And 3\n#quit\n"), stdout=out)
+        r.run(stdin=io.StringIO("#game And 3\nexit\n"), stdout=out)
         assert "第 3 关" in out.getvalue()
 
     def test_game_using_parsed(self):
@@ -1349,11 +1348,11 @@ class TestGameRepl:
         from py_nanobruijn.teaching.core import make_fresh_core
         r = Repl(make_fresh_core(), saves_dir=tempfile.mkdtemp(), fresh=True)
         out = io.StringIO()
-        r.run(stdin=io.StringIO("#game And\n#quit\n"), stdout=out)
+        r.run(stdin=io.StringIO("#game And\nexit\n"), stdout=out)
         text = out.getvalue()
         assert "定义仪式" in text
         assert "已定义 5 个常量" in text  # and 片段本身 5 个
-        assert len(r.core.constants()) == 9  # 仪式按 using 补齐 not/false（L5 goal 需要 Not）
+        assert len(r.core.constants()) == 5  # And 世界已是纯 And（not 关移入 Not 世界）
 
     def test_fresh_check_unknown_hints_worlds(self):
         from py_nanobruijn.teaching.core import make_fresh_core
@@ -1384,9 +1383,10 @@ class TestCli:
     def test_cli_repl_subprocess(self):
         import subprocess
         import sys
+        # --script：非交互通道不自动续玩（交互模式会按真实存档续关，输出不确定）
         proc = subprocess.run(
-            [sys.executable, "-m", "py_nanobruijn", "repl"],
-            input="#env\n#quit\n", capture_output=True, text=True, timeout=30, check=False,
+            [sys.executable, "-m", "py_nanobruijn", "repl", "--script", "#env\nexit\n"],
+            capture_output=True, text=True, timeout=30, check=False,
         )
         assert proc.returncode == 0
         assert "And" in proc.stdout
@@ -1396,13 +1396,13 @@ class TestCli:
         import sys
         proc = subprocess.run(
             [sys.executable, "-m", "py_nanobruijn", "repl", "--color"],
-            input=b"#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
+            input=b"#check Prop\nexit\n", capture_output=True, text=False, timeout=30, check=False,
         )
         assert proc.returncode == 0
         assert b"\x1b[" in proc.stdout  # 管道下强制着色生效
         proc2 = subprocess.run(
             [sys.executable, "-m", "py_nanobruijn", "repl"],
-            input=b"#check Prop\n#quit\n", capture_output=True, text=False, timeout=30, check=False,
+            input=b"#check Prop\nexit\n", capture_output=True, text=False, timeout=30, check=False,
         )
         assert b"\x1b[" not in proc2.stdout  # 默认管道无色
 
@@ -1438,8 +1438,7 @@ class TestCliGame:
         script = ("#prove forall (a : Prop), a -> a\n"
                   "intro a\n"
                   "intro ha\n"
-                  "exact ha\n"
-                  "done\n")
+                  "exact ha\n")
         proc = subprocess.run(
             [sys.executable, "-m", "py_nanobruijn", "repl", "--script", script],
             capture_output=True, text=True, timeout=30, check=False)
@@ -1458,7 +1457,7 @@ class TestCliGame:
         import sys
         proc = subprocess.run(
             [sys.executable, "-m", "py_nanobruijn", "repl", "--game", "And"],
-            input="#quit\n", capture_output=True, text=True, timeout=30, check=False)
+            input="exit\n", capture_output=True, text=True, timeout=30, check=False)
         assert "合取世界" in proc.stdout
 
 
@@ -1679,9 +1678,9 @@ class TestGameSession:
         assert s.complete(steps=4, hints_used=0) == 2    # 标准解+3 → 2★
         assert s.stars == {1: 2}
 
-    def test_unlock_sequential(self):
+    def test_unlock_sequential(self, tmp_path):
         from py_nanobruijn.teaching.game import GameSession
-        s = GameSession(self._game(), saves_dir=None)
+        s = GameSession(self._game(), saves_dir=str(tmp_path))
         assert s.unlocked(1)
         assert not s.unlocked(2)
         s.complete(1, 0)
@@ -1689,9 +1688,9 @@ class TestGameSession:
         assert not s.unlocked(3)
         assert s.next_unfinished() == 2
 
-    def test_next_unfinished_all_done(self):
+    def test_next_unfinished_all_done(self, tmp_path):
         from py_nanobruijn.teaching.game import GameSession
-        s = GameSession(self._game(), saves_dir=None)
+        s = GameSession(self._game(), saves_dir=str(tmp_path))
         for i in range(3):
             s.complete(1, 0)
         assert s.next_unfinished() is None
@@ -1708,7 +1707,11 @@ class TestGameSession:
 
 
 class TestWorldContent:
-    """加载全部 9 个世界，结构合法。"""
+    """加载全部 11 个世界，结构合法。"""
+
+    LEVEL_COUNTS: ClassVar[dict[str, int]] = {
+        "Basic": 6, "TrueFalse": 5, "And": 5, "Or": 5, "Not": 7,
+        "Exists": 5, "Iff": 5, "Eq": 7, "Nat": 5, "Combo": 5, "Hard": 6}
 
     def test_load_all_worlds(self):
         import glob
@@ -1717,16 +1720,15 @@ class TestWorldContent:
         from py_nanobruijn.teaching.game import GameLoader
         paths = sorted(glob.glob(os.path.join(
             os.path.dirname(__file__), "worlds", "*.game")))
-        assert len(paths) == 9
+        assert len(paths) == 11
         ids = []
         for p in paths:
             g = GameLoader().load(p)
             ids.append(g.world_id)
-            assert len(g.levels) == (6 if g.world_id == "Hard" else
-                                  7 if g.world_id == "Eq" else 5)
+            assert len(g.levels) == self.LEVEL_COUNTS[g.world_id], p
             assert all(lv.goal and lv.solution for lv in g.levels)
-        assert sorted(ids) == ["And", "Combo", "Eq", "Exists", "Hard", "Iff",
-                               "Nat", "Not", "Or"]
+        assert sorted(ids) == ["And", "Basic", "Combo", "Eq", "Exists", "Hard",
+                               "Iff", "Nat", "Not", "Or", "TrueFalse"]
 
 
     def test_fresh_mode_goals_parse_with_using_fragments(self):
@@ -1757,7 +1759,11 @@ class TestWorldContent:
 class TestWorldSolutions:
     """每关标准解必须真实可证（ProofState + run_tactic 逐行跑）。"""
 
-    @pytest.mark.parametrize("world", ["And", "Eq", "Or", "Not", "Exists", "Iff", "Combo", "Hard", "Nat"])
+    WORLDS: ClassVar[list[str]] = ["Basic", "TrueFalse", "And", "Or", "Not",
+                                   "Exists", "Iff", "Eq", "Nat", "Combo",
+                                   "Hard"]
+
+    @pytest.mark.parametrize("world", WORLDS)
     def test_every_level_solution(self, world):
         import os
 
@@ -1770,7 +1776,786 @@ class TestWorldSolutions:
         core = make_bootstrap()
         for lv in g.levels:
             state = ProofState(core, parse_expr(core, lv.goal))
-            for line in lv.solution:
-                run_tactic(state, line)
             with pytest.raises(ProofDone):
-                run_tactic(state, "done")
+                for line in lv.solution:
+                    run_tactic(state, line)
+
+    @pytest.mark.parametrize("world", WORLDS)
+    def test_every_example_runs(self, world):
+        """演示关脚本必须真实跑通（它会被自动执行展示给学生）。"""
+        import os
+
+        from py_nanobruijn.teaching.game import GameLoader
+        from py_nanobruijn.teaching.parser import parse_expr
+        from py_nanobruijn.teaching.proof import ProofState
+        from py_nanobruijn.teaching.tactics import ProofDone, run_tactic
+        path = os.path.join(os.path.dirname(__file__), "worlds", f"{world.lower()}.game")
+        g = GameLoader().load(path)
+        core = make_bootstrap()
+        state = ProofState(core, parse_expr(core, g.example_goal))
+        with pytest.raises(ProofDone):
+            for line in g.example:
+                run_tactic(state, line)
+
+
+class TestGameTutorial:
+    """世界课程依赖（requires:）+ 拓扑序 + lesson/演示关机制。"""
+
+    def _write(self, tmp_path, text, name="and.game"):
+        p = tmp_path / name
+        p.write_text(text, encoding="utf-8")
+        return str(p)
+
+    _MINI = (
+        "world And\n"
+        "title 合取世界\n"
+        "intro 欢迎来到合取世界\n"
+        "requires: TrueFalse\n"
+        "lesson: 合取就是把两个命题捆在一起。\n"
+        "lesson: 构造用 And.intro，拆开用 And.left / And.right。\n"
+        "example: forall (a : Prop), a -> And a a\n"
+        "intro a\n"
+        "intro ha\n"
+        "apply And.intro\n"
+        "exact ha\n"
+        "exact ha\n"
+        "using: and\n"
+        "level 1\n"
+        "name 初见合取\n"
+        "goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b\n"
+        "solution:\n"
+        "intro a\n"
+        "intro b\n"
+        "intro ha\n"
+        "intro hb\n"
+        "apply And.intro\n"
+        "exact ha\n"
+        "exact hb\n")
+
+    # ---------- 解析：requires / lesson / example ----------
+
+    def test_requires_parsed(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        g = GameLoader().load(self._write(tmp_path, self._MINI))
+        assert g.requires == ["TrueFalse"]
+
+    def test_lesson_parsed(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        g = GameLoader().load(self._write(tmp_path, self._MINI))
+        assert g.lessons == ["合取就是把两个命题捆在一起。",
+                             "构造用 And.intro，拆开用 And.left / And.right。"]
+
+    def test_example_parsed(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        g = GameLoader().load(self._write(tmp_path, self._MINI))
+        assert g.example_goal == "forall (a : Prop), a -> And a a"
+        assert g.example == ["intro a", "intro ha", "apply And.intro",
+                             "exact ha", "exact ha"]
+
+    def test_example_terminated_by_level(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        text = ("world X\nexample: Prop\nexact True.intro\n"
+                "level 1\ngoal: Prop\nsolution:\nexact True.intro\n")
+        g = GameLoader().load(self._write(tmp_path, text))
+        assert g.example == ["exact True.intro"]
+        assert len(g.levels) == 1
+
+    def test_requires_unknown_world_rejected(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        text = self._MINI.replace("requires: TrueFalse", "requires: Bogus")
+        self._write(tmp_path, text)
+        with pytest.raises(ValueError, match="Bogus"):
+            GameLoader().load_all(str(tmp_path))
+
+    def test_requires_cycle_rejected(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        a = "world A\nrequires: B\nlevel 1\ngoal: Prop\n"
+        b = "world B\nrequires: A\nlevel 1\ngoal: Prop\n"
+        d = tmp_path / "w"
+        d.mkdir()
+        (d / "a.game").write_text(a, encoding="utf-8")
+        (d / "b.game").write_text(b, encoding="utf-8")
+        with pytest.raises(ValueError, match="循环"):
+            GameLoader().load_all(str(d))
+
+    # ---------- 拓扑序 ----------
+
+    def test_world_order_topological(self):
+        from py_nanobruijn.teaching.game import GameLoader
+        order = [g.world_id for g in GameLoader.load_all(
+            os.path.join(os.path.dirname(__file__), "worlds"))]
+        assert order == ["Basic", "TrueFalse", "And", "Or", "Not",
+                         "Exists", "Iff", "Eq", "Nat", "Combo", "Hard"]
+
+    def test_load_all_missing_requires(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader
+        self._write(tmp_path, "world A\nrequires: Ghost\nlevel 1\ngoal: Prop\n")
+        with pytest.raises(ValueError, match="Ghost"):
+            GameLoader().load_all(str(tmp_path))
+
+    # ---------- worlds 显示与下一站 ----------
+
+    def test_worlds_numbered_in_order(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#game")
+        assert out.index("① Basic") < out.index("② TrueFalse") \
+            < out.index("③ And") < out.index("⑤ Not") < out.index("⑪ Hard")
+
+    def test_game_no_args_shows_order(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#game")
+        assert "① Basic" in out and "⑪ Hard" in out
+        assert "进入：#game <世界>" in out
+
+    def test_next_world_hint(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        assert r._next_world_hint("And") == "Or"
+        assert r._next_world_hint("Nat") == "Combo"
+        assert r._next_world_hint("Hard") is None
+        assert r._next_world_hint("Whatever") is None
+
+    def test_world_complete_shows_next(self):
+        import io
+
+        from py_nanobruijn.teaching.game import GameLoader, GameSession
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        g = GameLoader().load(os.path.join(
+            os.path.dirname(__file__), "worlds", "and.game"))
+        s = GameSession(g, saves_dir=r.saves_dir)
+        s.stars = {i: 3 for i in range(1, len(g.levels) + 1)}
+        r.pending_game = s
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        assert "下一站：Or" in out.getvalue()
+
+    # ---------- 进世界流程：lesson + 演示关 ----------
+
+    def _session(self, tmp_path):
+        from py_nanobruijn.teaching.game import GameLoader, GameSession
+        g = GameLoader().load(self._write(tmp_path, self._MINI))
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        return r, GameSession(g, saves_dir=r.saves_dir)
+
+    def test_lesson_and_demo_first_entry(self, tmp_path):
+        import io
+        r, s = self._session(tmp_path)
+        r.pending_game = s
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        t = out.getvalue()
+        assert "合取就是把两个命题捆在一起" in t          # lesson 逐段展示
+        assert "演示" in t and "proof> intro a" in t      # 演示关逐步执行
+        assert "第 1 关" in t                             # 演示后进入正式第 1 关
+
+    def test_lesson_demo_not_repeated(self, tmp_path):
+        import io
+        r, s = self._session(tmp_path)
+        r.pending_game = s
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        out2 = io.StringIO()
+        r.pending_game = s
+        r.run(stdin=io.StringIO("exit\n"), stdout=out2)
+        assert "合取就是把两个命题捆在一起" not in out2.getvalue()
+        assert "proof> intro a" not in out2.getvalue()
+
+    def test_demo_skipped_when_saved(self, tmp_path):
+        import io
+        r, s = self._session(tmp_path)
+        s.stars = {1: 3}
+        s.save()
+        r.pending_game = s
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        t = out.getvalue()
+        assert "合取就是把两个命题捆在一起" not in t
+        assert "proof> intro a" not in t
+
+    # ---------- #lesson / #example 命令 ----------
+
+    def test_lesson_example_commands(self, tmp_path):
+        r, s = self._session(tmp_path)
+        r._last_game = s
+        out = r.process_line("#lesson")
+        assert "合取就是把两个" in out
+        out2 = r.process_line("#example")
+        assert "proof> intro a" in out2
+
+    def test_lesson_command_no_world(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        assert "#game" in r.process_line("#lesson")
+        assert "#game" in r.process_line("#example")
+
+    # ---------- 内容完整性（11 个真实世界）----------
+
+    def test_all_worlds_have_lesson_and_example(self):
+        import glob
+
+        from py_nanobruijn.teaching.game import GameLoader, load_world_order
+        d = os.path.join(os.path.dirname(__file__), "worlds")
+        files = {os.path.basename(p)[:-5] for p in
+                 glob.glob(os.path.join(d, "*.game"))}
+        order = load_world_order(d)
+        assert files == {w.lower() for w in order}
+        for wid in order:
+            g = GameLoader().load(os.path.join(d, wid.lower() + ".game"))
+            assert len(g.lessons) >= 2, f"{wid} 缺 lesson"
+            assert g.example_goal and g.example, f"{wid} 缺演示关"
+
+    def test_and_or_pure_no_not(self):
+        from py_nanobruijn.teaching.game import GameLoader
+        d = os.path.join(os.path.dirname(__file__), "worlds")
+        for wid in ("and", "or"):
+            g = GameLoader().load(os.path.join(d, wid + ".game"))
+            for lv in g.levels:
+                assert "Not" not in lv.goal, f"{wid} L{lv.number} 仍用 Not"
+            assert g.using == [wid]
+
+    def test_not_world_receives_moved_levels(self):
+        from py_nanobruijn.teaching.game import GameLoader
+        d = os.path.join(os.path.dirname(__file__), "worlds")
+        g = GameLoader().load(os.path.join(d, "not.game"))
+        goals = [lv.goal for lv in g.levels]
+        assert any("Not (And a b)" in x for x in goals)
+        assert any("Or a b -> Not a -> b" in x for x in goals)
+
+    def test_new_worlds_using(self):
+        from py_nanobruijn.teaching.game import GameLoader
+        d = os.path.join(os.path.dirname(__file__), "worlds")
+        basic = GameLoader().load(os.path.join(d, "basic.game"))
+        tf = GameLoader().load(os.path.join(d, "truefalse.game"))
+        assert basic.using == ["basic"]
+        assert tf.using == ["true", "false"]
+
+
+class TestGameSaves:
+    """存档 profile：像 sessions/ 一样按次累积、可管理、可续玩。"""
+
+    def _repl(self, root, **kw):
+        return Repl(make_bootstrap(), saves_root=str(root), **kw)
+
+    def _save(self, r, world_id, stars):
+        from py_nanobruijn.teaching.game import GameLoader, GameSession
+        g = GameLoader().load(os.path.join(
+            os.path.dirname(__file__), "worlds", world_id.lower() + ".game"))
+        s = GameSession(g, saves_dir=r.saves_dir)
+        s.stars = dict(stars)
+        s.save()
+        return s
+
+    # ---- profile 解析 ----
+
+    def test_first_launch_creates_timestamped_profile(self, tmp_path):
+        import re
+        r = self._repl(tmp_path)
+        assert os.path.isdir(r.saves_dir)
+        assert re.match(r"\d{8}-\d{6}", os.path.basename(r.saves_dir))
+
+    def test_default_resume_latest_profile(self, tmp_path):
+        r1 = self._repl(tmp_path)
+        self._save(r1, "And", {1: 3})
+        r2 = self._repl(tmp_path, save_new=True)
+        assert r2.saves_dir != r1.saves_dir
+        r3 = self._repl(tmp_path)
+        assert r3.saves_dir == r1.saves_dir  # 续玩最近活动的档
+
+    def test_named_profile(self, tmp_path):
+        r1 = self._repl(tmp_path, save_name="speedrun")
+        assert os.path.basename(r1.saves_dir) == "speedrun"
+        r2 = self._repl(tmp_path, save_name="speedrun")
+        assert r2.saves_dir == r1.saves_dir
+
+    def test_legacy_flat_saves_migrated(self, tmp_path):
+        import json
+        (tmp_path / "And.json").write_text('{"stars": {"1": 3}}',
+                                           encoding="utf-8")
+        r = self._repl(tmp_path)
+        migrated = os.path.join(r.saves_dir, "And.json")
+        assert os.path.exists(migrated)
+        with open(migrated, encoding="utf-8") as f:
+            assert json.load(f)["stars"]["1"] == 3
+
+    # ---- #saves 命令 ----
+
+    def test_saves_command_lists_profiles(self, tmp_path):
+        r = self._repl(tmp_path)
+        self._save(r, "And", {1: 3, 2: 3})
+        out = r.process_line("#saves")
+        assert os.path.basename(r.saves_dir) in out
+        assert "当前" in out
+        assert "2/61" in out  # 已通关数/总关数
+
+    # ---- 自动续玩 ----
+
+    def test_auto_resume_picks_first_unfinished(self, tmp_path):
+        import io
+        r = self._repl(tmp_path)
+        self._save(r, "And", {1: 3, 2: 3, 3: 3})
+        out = io.StringIO()
+        r._auto_resume(out)
+        assert r.pending_game is not None
+        assert r.pending_game.game.world_id == "And"
+        assert r.pending_game.next_unfinished() == 4
+        assert "欢迎回来" in out.getvalue()
+        assert "第 4 关" in out.getvalue()
+
+    def test_auto_resume_skips_unplayed_worlds(self, tmp_path):
+        import io
+        r = self._repl(tmp_path)
+        self._save(r, "Or", {1: 3})     # 只玩过 Or（Basic 无存档）
+        r._auto_resume(io.StringIO())
+        assert r.pending_game.game.world_id == "Or"
+        assert r.pending_game.next_unfinished() == 2
+
+    def test_auto_resume_skips_completed_worlds(self, tmp_path):
+        import io
+        r = self._repl(tmp_path)
+        self._save(r, "Basic", {i: 3 for i in range(1, 7)})
+        self._save(r, "Or", {1: 3})     # Basic 通关、Or 进行中 → 续 Or
+        r._auto_resume(io.StringIO())
+        assert r.pending_game.game.world_id == "Or"
+        assert r.pending_game.next_unfinished() == 2
+
+    def test_auto_resume_no_saves(self, tmp_path):
+        import io
+        r = self._repl(tmp_path)
+        out = io.StringIO()
+        r._auto_resume(out)
+        assert r.pending_game is None
+
+    def test_auto_resume_all_played_complete(self, tmp_path):
+        import io
+        r = self._repl(tmp_path)
+        self._save(r, "Basic", {i: 3 for i in range(1, 7)})  # 玩过且通关
+        out = io.StringIO()
+        r._auto_resume(out)
+        assert r.pending_game is None
+        assert "下一站" in out.getvalue()  # 推荐下一个未玩世界
+
+    def test_auto_resume_all_worlds_complete(self, tmp_path):
+        import io
+
+        from py_nanobruijn.teaching.game import load_world_order
+        r = self._repl(tmp_path)
+        d = os.path.join(os.path.dirname(__file__), "worlds")
+        for wid in load_world_order(d):
+            self._save(r, wid, {i: 3 for i in range(1, 99)})
+        out = io.StringIO()
+        r._auto_resume(out)
+        assert r.pending_game is None
+        assert "全部世界通关" in out.getvalue()
+
+    # ---- replay：单世界重玩，历史最佳保留 ----
+
+    def test_game_replay_restarts_world(self, tmp_path):
+        import io
+
+        from py_nanobruijn.teaching.repl import _GameSession
+        r = self._repl(tmp_path)
+        self._save(r, "And", {1: 3, 2: 3})
+        with pytest.raises(_GameSession):
+            r.process_line("#game And replay")
+        s = r.pending_game
+        assert s.stars == {}                    # 进度视图清零 → 从第 1 关重打
+        assert s.next_unfinished() == 1
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        assert "课堂" in out.getvalue()          # 重玩重看 lesson/演示
+        assert "第 1 关" in out.getvalue()
+
+    def test_game_replay_keeps_best_stars(self, tmp_path):
+        import json
+
+        from py_nanobruijn.teaching.game import Game, GameSession, Level
+
+        g = Game("And", "t", "i",
+                 [Level(1, "L1", "goal1", [], ["intro a", "exact a"], [])])
+        s1 = GameSession(g, saves_dir=str(tmp_path))
+        s1.current_level_no = 1
+        assert s1.complete(1, 0) == 3           # 首通 3★
+        s2 = GameSession(g, saves_dir=str(tmp_path), replay=True)
+        s2.load_progress()
+        assert s2.stars == {}                   # replay 视图清零
+        s2.current_level_no = 1
+        assert s2.complete(10, 2) == 1          # 重打只拿 1★
+        with open(os.path.join(str(tmp_path), "And.json"),
+                  encoding="utf-8") as f:
+            assert json.load(f)["stars"] == {"1": 3}   # 存档保留历史最佳
+        s3 = GameSession(g, saves_dir=str(tmp_path))
+        s3.load_progress()
+        assert s3.stars == {1: 3}               # 正常续玩视图 = 最佳
+        assert s3.next_unfinished() is None
+
+    def test_game_replay_unknown_world(self, tmp_path):
+        r = self._repl(tmp_path)
+        assert "未知世界" in r.process_line("#game Bogus replay")
+
+    def test_game_replay_rejects_level_no(self, tmp_path):
+        r = self._repl(tmp_path)
+        assert "replay" in r.process_line("#game And replay 2")
+
+    def test_resume_not_in_script_mode(self, tmp_path):
+        """--script 通道（stdin 不是 sys.stdin）绝不自动续玩。"""
+        import io
+        r = self._repl(tmp_path)
+        self._save(r, "And", {1: 3, 2: 3, 3: 3})
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        assert r.pending_game is None
+        assert "欢迎回来" not in out.getvalue()
+
+    def test_resume_interactive(self, tmp_path, monkeypatch):
+        import io
+        import sys
+        r = self._repl(tmp_path)
+        self._save(r, "And", {1: 3, 2: 3, 3: 3})
+        monkeypatch.setattr(sys, "stdin", io.StringIO("exit\nexit\n"))
+        out = io.StringIO()
+        r.run(stdin=sys.stdin, stdout=out)
+        assert "欢迎回来" in out.getvalue()
+        assert "第 4 关" in out.getvalue()
+
+
+class TestWebApp:
+    """Web 版会话引擎：worlds / enter / tactic 自动收工 / hint / check。"""
+
+    def _app(self, tmp_path):
+        from py_nanobruijn.teaching.web_server import WebApp
+        return WebApp(saves_dir=str(tmp_path))
+
+    def test_worlds_list_ordered(self, tmp_path):
+        app = self._app(tmp_path)
+        out = app.rpc("worlds")
+        ids = [w["id"] for w in out["worlds"]]
+        assert ids == ["Basic", "TrueFalse", "And", "Or", "Not",
+                       "Exists", "Iff", "Eq", "Nat", "Combo", "Hard"]
+        assert all(w["total"] > 0 for w in out["worlds"])
+        assert out["profile"]
+
+    def test_enter_world_payload(self, tmp_path):
+        app = self._app(tmp_path)
+        out = app.rpc("enter_world", world="And")
+        assert out["kind"] == "entered"
+        assert len(out["lessons"]) >= 2
+        assert out["example"]["goal"].startswith("forall")
+        assert out["level"]["number"] == 1
+        assert out["level"]["context"]["goal"] == "∀ (a : Prop), ∀ (b : Prop), a -> b -> And a b"
+        assert "定义仪式" in out["definitions"] or out["definitions"]
+
+    def test_tactic_auto_completes(self, tmp_path):
+        import os
+        app = self._app(tmp_path)
+        app.rpc("enter_world", world="And")
+        for line in ["intro a", "intro b", "intro ha", "intro hb",
+                     "apply And.intro", "exact ha", "exact hb"]:
+            out = app.rpc("tactic", line=line)
+        assert out["kind"] == "completed"
+        assert out["stars"] == 3
+        assert "内核检查: 通过" in out["output"]
+        assert out["next"]["number"] == 2
+        assert os.path.exists(os.path.join(str(tmp_path), "And.json"))
+
+    def test_tactic_error_and_ban(self, tmp_path):
+        app = self._app(tmp_path)
+        app.rpc("enter_world", world="And", level=2)   # ban: cases
+        out = app.rpc("tactic", line="intro a")
+        assert out["kind"] == "ok" and "? : " not in out["context"]["goal"]
+        out = app.rpc("tactic", line="exact And.right a b h")
+        assert out["kind"] == "error"                  # h 还没引入
+        app2 = self._app(tmp_path)
+        app2.rpc("enter_world", world="And", level=2)
+        app2.rpc("tactic", line="intro a")
+        app2.rpc("tactic", line="intro b")
+        app2.rpc("tactic", line="intro h")
+        out = app2.rpc("tactic", line="cases h")
+        assert out["kind"] == "error" and "禁用" in out["message"]
+
+    def test_hint_and_solution_and_exit(self, tmp_path):
+        app = self._app(tmp_path)
+        app.rpc("enter_world", world="And")
+        out = app.rpc("hint")
+        assert out["kind"] == "hint" and out["index"] == 1
+        out = app.rpc("solution")
+        assert out["kind"] == "solution" and len(out["solution"]) >= 3
+        out = app.rpc("exit_level")
+        assert out["kind"] == "abandoned"
+        out = app.rpc("tactic", line="intro a")
+        assert out["kind"] == "error"                  # 已回主界面
+
+    def test_world_done_next_station(self, tmp_path):
+        app = self._app(tmp_path)
+        app.rpc("enter_world", world="And")
+        and_solutions = [
+            ["intro a", "intro b", "intro ha", "intro hb", "apply And.intro",
+             "exact ha", "exact hb"],
+            ["intro a", "intro b", "intro h", "exact And.right a b h"],
+            ["intro a", "intro b", "intro c", "intro h", "cases h as hab hc",
+             "cases hab as ha hb", "apply And.intro", "exact ha",
+             "apply And.intro", "exact hb", "exact hc"],
+            ["intro a", "intro b", "intro h", "cases h as ha hb",
+             "apply And.intro", "exact hb", "exact ha"],
+            ["intro a", "intro b", "intro c", "intro fab", "intro h",
+             "cases h as ha hc", "apply And.intro", "exact fab ha",
+             "exact hc"],
+        ]
+        last = None
+        for sol in and_solutions:
+            for line in sol:
+                last = app.rpc("tactic", line=line)
+        assert last["kind"] == "completed"
+        assert last["world_done"] is True
+        assert last["next_world"] == "Or"
+        assert "next" not in last
+
+    def test_replay_restarts_world(self, tmp_path):
+        app = self._app(tmp_path)
+        app.rpc("enter_world", world="And")
+        for line in ["intro a", "intro b", "intro ha", "intro hb",
+                     "apply And.intro", "exact ha", "exact hb"]:
+            app.rpc("tactic", line=line)
+        out = app.rpc("enter_world", world="And", replay=True)
+        assert out["level"]["number"] == 1
+
+    def test_check_and_constants(self, tmp_path):
+        app = self._app(tmp_path)
+        out = app.rpc("check", expr="fun (a : Prop) => a")
+        assert out["kind"] == "ok" and "∀ (a : Prop), Prop" in out["output"]
+        out = app.rpc("check", expr="NoSuchThing")
+        assert out["kind"] == "error"
+        out = app.rpc("constants")
+        assert isinstance(out["constants"], list)
+
+    def test_unknown_action(self, tmp_path):
+        app = self._app(tmp_path)
+        out = app.rpc("warp")
+        assert out["kind"] == "error"
+
+
+class TestTui:
+    """Textual TUI：agent 流式界面（挂载 / 进世界 / 习题卡 / 自动收工）。"""
+
+    def _run(self, tmp_path, check):
+        import asyncio
+
+        from py_nanobruijn.teaching.tui import NanobruijnTui
+
+        async def go():
+            app = NanobruijnTui(saves_dir=str(tmp_path))
+            async with app.run_test() as pilot:
+                await pilot.pause()
+                check(app, pilot)
+                await pilot.pause()
+        asyncio.run(go())
+
+    def test_mounts_worlds_sidebar(self, tmp_path):
+        def check(app, pilot):
+            assert app.query_one("#worlds").option_count == 11
+        self._run(tmp_path, check)
+
+    def test_enter_world_flow(self, tmp_path):
+        def check(app, pilot):
+            app.run_line("#game And")
+            assert app.entered is not None
+            assert len(app.entered["lessons"]) >= 2
+            assert app.engine.state == "level"
+            assert app._card is None          # 演示未看完，习题卡未出现
+            for _ in app.entered["example"]["steps"]:
+                app.run_line("d")
+            assert app._card is not None
+            assert app._card.level["number"] == 1
+            assert app._card.ctx["goal"].startswith("∀")
+        self._run(tmp_path, check)
+
+    def test_tactic_updates_card_and_completes(self, tmp_path):
+        def check(app, pilot):
+            app.run_line("#game And")
+            for _ in app.entered["example"]["steps"]:
+                app.run_line("d")
+            app.run_line("intro a")
+            assert app._card.ctx["goal"].startswith("∀ (b : Prop)")
+            for line in ["intro b", "intro ha", "intro hb",
+                         "apply And.intro", "exact ha", "exact hb"]:
+                app.run_line(line)
+            assert app.entered["level"]["number"] == 2
+            assert app._card.level["number"] == 2
+
+    def test_check_console_flow(self, tmp_path):
+        def check(app, pilot):
+            before = len(app.query("#chat > *"))
+            app.run_line("#check Prop")
+            after = len(app.query("#chat > *"))
+            assert after > before
+        self._run(tmp_path, check)
+
+
+class TestTutor:
+    """助教层：内核是唯一裁判，LLM 只拿状态、出 Markdown。"""
+
+    def test_disabled_without_key(self, tmp_path, monkeypatch):
+        from py_nanobruijn.teaching.llm import Tutor
+        for var in ("NANOBRUIJN_LLM_KEY", "DEEPSEEK_API_KEY",
+                    "OPENAI_API_KEY"):
+            monkeypatch.delenv(var, raising=False)
+        assert Tutor().enabled is False
+
+    def test_state_prompt_contains_kernel_truth(self, tmp_path, monkeypatch):
+        from py_nanobruijn.teaching.llm import Tutor
+        monkeypatch.setenv("NANOBRUIJN_LLM_KEY", "test-key")
+        app = TestWebApp._app(TestWebApp(), tmp_path)
+        app.rpc("enter_world", world="And")
+        app.rpc("tactic", line="exact ha")       # 会报错（h 未引入）
+        state = app.tutor_state("为什么要 intro？")
+        msgs = Tutor().messages_for(state)
+        user = msgs[-1]["content"]
+        assert "And" in user and "last_error" in user
+        assert "为什么要 intro？" in user
+        system = msgs[0]["content"]
+        assert "唯一裁判" in system and "不主动给完整证明" in system
+
+    def test_ask_returns_stub_tutor_md(self, tmp_path, monkeypatch):
+        import json
+
+        app = TestWebApp._app(TestWebApp(), tmp_path)
+        app.rpc("enter_world", world="And")
+        app.rpc("tactic", line="exact ha")
+
+        class StubTutor:
+            enabled = True
+
+            def messages_for(self, state):
+                return [{"role": "system", "content": "s"},
+                        {"role": "user", "content": json.dumps(state)}]
+
+            def chat(self, messages, tools=None):
+                assert "And" in messages[1]["content"]      # 内核状态在场
+                return {"content": "**先 intro 引入 h 再 exact。**",
+                        "tool_calls": []}
+
+        app.tutor = StubTutor()
+        out = app.rpc("ask", question="我卡住了")
+        assert out["kind"] == "tutor", out
+        assert "intro" in out["md"] and out["trace"] == []
+
+    def test_agent_loop_runs_kernel_tool(self, tmp_path, monkeypatch):
+        """LLM 自主调用 kernel_check：内核真话进入 trace 与最终讲解。"""
+        import json
+
+        app = TestWebApp._app(TestWebApp(), tmp_path)
+        app.rpc("enter_world", world="And")
+
+        class ScriptTutor:
+            enabled = True
+            rounds = 0
+
+            def messages_for(self, state):
+                return [{"role": "system", "content": "s"},
+                        {"role": "user", "content": json.dumps(state)}]
+
+            def chat(self, messages, tools=None):
+                self.rounds += 1
+                if self.rounds == 1:
+                    assert tools and any(
+                        t["function"]["name"] == "kernel_check"
+                        for t in tools)
+                    return {"content": None, "tool_calls": [{
+                        "id": "c1", "type": "function",
+                        "function": {"name": "kernel_check",
+                                     "arguments": json.dumps(
+                                         {"expr": "fun (a : Prop) => a"})}}]}
+                return {"content": "内核说这叫恒等机器。", "tool_calls": []}
+
+        app.tutor = ScriptTutor()
+        out = app.rpc("ask", question="什么是证明？")
+        assert out["kind"] == "tutor", out
+        assert out["trace"] == [{"tool": "kernel_check",
+                                 "args": {"expr": "fun (a : Prop) => a"},
+                                 "result":
+                                     "fun (a : Prop) => a : ∀ (a : Prop), Prop"}], \
+            out["trace"]
+        assert "恒等机器" in out["md"]
+
+    def test_exec_tool_truths(self, tmp_path, monkeypatch):
+        """四个工具都吐真话：内核输出/词表/教材/未知工具兜底。"""
+        app = TestWebApp._app(TestWebApp(), tmp_path)
+        assert "Type" in app.exec_tool(
+            "kernel_check", {"expr": "Prop"})
+        assert "内核拒绝" in app.exec_tool(
+            "kernel_check", {"expr": "fun x => x"})
+        assert "Sort" in app.exec_tool("vocab_lookup", {})
+        assert "Sort" in app.exec_tool("vocab_lookup", {"word": "sort"})
+        lesson = app.exec_tool("lesson", {"world": "Basic"})
+        assert "【段1】" in lesson and "类型论" in lesson
+        assert "未知世界" in app.exec_tool("lesson", {"world": "Nope"})
+        assert "未知工具" in app.exec_tool("bogus", {})
+
+    def test_agent_loop_exhaust_falls_back(self, tmp_path, monkeypatch):
+        """4 轮全在调工具：强制收敛出最终讲解，不吊死。"""
+        import json
+
+        app = TestWebApp._app(TestWebApp(), tmp_path)
+        app.rpc("enter_world", world="And")
+
+        class ChattyTutor:
+            enabled = True
+
+            def messages_for(self, state):
+                return [{"role": "system", "content": "s"},
+                        {"role": "user", "content": "u"}]
+
+            def chat(self, messages, tools=None):
+                if tools is None:                 # 兜底轮
+                    return {"content": "好了，讲解如下。", "tool_calls": []}
+                return {"content": None, "tool_calls": [{
+                    "id": "c", "type": "function",
+                    "function": {"name": "vocab_lookup",
+                                 "arguments": "{}"}}]}
+
+        app.tutor = ChattyTutor()
+        out = app.rpc("ask", question="?")
+        assert out["kind"] == "tutor" and "讲解" in out["md"]
+        assert len(out["trace"]) == 4
+
+    def test_ask_disabled_error(self, tmp_path, monkeypatch):
+        for var in ("NANOBRUIJN_LLM_KEY", "DEEPSEEK_API_KEY",
+                    "OPENAI_API_KEY"):
+            monkeypatch.delenv(var, raising=False)
+        app = TestWebApp._app(TestWebApp(), tmp_path)
+        app.rpc("enter_world", world="And")
+        out = app.rpc("ask", question="?")
+        assert out["kind"] == "error" and "NANOBRUIJN_LLM_KEY" in out["message"]
+
+
+class TestVocab:
+    """单词表：主线引导，按进度点亮。"""
+
+    def test_entries_reference_valid_worlds(self):
+        from py_nanobruijn.teaching.game import load_world_order
+        from py_nanobruijn.teaching.vocab import VOCAB
+        order = load_world_order(os.path.join(os.path.dirname(__file__), "worlds"))
+        assert all(e["world"] in order for e in VOCAB)
+        assert len(VOCAB) >= 18
+
+    def test_annotate_statuses(self):
+        from py_nanobruijn.teaching.game import load_world_order
+        from py_nanobruijn.teaching.vocab import VOCAB, annotate
+        order = load_world_order(os.path.join(os.path.dirname(__file__), "worlds"))
+        entries = annotate(VOCAB, "And", order)
+        by_word = {e["word"]: e["status"] for e in entries}
+        assert by_word["Sort"] == "done"
+        assert all(e["status"] == "now" for e in entries if e["world"] == "And")
+        assert all(e["status"] == "todo" for e in entries if e["world"] == "Or")
+
+    def test_repl_vocab_command(self):
+        r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
+        out = r.process_line("#vocab")
+        assert "Sort" in out and "词表索引" in out
+        assert "●" in out  # Basic 词条点亮
+
+    def test_rpc_vocab_in_level(self, tmp_path):
+        from py_nanobruijn.teaching.web_server import WebApp
+        app = WebApp(saves_dir=str(tmp_path))
+        app.rpc("enter_world", world="And")
+        out = app.rpc("vocab")
+        statuses = {e["word"]: e["status"] for e in out["entries"]}
+        assert statuses["Sort"] == "done"
+        assert statuses["cases h"] == "todo"

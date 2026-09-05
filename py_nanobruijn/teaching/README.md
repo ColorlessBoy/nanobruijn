@@ -31,13 +31,13 @@ Lean 是一种"证明即编程"的语言：**写一个程序（lambda 表达式�
 
 ```
 py-nanobruijn teaching REPL
-输入表达式查看类型（等价 #check），或使用命令：#check/#reduce/#print/#prove/#env/#help/#quit
+输入表达式查看类型（等价 #check），或使用命令：#check/#reduce/#print/#prove/#env/#help/#exit
 语法：fun (x : A) => e、∀ (x : A), e、A -> B、@Const、Type、Prop
 已加载 39 个常量，输入 #help 查看帮助
 >
 ```
 
-`>` 是你的提示符。输入内容，回车执行。退出：`#quit` 或 `Ctrl-D`。
+`>` 是你的提示符。输入内容，回车执行。退出：`exit` 或 `Ctrl-D`。
 
 ---
 
@@ -169,7 +169,7 @@ and_comm : ∀ {a : Prop}, ∀ {b : Prop}, Iff And a b And b a
   = fun {a : Prop} => fun {b : Prop} => @Iff.intro And a b And b a ...
 ```
 
-### `#env` / `#help` / `#quit`
+### `#env` / `#help` / `#exit`
 
 常量列表 / 帮助 / 退出。
 
@@ -255,14 +255,13 @@ proof> apply And.intro
 ```
 proof> exact ha
 proof> exact hb
-proof> done
 完整证明项:
 fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a b ha hb
 内核检查: 通过
 ```
 
 `exact ha` = 当前目标正好是 `ha`（`ha : a`），直接填上。
-`done` = 所有洞填完 → 合成完整 lambda 项 → **真实内核检查** → 显示最终证明项。
+最后一个洞填完的瞬间自动收工 → 合成完整 lambda 项 → **真实内核检查** → 显示最终证明项（无需 done 命令）。
 
 **注意最后那行 lambda**：`fun {a} {b} => fun (ha : a) => fun (hb : b) => @And.intro a b ha hb`
 ——这就是你"证明"的实体。tactic 只是分步写出它的工具。用 `#print` 查看内置
@@ -275,37 +274,51 @@ fun (a : Prop) => fun (b : Prop) => fun (ha : a) => fun (hb : b) => @And.intro a
 | `intro x` | 目标 `∀ (x : A), B` → 把 `x` 加入上下文，目标变 `B` | `_` → `fun (x : A) => _` |
 | `apply f` | 用常量 `f` 构造目标；隐式参数自动匹配，显式参数变新目标 | `_` → `@f ... _ ?n` |
 | `exact e` | 当前目标直接用表达式 `e` 填（内核检查类型） | `_` → `e` |
-| `done` | 全部填完 → 合成 + 内核检查 + 显示完整项 | — |
-| `abort` | 放弃，回到主 REPL | — |
+| `exit` | 放弃，回到主 REPL（主 REPL 中则退出程序） | — |
 | `context` | 重新显示上下文/目标/当前项 | — |
 | `help` | tactic 帮助 | — |
 
 ### 教学要点（给老师）
 
 - **洞是编辑器的状态，不是内核的概念**——本工具没有 metavariable，洞完全由
-  教学层维护，`done` 时才合成闭项交给内核。这恰好演示了"tactic 是编辑器，
+  教学层维护，收工时才合成闭项交给内核。这恰好演示了"tactic 是编辑器，
   内核是裁判"的分工。
-- 建议演示顺序：`#prove` 一个简单目标 → `done` 后把输出和 `#print` 内置定理的
+- 建议演示顺序：`#prove` 一个简单目标 → 收工后把输出和 `#print` 内置定理的
   项对比 → 说明"我们手写的和内核里存的是同一种东西"。
 
 ---
 
-## 6. 闯关模式（`#game` / `#worlds`）——把证明玩成游戏
+## 6. 闯关模式（`#game`）——把证明玩成游戏
 
-在 `#prove` 的基础上，本工具内置了 **8 个闯关世界**（And/Or/Not/Exists/Iff/Combo/Hard/Eq，
-各 5 关）。每一关就是一条待证明的命题，目标是**用最少步骤、不看提示**通关。
+在 `#prove` 的基础上，本工具内置了 **11 个闯关世界**（Basic/TrueFalse/And/Or/Not/
+Exists/Iff/Eq/Nat/Combo/Hard），按课程依赖拓扑排序——从"一切皆函数"走到内核计算。
+每一关就是一条待证明的命题，目标是**用最少步骤、不看提示**通关。
 
 ### 启动与导航
 
 ```
-> #worlds
-And — 合取世界：从构造到分解（0/5 关）
-Or — 析取世界：选择的两条路（0/5 关）
+> #game
+① Basic — 基础世界：一切皆函数（0/6 关）
+② TrueFalse — 真与假世界：最平凡的命题与矛盾的力量（0/5 关）
+③ And — 合取世界：从构造到分解（0/5 关）
 ...
 > #game And
 合取世界：从构造到分解
 你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
+📖 课堂
+  合取就是把两个命题捆在一起……
+🎬 演示关：forall (a : Prop), a -> And a a
+proof> intro a
+...
 ```
+
+首次进入一个世界会依次经过：**定义仪式**（fol 声明现场加载）→ **课堂**（`lesson:`
+段落，交互模式回车翻页）→ **演示关**（`example:` 脚本逐步自动执行，旁观一次完整
+证明）→ 第 1 关。有存档或本会话已展示过则直接续关；主 REPL 的 `#lesson` /
+`#example` 随时重看。
+
+重玩某个世界：`#game Hard replay`——从第 1 关重打（含课堂与演示），**历史最佳
+星标保留**（结算只升不降）。重玩整个游戏用 `--new` 新开档位。
 
 或启动时直接进入：`python -m py_nanobruijn repl --game And`
 （`--game` 隐含 `--fresh`：从**空环境**开始，进入世界时现场定义该逻辑词——
@@ -321,8 +334,7 @@ Or — 析取世界：选择的两条路（0/5 关）
 |---|---|
 | `hint` | 逐条显示关卡提示（每条 hint 降一星） |
 | `solution` | 显示标准解并放弃本关回主 REPL（不记录星级，下次从同关继续） |
-| `abort` | 放弃本关回主 REPL（不记录星级） |
-| `#quit` | 放弃本关，退出 REPL |
+| `exit` | 放弃本关回主 REPL（不记录星级）；主 REPL 中则退出程序 |
 
 部分关卡有 `ban:` 字段（如 And 世界 L2 禁用 `cases`）——被禁用的 tactic 会直接
 拒绝并提示换路（提示会指向本关设计的那条路线）。
@@ -349,23 +361,68 @@ Nand : ∀ (a : Prop), ∀ (b : Prop), Prop
 - **3★**：没用 hint 且步数 ≤ 标准解行数 + 2（容错两步入 3★）；**2★**：用了 1 条 hint 或步数超限；**1★**：用了 ≥2 条 hint
 - 步数只计 `intro`/`apply`/`exact`/`cases`（`context`/`help` 等不计）
 - 通关后显示标准解（你的路径可能不同，两种都正确）
-- 每关至少拿 1★ 才算通关；进度自动存入 `py_nanobruijn/saves/<世界>.json`
-  （`#worlds` 显示各世界完成度，重新进入时自动续关）
+- 每关至少拿 1★ 才算通关；进度自动存入存档档位
+  （`#game` 无参数显示各世界完成度，重新进入时自动续关）
+
+### 存档档位
+
+进度存在 `saves/<档位>/<世界>.json`，**像会话记录一样按次累积**：
+
+- 直接启动 `py-nanobruijn repl`：自动**续玩最近活动的档位**里第一个进行中的世界
+  （欢迎语会提示"续玩：X 世界"）；`--script`/`--json` 通道不自动续玩
+- `--new`：新开一局（时间戳档位，旧档全部保留）
+- `--save <名字>`：使用/创建命名档位（如 `--save speedrun`）
+- `#saves`：列出全部档位（关数 / 星数 / 当前标记）
+- 旧版扁平存档（`saves/*.json`）首次启动时自动迁移进 `default/` 档位
 
 ### 世界速览
 
 | 世界 | 主题 | 用到的新武器 |
 |---|---|---|
+| `Basic` | 一切皆函数：Prop/Sort/→/∀ | intro / exact / id / comp / flip |
+| `TrueFalse` | 真与矛盾：两个极端 | True.intro / False.rec（爆炸原理） |
 | `And` | 合取：构造与分解 | And.intro / And.left / And.right / cases |
 | `Or` | 析取：分情况讨论 | Or.inl / Or.inr / Or.rec（cases） |
-| `Not` | 否定与矛盾 | Not（即 `-> False`）/ False.rec / mt |
+| `Not` | 否定：即 `-> False` | Not 展开内联 / absurd 式爆炸 / De Morgan |
 | `Exists` | 存在量词 | Exists.intro / Exists.rec（cases） |
 | `Iff` | 当且仅当 | Iff.intro / Iff.mp / Iff.mpr |
+| `Eq` | 等式：第三公里 | **rewrite** / @Eq.refl / 传递对称 |
+| `Nat` | 自然数：第一次看见内核计算 | Nat.rec（归纳）/ iota 归约 / add |
 | `Combo` | 综合：多概念混合证明 | 各世界武器混用（And/Or/Not/Iff） |
 | `Hard` | 挑战：第二公里（分配律/curry/映射） | 综合运用 + 投影 And.left/And.right |
-| `Eq` | 等式：第三公里 | **rewrite** / @Eq.refl / 传递对称 |
 
 ---
+
+### Web 版：浏览器里玩（`python -m py_nanobruijn web`）
+
+```bash
+python -m py_nanobruijn web              # 启动并自动打开浏览器（默认 :8765）
+python -m py_nanobruijn web --port 8000 --no-open
+```
+
+同一套内核与关卡内容，换成浏览器界面：左侧世界列表（①-⑪，完成度与星标）+
+常量侧栏（可搜索、点击 `#print`）；主区按世界流程走——定义仪式、课堂、演示关
+（逐行回放，每步目标状态由服务端预计算）、关卡证明编辑器（上下文芯片 / `? :`
+目标 / 当前项，tactic 输入带历史 ↑↓）；底部控制台可随时 `#check`/`#reduce`。
+进度存档与 REPL 共用同一份 `saves/` 档位。
+
+架构：Python 服务（stdlib HTTP，零依赖）+ TypeScript 客户端
+（`teaching/web/app.ts`，esbuild 打包为 `app.js` 已提交）。这条"路线①"验证
+游戏形态；RPC 协议保持不变，内核将来可切换为 Rust-WASM（路线②）变成
+无服务的纯前端。
+
+### 🤖 助教层（LLM，可选）——内核仍是唯一裁判
+
+```bash
+export NANOBRUIJN_LLM_KEY=sk-…            # 也可用 DEEPSEEK_API_KEY / OPENAI_API_KEY
+export NANOBRUIJN_LLM_BASE_URL=https://api.deepseek.com   # 默认；OpenAI 兼容即可
+export NANOBRUIJN_LLM_MODEL=deepseek-chat                  # 默认
+```
+
+配置后，`tui` 里内核**报错时助教自动讲解**（流式 Markdown 卡），输入
+`ask 你的问题` 可实时提问。分工铁律：**内核是唯一裁判**——星级与进度永远由
+内核决定，LLM 只做苏格拉底式提示与纠错提醒（提示词明令不给完整证明）；
+助教只能看到内核提供的局面（当前目标/上下文/最近输入/报错），拿不到答案。
 
 ## 7. 表达式语法
 
@@ -449,7 +506,7 @@ Nand : ∀ (a : Prop), ∀ (b : Prop), Prop
 **为什么 Or.rec 不用算，而 Nat.rec 必须算？**
 
 之前的连接符（Or.rec 等）都是 axiom——只是"规则的名字"。命题逻辑里一切
-都是 Prop，`done` 的内核检查靠**证明无关性**（同命题的证明自动相等）短路，
+都是 Prop，过关时的内核检查靠**证明无关性**（同命题的证明自动相等）短路，
 从头到尾不需要"执行"任何东西。
 
 Nat 的意义就在于计算。`#reduce add two two` 要真的得出 `four`，内核必须

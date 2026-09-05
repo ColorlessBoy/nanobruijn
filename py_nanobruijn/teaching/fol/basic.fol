@@ -1,6 +1,7 @@
 # 基础函数组合子（id / Function.comp / flip）（fol 片段）
 # 加载顺序见 fol/__init__.py 的 FRAGMENTS；依赖自动补齐。
 # 函数组合的通用工具（与逻辑无关，但定理证明会用到）
+# 小提示：{u} 与 @id.{1} 里的 1 是"层级"标记，现阶段照抄即可，含义后面世界再讲
 def id {u} : forall {α : Sort u}, forall (a : α), α
   := fun {α : Sort u} => fun (a : α) => a
 def Function.comp {u, v, w} : forall {α : Sort u}, forall {β : Sort v}, forall {δ : Sort w}, forall (f : forall (f0 : β), δ), forall (g : forall (g0 : α), β), forall (x : α), δ

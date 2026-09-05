@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nanobruijn 证明游戏</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header id="topbar">
+  <span class="logo">nanobruijn<span class="logo-sub">证明游戏</span></span>
+  <span id="profile-badge" class="badge"></span>
+</header>
+<div id="layout">
+  <aside id="sidebar">
+    <h3>世界</h3>
+    <nav id="world-list"></nav>
+    <h3>常量 <input id="const-search" placeholder="查找…"></h3>
+    <nav id="const-list"></nav>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="console">
+  <div id="console-out"></div>
+  <div class="console-row">
+    <span class="console-prompt">›</span>
+    <input id="console-in" placeholder="#check / #reduce / #print — 回车执行">
+  </div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

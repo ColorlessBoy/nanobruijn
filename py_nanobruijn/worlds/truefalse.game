@@ -1,0 +1,63 @@
+# 平凡与矛盾：True / False —— 证据世界的两个极端
+world TrueFalse
+title 真与假世界：最平凡的命题与矛盾的力量
+intro True 有一个证据，False 一个也没有。两个极端放在一起，你会第一次见到"爆炸原理"——从矛盾可以推出一切。
+requires: Basic
+lesson: True 是最平凡的命题：它恰有一个证据 True.intro。所以证明"目标是 True"永远只需一步——这也是它作为测试命题的原因。
+lesson: False 是它的镜像：没有任何证据。你永远无法凭空造出 False 类型的项——除非前提里已经藏着矛盾。
+lesson: False.rec 是从 False 出发的唯一一条规则：一旦手里有了 False 的证据，任何命题都能交出——这叫爆炸原理。逻辑上这不是 bug："矛盾的世界里一切皆真"。
+lesson: 蕴含 False -> a 的证明不需要知道 a 是什么：intro hf 后交给 False.rec 直接爆炸。not 片段里有一台现成机器 absurd 干的就是这件事，后面会见到。
+example: False -> True
+intro hf
+exact True.intro
+using: true, false
+level 1
+name 最平凡的证明
+goal: True
+hint: 目标就是 True 本身：它的唯一证据叫 True.intro
+solution:
+exact True.intro
+---
+level 2
+name 假可以推真
+goal: False -> True
+hint: intro hf 引入 hf : False——目标仍是 True
+hint: True 的证据不需要任何前提：exact True.intro（hf 根本用不上）
+solution:
+intro hf
+exact True.intro
+---
+level 3
+name 真在手中
+goal: (True -> False) -> False
+hint: intro f 引入 f : True -> False，目标是 False
+hint: False 没有证据可 exact——只能动用 f : True -> False：exact f True.intro
+hint: 而 True 的证据随手可得：exact True.intro
+solution:
+intro f
+exact f True.intro
+variant: (True -> False) -> True -> False（把 True.intro 留到最后一刻）
+---
+level 4
+name 爆炸原理
+goal: forall (a : Prop), False -> a
+hint: intro a、intro hf 后目标是任意命题 a——没有证据可用
+hint: 唯一的出路是 False.rec：exact @False.rec.{0} (fun (x : False) => a) hf
+hint: (fun (x : False) => a) 是动机函数：对任何 False 的"证据"都返回 a。.{0} 是宇宙参数，照抄即可
+solution:
+intro a
+intro hf
+exact @False.rec.{0} (fun (x : False) => a) hf
+variant: 换个方向：forall (a : Prop), (a -> False) -> a -> False（矛盾对撞）
+---
+level 5
+name 矛盾无害
+goal: forall (a : Prop), a -> False -> a
+hint: 拆开后手里同时有 ha : a 和 hf : False——目标是 a
+hint: 证据已经在手，矛盾只是摆设：exact ha
+solution:
+intro a
+intro ha
+intro hf
+exact ha
+variant: a -> (False -> a) 的柯里化版本——结构完全相同

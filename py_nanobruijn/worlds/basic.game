@@ -1,0 +1,96 @@
+# 基础世界：Sort/Prop 与函数类型 —— 内核世界的一切地基
+world Basic
+title 基础世界：一切皆函数
+intro 这里没有逻辑连接词，只有最赤裸的内核事实：命题是类型，证明是项，推理是函数应用。后面的所有世界都站在这块地基上。
+requires:
+lesson: 这套学问叫类型论，它只有一条铁律：凡事皆有类型。你敲进提示符的每一行文字都描述某个东西；每个东西都带着一张标签，说明它是哪一类的东西——这张标签叫它的类型。这样的每一段文字，我们叫它一个**表达式**。类型自己也逃不掉这条铁律：类型也是东西，也有类型。我们用一串记号 Sort 给"类型的类型"编级：Sort 0 = Prop（命题那一类，"2+2=4"这样可判断真假的句子）；Sort 1 = Type 0 = Type（命题那一类本身所在的地方）；Sort 2 = Type 1（Type 所在的地方）……照此往上，Sort u 在 Sort (u+1) 里，没有顶层。记号 a : T 读作"a 是 T 类的东西"——a 叫**项**（term），T 叫 a 的**类型**。动手：在主界面的输入框敲 #check Prop，屏幕回答 Prop : Type——铁律应验，连"命题那一类"也有类型；再敲 #check True（True 是一个具体的命题），回答 True : Prop——具体的命题住在 Prop 里。检验：Type 的类型是什么？先猜，再敲 #check Type 对答案。
+lesson: 最重要的表达式是"机器"：fun (x : Prop) => x 读作——造一台小机器，收一个叫 x 的东西，把 x 原样交出去。fun 和 => 是固定写法；x 是我们给输入起的名字。fun 的另一个名字叫 λ（希腊字母，读兰姆达）——屏幕上「当前项 λ」说的就是它。
+lesson: 每个东西都带一个类型：一张标签，说明"它是什么类的东西"。机器的标签描述吃什么、吐什么，写作 A -> B（读作"A 到 B"）：吃一个 A 类的东西，吐出一个 B 类的东西。比如 fun (x : Prop) => x 的标签是 Prop -> Prop——吃 Prop 类的东西，还回来的还是 Prop 类的东西。
+lesson: 用机器叫应用，写作 f x：把 f 吃的那类东西喂给 f。机器还可以吃进一台机器、吐出另一台机器——A -> B -> C 读作"吃 A，吐出一台吃 B 吐 C 的机器"，多输入的机器就是这样一层层包出来的。箭头链的每一段还可以起名字：forall (x : A), B 和 A -> B 是同一个标签的两种写法（都是类型），forall 就是"给这一段起个名字 x"；关卡目标里看到的 ∀ 就是它。
+lesson: 现在说 Prop：命题，就是"可以判断真假的句子"，比如"2+2=4"、"天在下雨"；Prop 是所有命题组成的那一类。我们的世界有一个关键约定：把每个命题 a 当作一个类型——"a 的证据"这个类型。于是"命题 a 成立"就说成"存在一个类型为 a 的东西"，这个东西叫证据。
+lesson: 有了这个约定，证明就是写机器。a -> b 是一台机器的标签：给它一份 a 的证据，它必须吐出一份 b 的证据——这样一台机器就是"如果 a 那么 b"的证明。最简单的例子：fun (h : a) => h 是一台"收到 a 的证据 h、原样交还"的机器，它就是"如果 a 则 a"的证明。这正是你第 1 关要亲手写的东西。
+lesson: tactic 是帮你写机器的辅助笔。intro 把目标机器的下一个输入搬到你手边——相当于在 fun 后面多写一层（盯着屏幕上的"当前项"看：那个 _ 就是机器还没写的吐出部分）；exact 是"我手头已经有这个东西了，直接交上去"；apply 是"我知道哪台现成机器的输出正好是目标"。最后一个 tactic 填完洞的瞬间，整台机器自动合成、交给内核检查——通过之后，那台机器就是证明本身。
+lesson: basic 片段还带了三台现成机器：id（给什么还什么）、Function.comp（把两台机器接成一台）、flip（交换输入顺序），#print id 可以看到。你会注意到它们身上有 {u}、.{1} 这样的记号——这是"层级"的标记，现阶段当作固定咒语照抄就行，它的含义要到很后面的世界才需要懂。
+example: forall (a : Prop), forall (h : a), a
+intro a
+intro h
+exact h
+using: basic
+level 1
+name 恒等
+goal: forall (a : Prop), forall (h : a), a
+hint: 目标是两层 ∀：intro a 引入命题 a，再 intro h 引入它的证据
+hint: 现在目标就是 h 自己的类型：exact h
+solution:
+intro a
+intro h
+exact h
+variant: 重打本关，一步到位：exact fun (a : Prop) => fun (h : a) => h——对照"当前项"，这就是 tactic 一步步拼出来的那台机器
+---
+level 2
+name 函数应用
+goal: forall (a : Prop), forall (b : Prop), forall (fab : a -> b), forall (ha : a), b
+hint: 一路 intro 拆开：命题 a、命题 b、函数 fab : a -> b、证据 ha : a
+hint: 目标是 b：apply fab 把目标变成 a（fab 是从 a 到 b 的函数）
+hint: exact ha 收工——这就是"函数作用"本身
+solution:
+intro a
+intro b
+intro fab
+intro ha
+exact fab ha
+variant: 证明 (a -> b -> c) -> a -> b -> c（吃两份证据的机器）
+---
+level 3
+name 第一个投影
+goal: forall (a : Prop), forall (b : Prop), forall (ha : a), forall (hb : b), a
+hint: intro 拆到只剩目标 a：手里有 ha : a 和 hb : b
+hint: 证据已经在上下文里：exact ha
+solution:
+intro a
+intro b
+intro ha
+intro hb
+exact ha
+---
+level 4
+name 第二个投影
+goal: forall (a : Prop), forall (b : Prop), forall (ha : a), forall (hb : b), b
+hint: 和上一关只差一个字母：这次目标是 b
+solution:
+intro a
+intro b
+intro ha
+intro hb
+exact hb
+variant: a -> a -> a（两次都取第一个）
+---
+level 5
+name 复合
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), forall (f : b -> c), forall (g : a -> b), forall (x : a), c
+hint: intro 四连：f : b -> c、g : a -> b、x : a。目标是 c
+hint: c 从 f 来、b 从 g 来、a 就是 x——把链子一次接起来：exact f (g x)
+solution:
+intro a
+intro b
+intro c
+intro f
+intro g
+intro x
+exact f (g x)
+variant: 重打本关，一步写出整台机器：exact fun (a : Prop) => fun (b : Prop) => fun (c : Prop) => fun (f : b -> c) => fun (g : a -> b) => fun (x : a) => f (g x)
+---
+level 6
+name 换位
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), forall (f : a -> b -> c), forall (hb : b), forall (ha : a), c
+hint: intro 拆开后手里有 f : a -> b -> c、hb : b、ha : a，目标是 c
+hint: f 要吃两份证据：a 的和 b 的——exact f ha hb 一次喂齐
+solution:
+intro a
+intro b
+intro c
+intro f
+intro hb
+intro ha
+exact f ha hb
+variant: 一步写出：exact fun (a : Prop) => fun (b : Prop) => fun (c : Prop) => fun (f : a -> b -> c) => fun (hb : b) => fun (ha : a) => f ha hb

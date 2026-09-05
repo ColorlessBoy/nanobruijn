@@ -61,7 +61,8 @@ def _run_repl(args: argparse.Namespace) -> int:
     fresh = args.fresh or bool(args.game)
     core = make_fresh_core() if fresh else make_bootstrap()
     color = True if args.color else (False if args.no_color else None)
-    repl = Repl(core, timeout_secs=args.timeout, color=color, fresh=fresh)
+    repl = Repl(core, timeout_secs=args.timeout, color=color, fresh=fresh,
+                save_name=args.save, save_new=args.new)
     if args.game:
         err = repl.start_game(args.game)
         if err:
@@ -99,10 +100,23 @@ def _run_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_web(args: argparse.Namespace) -> int:
+    from .teaching.web_server import serve
+    serve(port=args.port, open_browser=not args.no_open)
+    return 0
+
+
+def _run_tui(args: argparse.Namespace) -> int:
+    from .teaching.tui import NanobruijnTui
+    NanobruijnTui().run()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     # Preserve the original ``python -m py_nanobruijn FILE`` invocation.
-    if argv and argv[0] not in {"check", "inspect", "repl", "-h", "--help"}:
+    if argv and argv[0] not in {"check", "inspect", "repl", "web", "tui",
+                                "-h", "--help"}:
         argv.insert(0, "check")
     parser = argparse.ArgumentParser(prog="py-nanobruijn")
     subcommands = parser.add_subparsers(dest="command")
@@ -123,9 +137,20 @@ def main(argv: list[str] | None = None) -> int:
     repl.add_argument("--json", action="store_true",
                       help="with --script: machine-readable JSON output")
     repl.add_argument("--game", help="enter a world on startup (implies --fresh)")
+    repl.add_argument("--save", help="use/continue a named save profile"
+                                     " (saves/<name>/)")
+    repl.add_argument("--new", action="store_true",
+                      help="start a new timestamped save profile"
+                           " (old profiles are kept; default resumes the"
+                           " most recent one)")
     repl.add_argument("--fresh", action="store_true",
                       help="start with an empty environment; constants are"
                            " defined on world entry (definition ceremony)")
+    web = subcommands.add_parser("web", help="browser game (Python server + TS client)")
+    web.add_argument("--port", type=int, default=8765)
+    web.add_argument("--no-open", action="store_true",
+                     help="do not open the browser automatically")
+    subcommands.add_parser("tui", help="modern terminal UI (textual)")
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
@@ -134,6 +159,10 @@ def main(argv: list[str] | None = None) -> int:
         return _run_check(args)
     if args.command == "inspect":
         return _run_inspect(args)
+    if args.command == "web":
+        return _run_web(args)
+    if args.command == "tui":
+        return _run_tui(args)
     return _run_repl(args)
 
 

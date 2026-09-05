@@ -1,6 +1,17 @@
 world Iff
 title 等价世界：两个方向的约定
 intro 等价 a ↔ b 是两座桥：Iff.mp 从 a 到 b，Iff.mpr 从 b 到 a。Iff.intro 则同时铺两条路。
+requires: Exists
+lesson: Iff a b 的证据是一对函数：mp : a -> b 加 mpr : b -> a。"逻辑等价"就是"互相蕴含"。
+lesson: 构造用 Iff.intro：一次交出两个方向的函数（apply 后会有两个子目标，各铺一座桥）。消费用 Iff.mp / Iff.mpr，像用两个方向的通行证。
+lesson: Iff 比 Eq 弱（"等价"不等于"相等"）但更常用——Eq 世界的 propext 会告诉你它们何时连通。
+example: forall (a : Prop), Iff a a
+intro a
+apply Iff.intro
+intro ha
+exact ha
+intro ha
+exact ha
 using: iff, not
 level 1
 name 自反

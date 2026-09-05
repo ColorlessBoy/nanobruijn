@@ -1,24 +1,35 @@
+# 析取世界：左路或右路
 world Or
-title 析取世界：选择的两条路
-intro 析取 a ∨ b 的证明是「要么左边要么右边」：Or.inl 走左路，Or.inr 走右路。从前提里用 a ∨ b 时，必须两条路都铺好（Or.rec 的本质）。
-using: or, not
+title 析取世界：左路或右路
+intro 析取是合取的镜像：证据只需要一半。但消费它的人必须左右通吃——这就是 Or.rec 的不对称美学。
+requires: And
+lesson: Or a b 读作"a 或 b"：它的证据是二选一——要么 Or.inl 装着 a 的证据，要么 Or.inr 装着 b 的证据。
+lesson: 构造很简单：手里有哪半就 exact 哪半（Or.inl / Or.inr）。难的是消费：要证明 Or a b 蕴含 c，必须两条路都走得通——这就是 cases h 拆出 ha : a 与 hb : b 两个子目标的原因。
+lesson: 经典句式 Or a b -> (a -> c) -> (b -> c) -> c 叫"析取消去"：它把 cases 的义务显式写成了两个函数参数。第 3 关会亲手证明它。
+example: forall (a : Prop), forall (b : Prop), a -> Or a b
+intro a
+intro b
+intro ha
+apply Or.inl
+exact ha
+using: or
 level 1
 name 左路
 goal: forall (a : Prop), forall (b : Prop), a -> Or a b
 hint: 目标头部是 Or —— apply Or.inl 选择左路
-hint: 剩下目标 a，intro 后 exact
+hint: 剩下的目标就是 ha 自己：exact ha
 solution:
 intro a
 intro b
 intro ha
 apply Or.inl
 exact ha
+variant: 换成 Or.inr 证 b -> Or a b（走右路）
 ---
 level 2
 name 右路
 goal: forall (a : Prop), forall (b : Prop), b -> Or a b
-hint: 目标头部是 Or —— apply Or.inr 选择右路
-hint: 剩下目标 b，intro 后 exact
+hint: 这次证据在右半：apply Or.inr
 solution:
 intro a
 intro b
@@ -27,26 +38,28 @@ apply Or.inr
 exact hb
 ---
 level 3
-name 消去律：两条路都要走
+name 析取消去
 goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or a b -> (a -> c) -> (b -> c) -> c
-hint: 前提 Or a b 必须两条路都走：cases h as ha hb 分两路（分支名避开已有的 h1/h2）
-hint: 左路 ha : a 用 h1，右路 hb : b 用 h2 —— 这就是 Or.rec 的本质，cases 替你写好了
+hint: intro 拆到 h : Or a b，再引入左右两条函数 f : a -> c、g : b -> c
+hint: cases h as ha hb 分出两个子目标——目标都是 c
+hint: 左子目标 exact f ha；右子目标 exact g hb。两条路都要走通
 solution:
 intro a
 intro b
 intro c
 intro h
-intro h1
-intro h2
+intro f
+intro g
 cases h as ha hb
-exact h1 ha
-exact h2 hb
-variant: 把前提换序——(a -> c) -> (b -> c) -> Or a b -> c 还成立吗？
+exact f ha
+exact g hb
+variant: 先 intro 函数再 cases h——试试调换这两步的顺序，体验目标顺序的变化
 ---
 level 4
 name 交换律
 goal: forall (a : Prop), forall (b : Prop), Or a b -> Or b a
-hint: 前提 Or a b 用 cases 分两条路；每条路都用 apply 指向对应方向
+hint: cases h 后目标变成 Or b a——每条分支用相反的构造器
+hint: ha : a 时 apply Or.inr；hb : b 时 apply Or.inl
 solution:
 intro a
 intro b
@@ -58,14 +71,24 @@ apply Or.inl
 exact hb
 ---
 level 5
-name 析取消去与矛盾
-goal: forall (a : Prop), forall (b : Prop), Or a b -> Not a -> b
-hint: cases h 分两路：左路 ha : a 与 hna 矛盾——@False.rec 消去（motive := fun _ => b）；右路 hb : b 直接 exact
+name 结合律
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), Or (Or a b) c -> Or a (Or b c)
+hint: cases h as hab hc 分出两路，目标都是 Or a (Or b c)
+hint: 左路 hab : Or a b 还要再拆一层：cases hab as ha hb
+hint: ha 路 apply Or.inl；hb 路 apply Or.inr 后 apply Or.inl；hc 路 apply Or.inr 两次
 solution:
 intro a
 intro b
+intro c
 intro h
-intro hna
-cases h as ha hb
-exact @False.rec.{0} (fun (anon : False) => b) (hna ha)
+cases h as hab hc
+cases hab as ha hb
+apply Or.inl
+exact ha
+apply Or.inr
+apply Or.inl
 exact hb
+apply Or.inr
+apply Or.inr
+exact hc
+variant: 证反向结合律 Or a (Or b c) -> Or (Or a b) c——重新打包时要选对构造器

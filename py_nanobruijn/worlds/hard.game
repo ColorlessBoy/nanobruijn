@@ -1,6 +1,18 @@
 world Hard
 title 挑战世界：第二公里
 intro 六个世界的技巧在这里合流。每关都是一道组合题，提示会很少——是时候把 And/Or/Not/Exists/Iff 当作真正的工具来用了。
+requires: Combo
+lesson: 本世界是第一部曲的毕业考：分配律双向、构造与消去交错、多路 cases 的目标树管理。
+lesson: 没有新武器，只有更深的地形。遇到复合目标先问一句：它的主连接词是什么？构造器在谁手里？消去要拆哪个前提？
+lesson: 通关本世界，你在内核世界的第一段旅程就完整了——所有星标亮起。之后可以回主线 REPL 玩 #prove 自由证明，或等 Web 版的世界地图。
+example: forall (a : Prop), forall (b : Prop), forall (c : Prop), (a -> b -> c) -> And a b -> c
+intro a
+intro b
+intro c
+intro f
+intro h
+cases h as ha hb
+exact f ha hb
 using: all
 level 1
 name 分配律正向

@@ -4,11 +4,11 @@ from .proof import ProofState
 
 
 class AbortProof(Exception):
-    """abort：放弃本次证明，返回主循环。"""
+    """exit：放弃本次证明，返回主循环（主 REPL 中则退出程序）。"""
 
 
 class ProofDone(Exception):
-    """done 成功：携带完整证明项文本，repl 打印后退出证明子循环。"""
+    """收工信号：全部目标填充后自动触发，携带内核检查通过的证明项文本。"""
 
     def __init__(self, text: str):
         super().__init__(text)
@@ -22,9 +22,8 @@ TACTIC_HELP = (
     "  cases <h>       对上下文变量 h 做情形分析（And/Or/False/Exists → rec 分解）\n"
     "  rewrite <h>     h : a = b 时把目标中所有 a 替换为 b（Eq.rec 自动应用）\n"
     "  exact <e>       当前目标用表达式 e 精确填充（内核检查 e : 目标）\n"
-    "  done            全部目标填充后合成证明项并做内核检查\n"
     "  context         重显当前状态\n"
-    "  abort           放弃本次证明，返回主循环\n"
+    "  exit            放弃本次证明，返回主循环（主 REPL 中则退出程序）\n"
     "  help            显示本帮助\n"
 )
 
@@ -32,7 +31,7 @@ TACTIC_HELP = (
 def run_tactic(state: ProofState, line: str) -> str:
     """执行一行 tactic（可用 `;` 分隔多个）。
 
-    返回展示文本；`done` 抛 ProofDone；`abort` 抛 AbortProof；
+    返回展示文本；全部目标填充时自动收工抛 ProofDone；`exit` 抛 AbortProof；
     tactic 错误抛 ValueError / ParseError（repl 捕获后打印并继续）。
     """
     parts = [p.strip() for p in line.split(";") if p.strip()]
@@ -43,6 +42,8 @@ def run_tactic(state: ProofState, line: str) -> str:
         result = _run_one(state, part)
         if result:
             out = result
+        if state.is_complete():
+            raise ProofDone(state.done())  # 最后一发自动收工 + 内核检查
     return out
 
 
@@ -72,9 +73,7 @@ def _run_one(state: ProofState, line: str) -> str:
         if not rest:
             raise ValueError("rewrite: 缺少等式前提（如 rewrite h）")
         return state.rewrite(rest)
-    if head == "done":
-        raise ProofDone(state.done())
-    if head == "abort":
+    if head == "exit":
         raise AbortProof()
     if head == "context":
         return state.context()

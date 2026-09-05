@@ -6,7 +6,7 @@ import sys
 from ..errors import CheckTimeoutError, ParseError
 from ..ptr import ExprPtr
 from .core import BootstrapCore
-from .game import GameLoader, GameSession
+from .game import SAVES_DIR, GameLoader, GameSession, load_world_order, resolve_profile
 from .parser import parse_expr
 from .pretty import pretty
 from .proof import ProofState
@@ -17,7 +17,7 @@ from .tactics import AbortProof, ProofDone, run_tactic
 BANNER = (
     "py-nanobruijn teaching REPL\n"
     "输入表达式查看类型（等价 #check），或使用命令："
-    "#check/#reduce/#print/#def/#prove/#env/#pp/#help/#quit\n"
+    "#check/#reduce/#print/#def/#prove/#env/#pp/#help/#exit\n"
     "语法：fun (x : A) => e、forall (x : A), e、A -> B、@Const、Type、Prop\n"
     "提示：∀ 可写 forall，→ 可写 ->（纯键盘友好）"
 )
@@ -39,20 +39,35 @@ class _GameSession(Exception):
         self.session = session
 
 
+_CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
+
+
 class Repl:
     def __init__(self, core: BootstrapCore, timeout_secs: float = 5.0,
                  color: bool | None = None, saves_dir: str | None = None,
-                 fresh: bool = False):
+                 fresh: bool = False, save_name: str | None = None,
+                 save_new: bool = False, saves_root: str | None = None):
         self.core = core
         self.timeout_secs = float(timeout_secs)
         self.color = color_enabled(color)
-        self.saves_dir = saves_dir
         self.fresh = fresh  # --fresh：空 env 起步，世界进入时现场定义
         self._loaded_fragments: set[str] = set()
         from .reporting import LearningLog
         self.learning = LearningLog(fresh)
         self.pending_game = None
         self._intro_shown: set[str] = set()
+        self._lesson_shown: set[str] = set()
+        self._last_game: GameSession | None = None
+        # 存档 profile：显式 saves_dir 直接作为档位目录（嵌入用）；
+        # 否则在 saves_root（默认 SAVES_DIR）下解析
+        # （命名档 / 新档 / 续玩 mtime 最新档）
+        if saves_dir is not None:
+            self.saves_dir = saves_dir
+            self.saves_root = os.path.dirname(os.path.abspath(saves_dir))
+        else:
+            self.saves_root = saves_root or SAVES_DIR
+            self.saves_dir = resolve_profile(self.saves_root, save_name,
+                                             save_new)
 
     def _c(self, text: str, color: str) -> str:
         if not self.color:
@@ -72,6 +87,8 @@ class Repl:
             return ("提示只在关卡内可用（#game <世界> 进入后，proof> 提示符下输入 hint）")
         if text == "solution":
             return ("标准解只在关卡内可用（#game <世界> 进入后，proof> 提示符下输入 solution）")
+        if text in ("exit", "#exit"):
+            raise EOFError()
         if text.startswith("#"):
             return self._command(text)
         return self._check(text)
@@ -82,7 +99,7 @@ class Repl:
         rest = parts[1] if len(parts) > 1 else ""
         if cmd == "help":
             return BANNER
-        if cmd == "quit":
+        if cmd == "exit":
             raise EOFError()
         if cmd == "env":
             return "\n".join(self.core.constants())
@@ -96,12 +113,18 @@ class Repl:
             return self._check(rest)
         if cmd == "prove":
             return self._prove(rest)
-        if cmd == "worlds":
-            return self._worlds()
         if cmd == "pp":
             return self._pp_mode(rest)
         if cmd == "game":
             return self._game(rest)
+        if cmd == "lesson":
+            return self._lesson_cmd()
+        if cmd == "example":
+            return self._example_cmd()
+        if cmd == "saves":
+            return self._saves()
+        if cmd == "vocab":
+            return self._vocab()
         return f"unknown command #{cmd} (try #help)"
 
     def _pp_mode(self, text: str) -> str:
@@ -131,7 +154,7 @@ class Repl:
                 name = msg.split("'")[1] if "'" in msg else '?'
                 return self._error(
                     f"{name} 还没被定义！"
-                    f"（#worlds 看世界列表，进对应世界见证它的定义）")
+                    f"（#game 看世界列表，进对应世界见证它的定义）")
             return self._error(msg)
         except (ValueError, CheckTimeoutError) as err:
             return self._error(str(err))
@@ -230,39 +253,116 @@ class Repl:
             return self._error(str(err))
         raise _ProveSession(state)
 
+    def _worlds_dir(self) -> str:
+        return os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                            "worlds")
+
+    def _next_world_hint(self, world_id: str) -> str | None:
+        """课程依赖拓扑序中的下一站（未知世界/末尾返回 None）。"""
+        try:
+            order = load_world_order(self._worlds_dir())
+            i = order.index(world_id)
+        except ValueError:
+            return None
+        return order[i + 1] if i + 1 < len(order) else None
+
     def _worlds(self) -> str:
-        import glob
+        try:
+            order = load_world_order(self._worlds_dir())
+            games = {g.world_id: g for g in GameLoader.load_all(self._worlds_dir())}
+        except ValueError as err:
+            return self._error(str(err))
         lines = []
-        for path in sorted(glob.glob(os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "worlds", "*.game"))):
-            game = GameLoader().load(path)
+        for i, wid in enumerate(order, 1):
+            game = games[wid]
             prog = GameSession(game, saves_dir=self.saves_dir)
             prog.load_progress()
             stars = "".join(str(prog.stars.get(lv.number, "-"))
                             for lv in game.levels)
-            lines.append(f"{game.world_id} — {game.title}"
+            num = _CIRCLED[i - 1] if i <= len(_CIRCLED) else f"{i}."
+            lines.append(f"{num} {game.world_id} — {game.title}"
                          f"（{len(prog.stars)}/{len(game.levels)} 关，"
                          f"星级 {stars}）")
         return "\n".join(lines) or "（暂无世界，worlds/ 目录为空）"
 
+    def _vocab(self) -> str:
+        """#vocab：Lean 4 单词表——主线引导，按进度点亮。"""
+        from .vocab import VOCAB, annotate, render_plain
+        d = self._worlds_dir()
+        order = load_world_order(d)
+        current = None
+        if self._last_game is not None:
+            current = self._last_game.game.world_id
+        else:
+            for wid in order:
+                g = GameLoader().load(os.path.join(d, wid.lower() + ".game"))
+                s = GameSession(g, saves_dir=self.saves_dir)
+                s.load_progress()
+                if s.next_unfinished() is not None:
+                    current = wid
+                    break
+        entries = annotate(VOCAB, current, order)
+        head = (f"Lean 4 词表索引（当前世界：{current or '未开始'}；✓已学 ●本世界 ○待学）\n"
+                "（复习用——每个词的正式教学在对应世界的课堂里）\n")
+        return head + render_plain(entries)
+
+    def _saves(self) -> str:
+        """#saves：列出全部存档档位（关数/星数，当前档位标记）。"""
+        root = self.saves_root
+        if not root or not os.path.isdir(root):
+            return "（无存档目录）"
+        profiles = sorted(
+            (e for e in os.listdir(root)
+             if os.path.isdir(os.path.join(root, e))),
+            key=lambda e: os.path.getmtime(os.path.join(root, e)),
+            reverse=True)
+        if not profiles:
+            return "（暂无存档档位）"
+        try:
+            games = {g.world_id: g for g in GameLoader.load_all(self._worlds_dir())}
+        except ValueError:
+            games = {}
+        cur = os.path.basename(os.path.normpath(self.saves_dir))
+        lines = []
+        for p in profiles:
+            done = stars = total = 0
+            for g in games.values():
+                s = GameSession(g, saves_dir=os.path.join(root, p))
+                s.load_progress()
+                total += len(g.levels)
+                done += len(s.stars)
+                stars += sum(s.stars.values())
+            mark = "（当前）" if p == cur else ""
+            lines.append(f"{p} — {done}/{total} 关，{stars}★{mark}")
+        return "\n".join(lines)
+
     def _game(self, text: str) -> str:
         text = text.strip()
         if not text:
-            return "usage: #game <世界>（如 #game And；#worlds 查看全部）\n       #game <世界> <关卡号>（重玩指定关）"
+            listing = self._worlds()
+            return (f"{listing}\n\n进入：#game <世界>；指定关卡：#game <世界> <关卡号>；"
+                    f"重玩整个世界：#game <世界> replay")
         parts = text.split()
+        replay = len(parts) > 1 and parts[1] == "replay"
+        if replay and len(parts) > 2:
+            return self._error("replay 不接受关卡号——整个世界从第 1 关重打")
         level_no = None
-        if len(parts) > 1:
+        if len(parts) > 1 and not replay:
             try:
                 level_no = int(parts[1])
             except ValueError:
                 return self._error(f"关卡号必须是数字：{parts[1]!r}")
-        err = self.start_game(parts[0], level_no)
+        err = self.start_game(parts[0], level_no, replay=replay)
         if err:
             return self._error(err)
         raise _GameSession(self.pending_game)
 
-    def start_game(self, world_id: str, level_no: int | None = None) -> str | None:
-        """加载世界并构造会话（失败返回错误文本；level_no 指定进入关卡）。"""
+    def start_game(self, world_id: str, level_no: int | None = None,
+                   replay: bool = False) -> str | None:
+        """加载世界并构造会话（失败返回错误文本；level_no 指定进入关卡）。
+
+        replay=True：重玩模式——进度视图清零从第 1 关开始，历史最佳保留。
+        """
         import glob
         path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                             "worlds", world_id.lower() + ".game")
@@ -272,7 +372,7 @@ class Repl:
                              "worlds", "*.game")))
             return f"未知世界 {world_id!r}（可选：{', '.join(known)}）"
         game = GameLoader().load(path)
-        session = GameSession(game, saves_dir=self.saves_dir)
+        session = GameSession(game, saves_dir=self.saves_dir, replay=replay)
         session.load_progress()
         if level_no is not None:
             if not 1 <= level_no <= len(game.levels):
@@ -285,6 +385,46 @@ class Repl:
 
     # ---------- 主循环 ----------
 
+    def _auto_resume(self, stdout) -> None:
+        """交互启动时按当前存档档位续玩：拓扑序第一个进行中的世界。
+
+        只由 run() 在交互模式（stdin is sys.stdin）下调用——
+        --script/--json 通道绝不自动进游戏，防止脚本行落入 proof> 提示符。
+        只考虑玩过的世界（有星标记录）；都没通关时推荐下一站。
+        """
+        d = self._worlds_dir()
+        if not os.path.isdir(d):
+            return
+        try:
+            games = {g.world_id: g for g in GameLoader.load_all(d)}
+        except ValueError:
+            return
+        next_station = None
+        played_any = False
+        for wid in load_world_order(d):
+            session = GameSession(games[wid], saves_dir=self.saves_dir)
+            session.load_progress()
+            if not session.stars:
+                if next_station is None:
+                    next_station = wid
+                continue
+            played_any = True
+            nxt = session.next_unfinished()
+            if nxt is not None:
+                self.pending_game = session
+                print(self._c(
+                    f"欢迎回来——续玩：{wid} 世界（第 {nxt} 关起，"
+                    f"#game 看世界列表）", "cyan"), file=stdout)
+                return
+        if played_any:
+            if next_station:
+                print(self._c(
+                    f"当前存档已通关——下一站：{next_station} 世界"
+                    f"（#game {next_station}）", "cyan"), file=stdout)
+            else:
+                print(self._c("🎉 全部世界通关——自由模式（#saves 管理存档）",
+                              "green"), file=stdout)
+
     def run(self, stdin=None, stdout=None) -> int:
         stdin = stdin or sys.stdin
         stdout = stdout or sys.stdout
@@ -292,9 +432,11 @@ class Repl:
         if self.fresh:
             print(self._c(
                 "本会话从空环境开始——逻辑词会在进入世界时现场定义"
-                "（定义仪式）。用 #worlds 看世界列表。", 'cyan'), file=stdout)
+                "（定义仪式）。用 #game 看世界列表。", 'cyan'), file=stdout)
         print(f"已加载 {len(self.core.constants())} 个常量，输入 #help 查看帮助", file=stdout)
         session_path = self._open_session(stdout)
+        if self.pending_game is None and stdin is sys.stdin:
+            self._auto_resume(stdout)
         while True:
             try:
                 if self.pending_game is not None:
@@ -387,10 +529,19 @@ class Repl:
             print(f"{game.game.title}", file=stdout)
             print(f"{game.game.intro}", file=stdout)
             self._intro_shown.add(game.game.world_id)
+        self._last_game = game
+        if (game.game.world_id not in self._lesson_shown and not game.stars):
+            self._show_lessons(game.game, stdin, stdout)
+            self._run_example(game.game, stdin, stdout)
+        self._lesson_shown.add(game.game.world_id)
         while True:
             no = game.next_unfinished()
             if no is None:
                 print(self._c("🎉 世界通关！全部关卡完成。", "green"), file=stdout)
+                nxt = self._next_world_hint(game.game.world_id)
+                if nxt:
+                    print(self._c(f"下一站：{nxt} 世界——#game {nxt}", "cyan"),
+                          file=stdout)
                 return
             level = game.game.level(no)
             name = level.name or ""
@@ -413,6 +564,70 @@ class Repl:
                 game.advance_after(no)
             elif status == "abandoned":
                 return
+
+    def _show_lessons(self, game, stdin, stdout) -> None:
+        """世界课堂：lesson 段落逐段展示（交互模式回车翻页）。"""
+        if not game.lessons:
+            return
+        print(self._c("📖 课堂", "cyan"), file=stdout)
+        for i, para in enumerate(game.lessons):
+            print(f"  {para}", file=stdout)
+            if stdin is sys.stdin and i < len(game.lessons) - 1:
+                try:
+                    input(self._c("  （回车继续）", "gray"))
+                except EOFError:
+                    return
+
+    def _run_example(self, game, stdin, stdout) -> None:
+        """演示关：逐步执行 example: 脚本（不计星、不记学习日志）。
+
+        交互模式回车步进；非交互（--script/--json）一次性输出。
+        演示脚本损坏只报错跳过，不阻断游戏流程。
+        """
+        if not game.example_goal or not game.example:
+            return
+        print(self._c(f"🎬 演示关：{game.example_goal}", "cyan"), file=stdout)
+        try:
+            goal_ty = parse_expr(self.core, game.example_goal)
+        except (ValueError, ParseError) as err:
+            print(self._error(f"演示关 goal 解析失败: {err}"), file=stdout)
+            return
+        state = ProofState(self.core, goal_ty, self.timeout_secs, self.color)
+        for line in game.example:
+            print(f"{self._c('proof>', 'green')} {line}", file=stdout)
+            try:
+                out = run_tactic(state, line)
+            except ProofDone as done:
+                print(done.text, file=stdout)
+                break
+            except Exception as err:  # noqa: BLE001 - 演示脚本兜底
+                print(self._error(f"{type(err).__name__}: {err}"), file=stdout)
+                break
+            if out:
+                print(out, file=stdout)
+            if stdin is sys.stdin:
+                try:
+                    input(self._c("  （回车继续）", "gray"))
+                except EOFError:
+                    break
+        print(self._c("（演示完毕——下面开始你的第一关）", "gray"), file=stdout)
+
+    def _lesson_cmd(self) -> str:
+        if self._last_game is None:
+            return "先 #game <世界> 进入一个世界（#game 看列表）"
+        g = self._last_game.game
+        if not g.lessons:
+            return f"{g.world_id} 世界没有课堂内容"
+        return "\n".join(g.lessons)
+
+    def _example_cmd(self) -> str:
+        if self._last_game is None:
+            return "先 #game <世界> 进入一个世界（#game 看列表）"
+        import io
+        buf = io.StringIO()
+        self._run_example(self._last_game.game, io.StringIO(), buf)
+        text = buf.getvalue().strip()
+        return text or f"{self._last_game.game.world_id} 世界没有演示关"
 
     def _definition_ceremony(self, game, stdout) -> None:
         """定义仪式：按世界 using: 现场加载 fol 片段（fresh 模式真实加载，
@@ -466,7 +681,7 @@ class Repl:
     def _run_proof(self, state: ProofState, stdin, stdout,
                    session_path: str | None = None, *,
                    level=None, game=None) -> str:
-        """#prove 子循环：proof> 提示符；done/#quit/abort/EOF 退出回到主循环。
+        """#prove 子循环：proof> 提示符；done/exit/EOF 退出回到主循环。
 
         返回 "completed"（通关/完成）或 "abandoned"（放弃）。level/game 非空时
         处于游戏关卡内：hint/solution 命令、ban 检查、步数计数、星级存档。
@@ -494,10 +709,6 @@ class Repl:
                         self.learning.abandon()
                     return "abandoned" if level is not None else "completed"
                 continue
-            if line.strip() == "#quit":
-                if level is not None:
-                    self.learning.abandon()
-                return "abandoned" if level is not None else "completed"
             self._record_session(session_path, line)
             if level is not None:
                 cmd = line.strip()
@@ -514,7 +725,7 @@ class Repl:
                     self.learning.abandon()
                     print("标准解：", file=stdout)
                     print("\n".join(level.solution), file=stdout)
-                    print(self._c("（本关未通关——输入任意命令重新开始本关，或 #quit 回主 REPL）", "gray"), file=stdout)
+                    print(self._c("（本关未通关——输入任意命令重新开始本关，或 exit 回主 REPL）", "gray"), file=stdout)
                     return "retry"
                 blocked = self._game_tactic_check(level, line)
                 if blocked:

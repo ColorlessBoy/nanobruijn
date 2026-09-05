@@ -1,7 +1,18 @@
+# 合取世界：从构造到分解
 world And
 title 合取世界：从构造到分解
 intro 你面前是合取的世界。目标是以 a → b → a ∧ b 为起点的所有通路：构造它（And.intro），拆开它（And.right / And.left，以及 cases）。
-using: and, not
+requires: TrueFalse
+lesson: And a b 读作"a 且 b"：它的证据是一对证据——a 的一份、b 的一份，捆在一起。
+lesson: 构造用 And.intro：手里有 ha : a 和 hb : b 时，And.intro 给出 And a b。拆开用投影：And.left 取左半、And.right 取右半。
+lesson: cases 是投影的合体：对 h : And a b 做 cases h as ha hb，两个分量同时进入上下文。上一关学过的函数推理（Basic 世界）在这里照常工作——命题逻辑就搭在函数类型上。
+example: forall (a : Prop), a -> And a a
+intro a
+intro ha
+apply And.intro
+exact ha
+exact ha
+using: and
 level 1
 name 初见合取
 goal: forall (a : Prop), forall (b : Prop), a -> b -> And a b
@@ -64,16 +75,19 @@ exact hb
 exact ha
 ---
 level 5
-name 矛盾：不可兼得
-goal: forall (a : Prop), forall (b : Prop), Not a -> Not (And a b)
-hint: Not a 就是 a -> False。目标 Not (And a b) 也是函数类型：intro
-hint: 引入 h : And a b 后目标是 False —— cases h 分解出 ha : a，矛盾出现
-hint: 用 hna ha 得到 False，exact 收工
+name 推广到一半
+goal: forall (a : Prop), forall (b : Prop), forall (c : Prop), (a -> b) -> And a c -> And b c
+hint: intro 拆开后手里有 fab : a -> b 和 h : And a c——目标是 And b c
+hint: cases h as ha hc 把前提拆成两份证据
+hint: apply And.intro 拆目标：b 用 exact fab ha，c 用 exact hc
 solution:
 intro a
 intro b
-intro hna
+intro c
+intro fab
 intro h
-cases h as ha hb
-exact hna ha
-variant: 证 Not (Or a b) -> Not b（对称版本，只需改一条路）
+cases h as ha hc
+apply And.intro
+exact fab ha
+exact hc
+variant: 证 (b -> c) -> And a b -> And a c（拆另一半）

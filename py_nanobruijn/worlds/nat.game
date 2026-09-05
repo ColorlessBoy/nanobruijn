@@ -1,13 +1,13 @@
 world Nat
 title 自然数：第一次看见内核计算
+requires: Eq
 using: nat, eq
-intro 你已经用过好几章消除规则：Or.rec、And.rec、Exists.rec——它们都是
-intro axiom，只是"规则的名字"。内核从不执行它们：命题逻辑里一切皆 Prop，
-intro 证明无关性让同命题的证明自动相等，根本不需要计算。
-intro Nat 不一样：它的全部意义就在于计算。#reduce add two two 必须真的
-intro 算出 four——内核按 major 前提的构造子分派消除规则，这一步叫 iota
-intro 归约，是本章的主角。没有 iota，Nat.rec 永远卡住，2+2 只是"一个表达式"。
-intro 口诀：归纳搭骨架（Nat.rec 定 motive），计算填血肉（iota 让分支只需 Eq.refl）。
+intro Nat 是本旅程第一个真正的归纳类型：它的意义就在于计算。
+lesson: 你已经用过好几章消除规则：Or.rec、And.rec、Exists.rec——它们都是 axiom，只是"规则的名字"。内核从不执行它们：命题逻辑里一切皆 Prop，证明无关性让同命题的证明自动相等，根本不需要计算。
+lesson: Nat 不一样：它的全部意义就在于计算。#reduce add two two 必须真的算出 four——内核按 major 前提的构造子分派消除规则，这一步叫 iota 归约，是本章的主角。没有 iota，Nat.rec 永远卡住，2+2 只是"一个表达式"。
+lesson: add 用归纳定义：add zero m = m；add (succ n) m = succ (add n m)。每一关都是"归纳搭骨架（Nat.rec 定 motive），计算填血肉（iota 让分支只需 Eq.refl）"。
+example: @Eq.{1} Nat (add zero one) one
+exact @Eq.refl.{1} Nat one
 level 1
 name 构造：零与后继
 goal: @Eq.{1} Nat (succ zero) (succ zero)
