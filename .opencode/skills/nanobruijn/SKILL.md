@@ -12,9 +12,9 @@ description: "Verify Lean proofs and grade student submissions with the nanobrui
 | 任务 | 命令 |
 |---|---|
 | 验证表达式的类型 | `py-nanobruijn repl --script "#check <expr>"` |
-| 批改学生证明（#prove 草稿） | `--script` 传 `#prove <命题>` + 每行一个 tactic + `done` |
+| 批改学生证明（#prove 草稿） | `--script` 传 `#prove <命题>` + 每行一个 tactic（最后一发 tactic 填完自动收工并触发内核检查，无需 done） |
 | 查常量/定理 | `--script "#print <name>"`（axiom/def/theorem 及其值） |
-| 游戏关卡可解性 | `--script` 先 `#game <世界> <关卡号>`（定位到具体关）再传该关标准解——注意会写入 `py_nanobruijn/saves/`（有状态），想干净验证先删对应存档 |
+| 游戏关卡可解性 | `--script` 先 `#game <世界> <关卡号>`（定位到具体关）再传该关标准解——最后一发 tactic 填完自动收工并做内核检查。注意会写入 `py_nanobruijn/saves/`（有状态），想干净验证先删对应存档；删存档后首次进世界会先打印 lesson 课堂 + 演示关输出（一次性噪音，不消费脚本行，不影响后续关卡解析） |
 | 机器可读输出 | 加 `--json`（{"ok": bool, "output": str}），错误时返回码非 0 |
 | 空环境体验 | `--fresh`（`--game` 隐含）：从零开始，进世界时"定义仪式"现场加载 fol 片段 |
 
@@ -45,5 +45,6 @@ description: "Verify Lean proofs and grade student submissions with the nanobrui
 
 - Nat 字面量（如 `#check 42`）v1 教学核心不支持
 - 隐式参数不自动填充：`@And True True` 显式传参
+- `apply` 只接受**常量名**（如 And.intro）；要应用上下文里的前提（如 `fab : a -> b`）用 `exact fab ha` 合成应用
 - `Prop : Sort 1`：Exists 需 `@Exists.{1} Prop p`
 - 超时保护：默认 5.0s，大项加 `--timeout`

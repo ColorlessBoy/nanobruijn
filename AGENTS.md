@@ -31,7 +31,10 @@ py_nanobruijn/
   __main__.py                                       # CLI: check / inspect / repl
   teaching/                                         # 教学 REPL（见下）
     game.py                                         # GameLoader + GameSession（.game 关卡 + 星级/存档）
-  worlds/*.game                                     # 9 个闯关世界（And/Or/Not/Exists/Iff/Combo/Hard/Eq/Nat，48 关）
+    web_server.py                                   # Web 版：无头会话引擎 + 零依赖 HTTP（teaching/web/ 前端）
+    tui.py                                          # agent 式 TUI（textual）：对话流 + 常驻习题卡
+    llm.py                                          # 助教层（OpenAI 兼容 API，stdlib 流式）——内核唯一裁判
+  worlds/*.game                                     # 11 个闯关世界（Basic/TrueFalse/And/Or/Not/Exists/Iff/Eq/Nat/Combo/Hard，61 关）
 ```
 
 内核约定（重要）：
@@ -57,7 +60,7 @@ py_nanobruijn/
   按 `.game` 的 `using:` 字段**现场定义**（定义仪式，依赖自动补齐）
 - 命令：`#check <e>`（默认，直接输入表达式）/ `#reduce <e>`（逐步 β/δ/ι 归约，[iota] 步为 recursor 消除计算）/
   `#pp on|off`（显示模式：exact=内核精确 ↔ readable=Lean 风格——隐式隐藏/中缀记号/⟨⟩；纯显示层变换，输入不变）/
-  `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#quit`；
+  `#print <name>` / `#prove <类型>`（tactic 草稿）/ `#env` / `#help` / `#exit`；
   每行新 `TypeChecker`（`--timeout` 防卡死）
 - CLI：`repl --script "<多行文本，以真实换行分隔>"` 非交互执行（EOF 自动退出）；
   `--json` 输出机器可读 JSON `{"ok": bool, "output": str}`（agent 集成，错误时
@@ -82,23 +85,52 @@ py_nanobruijn/
 
 ## GAME 模式（闯关世界，py_nanobruijn/teaching/game.py + worlds/）
 
-- 9 个世界：And/Or/Not/Exists/Iff/Combo/Hard/Eq/Nat（48 关，见 `worlds/*.game`，
-  `using:` 字段声明所需 fol 片段）；
-  启动：`repl --game <世界>`，或 REPL 内 `#game <世界>` / `#worlds`（列出全部与完成度）
+- 11 个世界：Basic/TrueFalse/And/Or/Not/Exists/Iff/Eq/Nat/Combo/Hard（61 关，
+  见 `worlds/*.game`）；`using:` 声明所需 fol 片段（定义仪式），`requires:` 声明
+  课程前置世界——`#game`（无参数）按 requires 拓扑序列出世界（`load_world_order`），
+  循环/未知前置在加载时报错；自由进入不做硬解锁；
+  启动：`repl --game <世界>`，或 REPL 内 `#game <世界>`（`#game` 无参数列出全部与完成度）
+- 进世界流程：定义仪式 → title+intro → `lesson:` 课堂段落（交互回车翻页）→
+  `example:` 演示关（逐行自动执行，交互回车步进；--script/--json 一次性输出；
+  不计星不记学习日志）→ 第 1 关；有存档或本会话已展示过则跳过；
+  主 REPL 命令 `#lesson` / `#example` 重看；世界通关后提示"下一站"（requires 拓扑序）
 - 关卡内（`proof>` 提示符）额外命令：`hint`（逐条提示，每条 hint 降一星）/
-  `solution`（显示标准解并放弃本关回主 REPL，不记星）；`abort`/`#quit` 放弃关卡
-  回主 REPL
+  `solution`（显示标准解并放弃本关回主 REPL，不记星）；`exit` 放弃关卡回主 REPL
+  （主 REPL 中 exit 退出程序）；`#game <世界> replay` 从第 1 关重打整个世界
+  （进度视图清零，历史最佳星标保留——只升不降）
 - 星级（`GameSession.complete`）：3★ = 无 hint 且步数 ≤ 标准解行数 + 2；2★ = 1 条 hint 或步数超限；
   1★ = ≥2 条 hint；步数只计 STEP_TACTICS（intro/apply/exact/cases/rewrite）；`ban:` 字段禁用的
   tactic 直接拒绝并提示换路
-- 存档：`py_nanobruijn/saves/<world_id>.json`（`{"stars": {...}}`，已 gitignore）；
+- 存档 profile：`saves/<profile>/<world_id>.json`（`{"stars": {...}}`，已 gitignore）
+  ——像 sessions/ 一样按次累积可管理：默认续玩最近活动档（档内存档文件 mtime，
+  空档跳过；旧扁平存档自动迁移到 `default/`），`--new` 新开时间戳档（旧档保留），
+  `--save <名>` 命名档位，`#saves` 列表（关数/星数/当前标记）；
+  交互启动自动续玩拓扑序第一个进行中的世界（`_auto_resume`，只续玩过的世界；
+  **`--script`/`--json` 通道绝不自动进游戏**——stdin 不是 sys.stdin 即关闭）；
   学习报告 `reports/*.md`（退出时生成：星级/回放/卡点）与问题上报
   `feedback/*.json`（同关连错 3 次交互询问，y 后可选留言）——见 teaching/reporting.py；
   `GameSession.load_progress` 启动时读取；通关条件 = 每关至少 1★（`next_unfinished`）
 - `.game` 格式（行式，`#` 注释）：`world <id>` / `title <标题>` / `intro <叙事>` /
+  `requires: <世界>`（可多个，课程依赖决定拓扑序）/ `lesson: <段落>`（可多个，课堂文本）/
+  `example: <命题>` 后跟演示脚本行（块尾字段，同 solution 收集规则——`intro` 是 tactic
+  与世界 intro 字段撞名，故 example 块后只跟 `level`/`---`/文件尾）/
   `level <n>` / `name <关名>` / `goal: <命题>` / `hint: <文本>`（可多个）/
   `ban: <tactic>`（可多个）/ `solution:` 后跟标准解脚本行，到 `---`/`level`/文件尾结束
+- 关卡命题的依赖必须 ⊆ requires 链已教概念（And/Or 世界禁用 Not；moved 关卡进
+  Not 世界）——`TestWorldContent`/`TestGameTutorial`/`TestWorldSolutions` 三层守门
   （见 game.py docstring）
+- **Web 版**（`python -m py_nanobruijn web [--port 8765]`）：浏览器游戏（Python
+  服务 + TS 客户端，`TestWebApp` 守门）——`WebApp` 无头状态机复用 Repl/
+  GameSession/ProofState 原语，stdlib HTTP（`POST /api` JSON RPC + 静态文件）；
+  前端 `teaching/web/app.ts`（esbuild 打包为 app.js 并提交，改 TS 后需重新构建）；
+  tactic 自动收工（无 done）；目标显示 `? : 类型`（待填洞语义）；演示关由服务端
+  预计算每步目标状态；`tui`（textual，需 `pip install textual`）是 agent 式
+  对话流 + 常驻习题卡，与 Web 同用 WebApp 引擎。升级路线：RPC 协议不变，
+  内核可切换 Rust-WASM（路线②）去服务化
+- **助教层**（`llm.py`，可选）：OpenAI 兼容 API（env：`NANOBRUIJN_LLM_KEY`/
+  `BASE_URL`/`MODEL`）——内核报错时 TUI 自动流式讲解、`ask` 实时提问；
+  铁律：**内核唯一裁判**，LLM 只拿内核局面（tutor_state）做苏格拉底式提示，
+  永不判对错、不给完整证明；未配 key 时静默降级。测试用 stub tutor（不联网）
 
 ## 约定
 
