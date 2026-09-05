@@ -1108,8 +1108,8 @@ class TestRepl:
     def test_env(self):
         r = self.make_repl()
         out = r.process_line("#env")
-        assert "And" in out
-        assert "True" in out
+        assert "And : " in out          # 名字 + 类型
+        assert "True : " in out
 
     def test_unknown_command(self):
         r = self.make_repl()
@@ -1898,13 +1898,13 @@ class TestGameTutorial:
     def test_worlds_numbered_in_order(self):
         r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = r.process_line("#game")
-        assert out.index("① Basic") < out.index("② TrueFalse") \
-            < out.index("③ And") < out.index("⑤ Not") < out.index("⑪ Hard")
+        assert out.index("1. Basic") < out.index("2. TrueFalse") \
+            < out.index("3. And") < out.index("5. Not") < out.index("11. Hard")
 
     def test_game_no_args_shows_order(self):
         r = Repl(make_bootstrap(), saves_dir=tempfile.mkdtemp())
         out = r.process_line("#game")
-        assert "① Basic" in out and "⑪ Hard" in out
+        assert "1. Basic" in out and "11. Hard" in out
         assert "进入：#game <世界>" in out
 
     def test_next_world_hint(self):
@@ -2086,6 +2086,17 @@ class TestGameSaves:
         assert "2/61" in out  # 已通关数/总关数
 
     # ---- 自动续玩 ----
+
+    def test_fresh_no_auto_resume(self, tmp_path, monkeypatch):
+        """--fresh 显式要空环境：绝不自动续玩（文档承诺）。"""
+        import io
+        r = self._repl(tmp_path)
+        self._save(r, "Or", {1: 3})     # 有进行中的存档
+        r.fresh = True
+        out = io.StringIO()
+        r.run(stdin=io.StringIO("exit\n"), stdout=out)
+        assert r.pending_game is None   # 没被拽进续玩
+        assert "空环境" in out.getvalue() and "欢迎回来" not in out.getvalue()
 
     def test_auto_resume_picks_first_unfinished(self, tmp_path):
         import io

@@ -201,8 +201,9 @@ class _ExprParser:
             self.expect_sym("=>")
         except ParseError:
             raise ParseError(
-                "fun 只接受一个 binder：`fun (w : Prop) => ...`。多个 binder 要"
-                "嵌套写：`fun (w : Prop) => fun (hw : p w) => ...`") from None
+                f"fun 只接受一个 binder：`fun ({binder[0]} : ...) => ...`。"
+                "多个 binder 要嵌套写："
+                f"`fun ({binder[0]} : ...) => fun (y : ...) => ...`") from None
         self.binders.append(binder[0])
         try:
             body = self.parse_arrow()

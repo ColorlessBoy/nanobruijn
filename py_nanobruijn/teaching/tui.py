@@ -21,8 +21,6 @@ from .game import load_world_order
 from .llm import TOOLS
 from .web_server import WebApp
 
-CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪"
-
 
 def _stars(n: int) -> str:
     return f"[#ffd166]{'★' * n}[/][#3a4356]{'☆' * (3 - n)}[/]"
@@ -33,7 +31,7 @@ def _term_rich(term: str) -> str:
 
 
 class WorldList(OptionList):
-    """侧栏：①-⑪ 世界（课程拓扑序 + 进度 + 星标）。"""
+    """侧栏：世界列表（课程拓扑序 + 进度 + 星标）。"""
 
 
 class ConstList(OptionList):
@@ -163,7 +161,7 @@ class NanobruijnTui(App[None]):
         wl = self.query_one("#worlds", WorldList)
         wl.clear_options()
         for w in data["worlds"]:
-            num = CIRCLED[w["index"] - 1] if w["index"] <= 11 else str(w["index"])
+            num = f'{w["index"]}.'
             star_str = " ".join(_stars(s) for s in w["stars"])
             wl.add_option(Option(
                 f"[b]{num} {w['id']}[/] [dim]{w['title']}[/]\n"
@@ -314,10 +312,9 @@ class NanobruijnTui(App[None]):
         parts = line.split()
         if line == "#game":
             data = self.engine.rpc("worlds")
-            circled = CIRCLED
             lines = []
             for w in data["worlds"]:
-                num = circled[w["index"] - 1] if w["index"] <= 11 else str(w["index"])
+                num = f'{w["index"]}.'
                 lines.append(f"{num} {w['id']} — {w['title']}"
                              f"（{w['done']}/{w['total']} 关）")
             self.say("\n".join(lines) + "\n\n进入：#game <世界>", cls="msg-dim")

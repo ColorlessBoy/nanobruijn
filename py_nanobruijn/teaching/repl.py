@@ -39,7 +39,6 @@ class _GameSession(Exception):
         self.session = session
 
 
-_CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
 
 
 class Repl:
@@ -102,7 +101,12 @@ class Repl:
         if cmd == "exit":
             raise EOFError()
         if cmd == "env":
-            return "\n".join(self.core.constants())
+            decls = self.core.env.declars
+            lines = [f"{self.core.name_to_string(n)} : "
+                     f"{pretty(self.core, ExprPtr.closed(d.info.ty), self.color)}"
+                     for n, d in decls.items()]
+            return ("\n".join(lines) if lines
+                    else "（空环境——#def 或 #game 进世界定义第一个词）")
         if cmd == "print":
             return self._print_const(rest)
         if cmd == "def":
@@ -279,7 +283,7 @@ class Repl:
             prog.load_progress()
             stars = "".join(str(prog.stars.get(lv.number, "-"))
                             for lv in game.levels)
-            num = _CIRCLED[i - 1] if i <= len(_CIRCLED) else f"{i}."
+            num = f"{i}."
             lines.append(f"{num} {game.world_id} — {game.title}"
                          f"（{len(prog.stars)}/{len(game.levels)} 关，"
                          f"星级 {stars}）")
@@ -435,7 +439,7 @@ class Repl:
                 "（定义仪式）。用 #game 看世界列表。", 'cyan'), file=stdout)
         print(f"已加载 {len(self.core.constants())} 个常量，输入 #help 查看帮助", file=stdout)
         session_path = self._open_session(stdout)
-        if self.pending_game is None and stdin is sys.stdin:
+        if self.pending_game is None and stdin is sys.stdin and not self.fresh:
             self._auto_resume(stdout)
         while True:
             try:
